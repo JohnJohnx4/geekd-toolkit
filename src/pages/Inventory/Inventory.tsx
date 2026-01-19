@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 
 import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 import { useItems } from "../../lib/useItems";
 import BasicSpeedDial from "../../components/SpeedDial";
@@ -40,11 +41,15 @@ export default function InventoryPage() {
     setStockStatus,
     stockStatus,
     setItemType,
+    deleteItem,
   } = useItems();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkType, setBulkType] = useState<string>("");
+
+  const [deleteTarget, setDeleteTarget] = useState<InventoryItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const summary = useMemo(() => {
     const total = items.length;
@@ -115,6 +120,15 @@ export default function InventoryPage() {
   const handleEditItem = (item: InventoryItem, e: React.MouseEvent) => {
     e.stopPropagation();
     navigate({ to: `/inventory/settings/${item.id}` });
+  };
+
+  const handleDeleteTargetItem = () => {
+    setDeleting(true);
+    if (deleteTarget) {
+      deleteItem(deleteTarget);
+      setDeleteTarget(null);
+    }
+    setDeleting(false);
   };
 
   return (
@@ -292,14 +306,26 @@ export default function InventoryPage() {
                           </Typography>
                         </div>
 
-                        <Chip
-                          sx={{
-                            fontSize: 14,
-                            fontWeight: 600,
-                          }}
-                          label={`${item.storageQty}`}
-                          color={hasStock ? "success" : "error"}
-                        />
+                        <div>
+                          <Chip
+                            sx={{
+                              fontSize: 14,
+                              fontWeight: 600,
+                            }}
+                            label={`${item.storageQty}`}
+                            color={hasStock ? "success" : "error"}
+                          />
+                          <IconButton
+                            color="error"
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteTarget(item);
+                            }}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </div>
                       </Box>
 
                       {/* Bar status */}
@@ -365,6 +391,40 @@ export default function InventoryPage() {
             </Button>
           </DialogActions>
         </Dialog>
+        <Dialog
+          open={!!deleteTarget}
+          onClose={() => !deleting && setDeleteTarget(null)}
+        >
+          <DialogTitle>Delete Item</DialogTitle>
+
+          <DialogContent>
+            <DialogContentText>
+              Are you sure you want to delete{" "}
+              <strong>{deleteTarget?.name}</strong>?
+              <br />
+              This action cannot be undone.
+            </DialogContentText>
+          </DialogContent>
+
+          <DialogActions>
+            <Button
+              disabled={!deleteTarget || deleting}
+              onClick={() => setDeleteTarget(null)}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              color="error"
+              variant="contained"
+              onClick={handleDeleteTargetItem}
+              disabled={deleting}
+            >
+              {deleting ? "Deleting…" : "Delete"}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
         <div style={{ position: "fixed", bottom: 80, right: 16 }}>
           <BasicSpeedDial handleDelete={() => setConfirmOpen(true)} />
         </div>

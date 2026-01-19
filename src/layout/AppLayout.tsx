@@ -13,7 +13,6 @@ import {
 } from "@mui/material";
 
 import GeekLogo from "../assets/GEEKD-Logo.png";
-import WeakestLinkIcon from "@mui/icons-material/Extension";
 import MenuIcon from "@mui/icons-material/Menu";
 import HomeIcon from "@mui/icons-material/Home";
 import PrizingIcon from "@mui/icons-material/EmojiEvents";
@@ -76,12 +75,6 @@ export default function AppLayout() {
                   <InventoryIcon fontSize="small" />
                 </ListItemIcon>
                 <ListItemText>Inventory</ListItemText>
-              </MenuItem>
-              <MenuItem onClick={() => handleNavigation("/weakest-link")}>
-                <ListItemIcon>
-                  <WeakestLinkIcon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText>Weakest Link</ListItemText>
               </MenuItem>
               <MenuItem onClick={() => handleNavigation("/cash-calculator")}>
                 <ListItemIcon>

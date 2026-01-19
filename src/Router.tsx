@@ -12,7 +12,6 @@ import AddItemPage from "./pages/Inventory/AddItemPage";
 import ItemSettingsPage from "./pages/Inventory/ItemSettingsPage";
 import OptionsPage from "./pages/OptionsPage";
 import StaircasePrizingCalculator from "./pages/PrizingCalculator";
-import WeakestLinkTracker from "./pages/WeakestLink";
 import LandingPage from "./pages/LandingPage";
 import InventoryLayout from "./layout/InventoryLayout";
 import CashCalculator from "./pages/CashCalculator";
@@ -81,12 +80,6 @@ const prizingRoute = createRoute({
   component: StaircasePrizingCalculator,
 });
 
-const weakestLinkRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/weakest-link",
-  component: WeakestLinkTracker,
-});
-
 const cashCalculatorRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/cash-calculator",
@@ -103,7 +96,6 @@ const routeTree = rootRoute.addChildren([
   addRoute,
   optionsRoute,
   prizingRoute,
-  weakestLinkRoute,
   barLayoutRoute,
   inventoryRoute,
   cashCalculatorRoute,

@@ -132,6 +132,10 @@ export function useItems() {
     return item;
   };
 
+  const deleteItem = async (item: InventoryItem) => {
+    await db.items.delete(item.id);
+  };
+
   return {
     items,
     visibleItems,
@@ -154,5 +158,6 @@ export function useItems() {
     clearDatabase,
     updateItemTypeBulk,
     getItemById,
+    deleteItem,
   };
 }

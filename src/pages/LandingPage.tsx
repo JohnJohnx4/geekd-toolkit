@@ -35,13 +35,6 @@ const LandingPage = () => {
         >
           Prizing Calculator
         </Button>
-        <Button
-          variant="contained"
-          sx={{ p: 2 }}
-          onClick={() => navigate({ to: "/weakest-link" })}
-        >
-          Weakest Link
-        </Button>
       </Stack>
     </Container>
   );
