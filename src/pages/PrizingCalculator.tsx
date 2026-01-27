@@ -27,7 +27,7 @@ import ArrowDownwardIcon from "@mui/icons-material/ArrowDropDown";
 function calculateStaircasePrizing(
   playerCount: number,
   topCut: number,
-  packsPerPlayer = 2
+  packsPerPlayer = 2,
 ): number[] {
   const totalPacks = playerCount * packsPerPlayer;
   if (topCut <= 0 || topCut > totalPacks) return [];
@@ -52,28 +52,33 @@ export default function StaircasePrizingCalculator() {
   const [players, setPlayers] = useState("16");
   const [topCut, setTopCut] = useState("4");
   const [creditPerPack, setCreditPerPack] = useState("4");
+  const [packsPerEntry, setPacksPerEntry] = useState("2");
+  const packsPerEntryNum = Number(packsPerEntry) || 0;
 
   const playersNum = Number(players) || 0;
   const topCutNum = Number(topCut) || 0;
   const creditNum = Number(creditPerPack) || 0;
 
   const prizes = useMemo(
-    () => calculateStaircasePrizing(playersNum, topCutNum),
-    [playersNum, topCutNum]
+    () => calculateStaircasePrizing(playersNum, topCutNum, packsPerEntryNum),
+    [playersNum, topCutNum, packsPerEntryNum],
   );
 
   const basePrizes = useMemo(
-    () => calculateStaircasePrizing(playersNum, topCutNum),
-    [playersNum, topCutNum]
+    () => calculateStaircasePrizing(playersNum, topCutNum, packsPerEntryNum),
+    [playersNum, topCutNum, packsPerEntryNum],
   );
 
   const [editablePrizes, setEditablePrizes] = useState<number[]>(basePrizes);
 
-  const totalPacks = playersNum * 2;
+  const totalPacks = playersNum * packsPerEntryNum;
+
   const totalCredit = totalPacks * creditNum;
 
   const handleIncrement = (target: string) => {
-    if (target === "players") {
+    if (target === "packsPerEntry") {
+      setPacksPerEntry((prev) => String(Number(prev) + 1));
+    } else if (target === "players") {
       setPlayers((prev) => {
         const num = Number(prev);
         return num < 0 ? "0" : String(num + 1);
@@ -92,7 +97,11 @@ export default function StaircasePrizingCalculator() {
   };
 
   const handleDecrement = (target: string) => {
-    if (target === "players") {
+    if (target === "packsPerEntry") {
+      setPacksPerEntry((prev) =>
+        Number(prev) <= 0 ? "0" : String(Number(prev) - 1),
+      );
+    } else if (target === "players") {
       setPlayers((prev) => {
         const num = Number(prev);
         return num <= 1 ? "1" : String(num - 1);
@@ -168,6 +177,27 @@ export default function StaircasePrizingCalculator() {
               fullWidth
             />
             <IconButton onClick={() => handleIncrement("players")}>
+              <ControlPointIcon />
+            </IconButton>
+          </Stack>
+
+          <Stack direction={"row"} mb={2}>
+            <IconButton onClick={() => handleDecrement("packsPerEntry")}>
+              <RemoveCircleOutlineIcon />
+            </IconButton>
+
+            <TextField
+              label="Packs per Entry"
+              type="number"
+              value={packsPerEntry}
+              onChange={(e) => setPacksPerEntry(e.target.value)}
+              onBlur={() => {
+                if (Number(packsPerEntry) < 0) setPacksPerEntry("0");
+              }}
+              fullWidth
+            />
+
+            <IconButton onClick={() => handleIncrement("packsPerEntry")}>
               <ControlPointIcon />
             </IconButton>
           </Stack>
@@ -250,10 +280,10 @@ export default function StaircasePrizingCalculator() {
                       {index === 0
                         ? "st"
                         : index === 1
-                        ? "nd"
-                        : index === 2
-                        ? "rd"
-                        : "th"}
+                          ? "nd"
+                          : index === 2
+                            ? "rd"
+                            : "th"}
                     </Typography>
 
                     <Stack direction="row" spacing={1}>
