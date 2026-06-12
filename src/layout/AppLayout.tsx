@@ -17,6 +17,7 @@ import MenuIcon from "@mui/icons-material/Menu";
 import HomeIcon from "@mui/icons-material/Home";
 import PrizingIcon from "@mui/icons-material/EmojiEvents";
 import MoneyIcon from "@mui/icons-material/Money";
+import CatchingPokemonIcon from "@mui/icons-material/CatchingPokemon";
 
 export default function AppLayout() {
   const navigate = useNavigate();
@@ -80,6 +81,12 @@ export default function AppLayout() {
                   <PrizingIcon fontSize="small" />
                 </ListItemIcon>
                 <ListItemText>Prizing Calculator</ListItemText>
+              </MenuItem>
+              <MenuItem onClick={() => handleNavigation("/pokemon-set-symbols")}>
+                <ListItemIcon>
+                  <CatchingPokemonIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Pokemon Set Symbols</ListItemText>
               </MenuItem>
             </Menu>
           </Stack>

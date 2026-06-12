@@ -9,6 +9,7 @@ import OptionsPage from "./pages/OptionsPage";
 import StaircasePrizingCalculator from "./pages/PrizingCalculator";
 import LandingPage from "./pages/LandingPage";
 import CashCalculator from "./pages/CashCalculator";
+import PokemonSetSymbolsPage from "./pages/PokemonSetSymbolsPage";
 
 // --------------------
 // Root layout
@@ -44,6 +45,12 @@ const cashCalculatorRoute = createRoute({
   component: CashCalculator,
 });
 
+const pokemonSetSymbolsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/pokemon-set-symbols",
+  component: PokemonSetSymbolsPage,
+});
+
 // --------------------
 // Route tree
 // --------------------
@@ -52,6 +59,7 @@ const routeTree = rootRoute.addChildren([
   optionsRoute,
   prizingRoute,
   cashCalculatorRoute,
+  pokemonSetSymbolsRoute,
 ]);
 
 export const router = createRouter({ routeTree });
