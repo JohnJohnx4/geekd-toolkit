@@ -1,5 +1,5 @@
 {
-  "name": "bar-inventory",
+  "name": "geekd-toolkit",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -14,15 +14,9 @@
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.3.6",
     "@mui/material": "^7.3.6",
-    "@mui/styled-engine-sc": "^7.3.6",
     "@tanstack/react-router": "^1.145.11",
-    "dexie": "^4.2.1",
-    "dexie-react-hooks": "^4.2.0",
-    "nanoid": "^5.1.6",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "react-router-dom": "^7.11.0",
-    "styled-components": "^6.1.19"
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

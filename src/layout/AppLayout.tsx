@@ -16,7 +16,6 @@ import GeekLogo from "../assets/GEEKD-Logo.png";
 import MenuIcon from "@mui/icons-material/Menu";
 import HomeIcon from "@mui/icons-material/Home";
 import PrizingIcon from "@mui/icons-material/EmojiEvents";
-import InventoryIcon from "@mui/icons-material/Inventory";
 import MoneyIcon from "@mui/icons-material/Money";
 
 export default function AppLayout() {
@@ -69,12 +68,6 @@ export default function AppLayout() {
                   <HomeIcon fontSize="small" />
                 </ListItemIcon>
                 <ListItemText>Home</ListItemText>
-              </MenuItem>
-              <MenuItem onClick={() => handleNavigation("/inventory/bar")}>
-                <ListItemIcon>
-                  <InventoryIcon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText>Inventory</ListItemText>
               </MenuItem>
               <MenuItem onClick={() => handleNavigation("/cash-calculator")}>
                 <ListItemIcon>
