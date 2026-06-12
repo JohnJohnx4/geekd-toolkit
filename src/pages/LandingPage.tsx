@@ -17,13 +17,6 @@ const LandingPage = () => {
         <Button
           variant="contained"
           sx={{ p: 2 }}
-          onClick={() => navigate({ to: "/inventory/bar" })}
-        >
-          Inventory Management
-        </Button>
-        <Button
-          variant="contained"
-          sx={{ p: 2 }}
           onClick={() => navigate({ to: "/cash-calculator" })}
         >
           Cashout / Deposit Calculator

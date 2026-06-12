@@ -5,15 +5,9 @@ import {
 } from "@tanstack/react-router";
 
 import AppLayout from "./layout/AppLayout";
-import InventoryPage from "./pages/Inventory/Inventory";
-import BarRestockPage from "./pages/Inventory/BarInventoryPage";
-import StockingModePage from "./pages/Inventory/StockRoomInventoryPage";
-import AddItemPage from "./pages/Inventory/AddItemPage";
-import ItemSettingsPage from "./pages/Inventory/ItemSettingsPage";
 import OptionsPage from "./pages/OptionsPage";
 import StaircasePrizingCalculator from "./pages/PrizingCalculator";
 import LandingPage from "./pages/LandingPage";
-import InventoryLayout from "./layout/InventoryLayout";
 import CashCalculator from "./pages/CashCalculator";
 
 // --------------------
@@ -30,42 +24,6 @@ const dashboardRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
   component: LandingPage,
-});
-
-const inventoryLayoutRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/inventory",
-  component: InventoryLayout,
-});
-
-const inventoryRoute = createRoute({
-  getParentRoute: () => inventoryLayoutRoute,
-  path: "/overview",
-  component: InventoryPage,
-});
-
-const barLayoutRoute = createRoute({
-  getParentRoute: () => inventoryLayoutRoute,
-  path: "/bar",
-  component: BarRestockPage,
-});
-
-export const inventorySettingsRoute = createRoute({
-  getParentRoute: () => inventoryLayoutRoute,
-  path: "settings/$itemID",
-  component: ItemSettingsPage,
-});
-
-const storageRoute = createRoute({
-  getParentRoute: () => inventoryLayoutRoute,
-  path: "/115",
-  component: StockingModePage,
-});
-
-const addRoute = createRoute({
-  getParentRoute: () => inventoryLayoutRoute,
-  path: "/add",
-  component: AddItemPage,
 });
 
 const optionsRoute = createRoute({
@@ -91,13 +49,8 @@ const cashCalculatorRoute = createRoute({
 // --------------------
 const routeTree = rootRoute.addChildren([
   dashboardRoute,
-  inventoryLayoutRoute.addChildren([inventorySettingsRoute]),
-  storageRoute,
-  addRoute,
   optionsRoute,
   prizingRoute,
-  barLayoutRoute,
-  inventoryRoute,
   cashCalculatorRoute,
 ]);
 
