@@ -35,6 +35,13 @@ const LandingPage = () => {
         >
           Pokemon Set Symbols
         </Button>
+        <Button
+          variant="contained"
+          sx={{ p: 2 }}
+          onClick={() => navigate({ to: "/mtg-set-symbols" })}
+        >
+          MTG Set Symbols
+        </Button>
       </Stack>
     </Container>
   );

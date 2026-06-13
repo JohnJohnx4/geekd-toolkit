@@ -18,6 +18,7 @@ import HomeIcon from "@mui/icons-material/Home";
 import PrizingIcon from "@mui/icons-material/EmojiEvents";
 import MoneyIcon from "@mui/icons-material/Money";
 import CatchingPokemonIcon from "@mui/icons-material/CatchingPokemon";
+import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 
 export default function AppLayout() {
   const navigate = useNavigate();
@@ -87,6 +88,12 @@ export default function AppLayout() {
                   <CatchingPokemonIcon fontSize="small" />
                 </ListItemIcon>
                 <ListItemText>Pokemon Set Symbols</ListItemText>
+              </MenuItem>
+              <MenuItem onClick={() => handleNavigation("/mtg-set-symbols")}>
+                <ListItemIcon>
+                  <AutoFixHighIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>MTG Set Symbols</ListItemText>
               </MenuItem>
             </Menu>
           </Stack>
