@@ -43,12 +43,26 @@ export default function AppLayout() {
     <Box sx={{ pb: 7 }}>
       <AppBar position="sticky">
         <Toolbar>
-          <img
-            src={GeekLogo}
-            style={{
-              width: "72px",
+          <Box
+            component="button"
+            type="button"
+            onClick={() => handleNavigation("/")}
+            sx={{
+              p: 0,
+              border: 0,
+              bgcolor: "transparent",
+              cursor: "pointer",
+              lineHeight: 0,
             }}
-          />
+            aria-label="Go home"
+          >
+            <img
+              src={GeekLogo}
+              style={{
+                width: "72px",
+              }}
+            />
+          </Box>
 
           <Stack direction="row" sx={{ ml: "auto" }}>
             <IconButton onClick={handleClick} sx={{ ml: "auto" }}>
