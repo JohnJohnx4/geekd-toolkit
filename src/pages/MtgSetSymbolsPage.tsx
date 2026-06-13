@@ -19,43 +19,120 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import SearchIcon from "@mui/icons-material/Search";
 
 import { mtgSets, mtgSetSymbolSource } from "../data/mtgSets";
+import type { MtgSet } from "../data/mtgSets";
+
+type MtgSymbolGroup = {
+  id: string;
+  primary: MtgSet;
+  related: MtgSet[];
+};
 
 const normalize = (value: string) => value.toLowerCase().trim();
+
+const setTypePriority = [
+  "Expansion",
+  "Core",
+  "Masters",
+  "Draft Innovation",
+  "Commander",
+  "Alchemy",
+  "Funny",
+  "Starter",
+  "Duel Deck",
+  "From The Vault",
+  "Spellbook",
+  "Premium Deck",
+  "Planechase",
+  "Archenemy",
+  "Box",
+  "Promo",
+  "Token",
+  "Art Series",
+  "Minigame",
+  "Memorabilia",
+];
+
+const setPriority = (set: MtgSet) => {
+  const typeIndex = setTypePriority.indexOf(set.setType);
+  const normalizedTypeIndex =
+    typeIndex === -1 ? setTypePriority.length : typeIndex;
+
+  return normalizedTypeIndex * 100000 - set.cardCount;
+};
+
+const searchTextForGroup = (group: MtgSymbolGroup) =>
+  normalize(
+    group.related
+      .map(
+        (set) =>
+          `${set.name} ${set.year} ${set.releasedAt} ${set.code} ${set.setType}`,
+      )
+      .join(" "),
+  );
 
 export default function MtgSetSymbolsPage() {
   const [query, setQuery] = useState("");
   const [expandedYear, setExpandedYear] = useState<number | null>(null);
 
-  const filteredSets = useMemo(() => {
+  const symbolGroups = useMemo(() => {
+    const groups = new Map<string, MtgSet[]>();
+
+    for (const set of mtgSets) {
+      const related = groups.get(set.icon.sourceUrl) ?? [];
+      related.push(set);
+      groups.set(set.icon.sourceUrl, related);
+    }
+
+    return [...groups.entries()].map(([symbolUrl, related]) => {
+      const sortedRelated = [...related].sort((setA, setB) => {
+        const priorityCompare = setPriority(setA) - setPriority(setB);
+        if (priorityCompare !== 0) {
+          return priorityCompare;
+        }
+
+        const dateCompare = setB.releasedAt.localeCompare(setA.releasedAt);
+        if (dateCompare !== 0) {
+          return dateCompare;
+        }
+
+        return setA.code.localeCompare(setB.code);
+      });
+
+      return {
+        id: symbolUrl,
+        primary: sortedRelated[0],
+        related: sortedRelated,
+      };
+    });
+  }, []);
+
+  const filteredGroups = useMemo(() => {
     const normalizedQuery = normalize(query);
 
-    return mtgSets.filter((set) => {
-      const searchText = normalize(
-        `${set.name} ${set.year} ${set.releasedAt} ${set.code} ${set.setType}`,
-      );
+    return symbolGroups.filter(
+      (group) =>
+        !normalizedQuery || searchTextForGroup(group).includes(normalizedQuery),
+    );
+  }, [query, symbolGroups]);
 
-      return !normalizedQuery || searchText.includes(normalizedQuery);
-    });
-  }, [query]);
+  const groupsByYear = useMemo(() => {
+    const groups = new Map<number, MtgSymbolGroup[]>();
 
-  const setsByYear = useMemo(() => {
-    const groups = new Map<number, typeof mtgSets>();
-
-    for (const set of filteredSets) {
-      const yearSets = groups.get(set.year) ?? [];
-      yearSets.push(set);
-      groups.set(set.year, yearSets);
+    for (const group of filteredGroups) {
+      const yearGroups = groups.get(group.primary.year) ?? [];
+      yearGroups.push(group);
+      groups.set(group.primary.year, yearGroups);
     }
 
     return [...groups.entries()]
       .sort(([yearA], [yearB]) => yearB - yearA)
-      .map(([year, sets]) => ({
+      .map(([year, groups]) => ({
         year,
-        sets: sets.sort((setA, setB) =>
-          setB.releasedAt.localeCompare(setA.releasedAt),
+        groups: groups.sort((groupA, groupB) =>
+          groupB.primary.releasedAt.localeCompare(groupA.primary.releasedAt),
         ),
       }));
-  }, [filteredSets]);
+  }, [filteredGroups]);
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 4 } }}>
@@ -106,7 +183,8 @@ export default function MtgSetSymbolsPage() {
               justifyContent="space-between"
             >
               <Typography variant="body2" color="text.secondary">
-                Select a year to reveal its sets. {filteredSets.length} sets found.
+                Select a year to reveal its symbols. {filteredGroups.length} unique
+                symbols found.
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Source:{" "}
@@ -118,7 +196,7 @@ export default function MtgSetSymbolsPage() {
           </Stack>
         </Paper>
 
-        {setsByYear.map(({ year, sets }) => (
+        {groupsByYear.map(({ year, groups }) => (
           <Accordion
             key={year}
             expanded={expandedYear === year}
@@ -145,7 +223,8 @@ export default function MtgSetSymbolsPage() {
                   {year}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {sets.length} matching {sets.length === 1 ? "set" : "sets"}
+                  {groups.length} matching{" "}
+                  {groups.length === 1 ? "symbol" : "symbols"}
                 </Typography>
               </Box>
             </AccordionSummary>
@@ -162,8 +241,8 @@ export default function MtgSetSymbolsPage() {
                   gap: 1.5,
                 }}
               >
-                {sets.map((set) => (
-                  <Paper key={set.id} sx={{ p: 1.5, borderRadius: 2 }}>
+                {groups.map(({ primary, related }) => (
+                  <Paper key={primary.id} sx={{ p: 1.5, borderRadius: 2 }}>
                     <Stack direction="row" spacing={1.5} alignItems="center">
                       <Box
                         sx={{
@@ -182,8 +261,8 @@ export default function MtgSetSymbolsPage() {
                       >
                         <Box
                           component="img"
-                          src={set.icon.localPath}
-                          alt={set.icon.alt}
+                          src={primary.icon.localPath}
+                          alt={primary.icon.alt}
                           loading="lazy"
                           sx={{
                             width: 44,
@@ -196,10 +275,10 @@ export default function MtgSetSymbolsPage() {
 
                       <Box sx={{ minWidth: 0, flex: 1 }}>
                         <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                          {set.name}
+                          {primary.name}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {set.releasedAt} · {set.setType}
+                          {primary.releasedAt} - {primary.setType}
                         </Typography>
                         <Stack
                           direction="row"
@@ -207,11 +286,17 @@ export default function MtgSetSymbolsPage() {
                           alignItems="center"
                           sx={{ mt: 1, flexWrap: "wrap", rowGap: 0.75 }}
                         >
-                          <Chip size="small" label={set.code} />
-                          <Chip size="small" label={`${set.cardCount} cards`} />
+                          <Chip size="small" label={primary.code} />
+                          <Chip size="small" label={`${primary.cardCount} cards`} />
+                          {related.length > 1 ? (
+                            <Chip
+                              size="small"
+                              label={`${related.length - 1} related`}
+                            />
+                          ) : null}
                           <Button
                             size="small"
-                            href={set.scryfallUrl}
+                            href={primary.scryfallUrl}
                             target="_blank"
                             rel="noreferrer"
                             sx={{ minHeight: 28 }}
@@ -228,7 +313,7 @@ export default function MtgSetSymbolsPage() {
           </Accordion>
         ))}
 
-        {!filteredSets.length ? (
+        {!filteredGroups.length ? (
           <Paper sx={{ p: 3, textAlign: "center", borderRadius: 2 }}>
             <Typography>No MTG set symbols match that search.</Typography>
           </Paper>
