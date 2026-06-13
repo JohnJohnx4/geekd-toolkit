@@ -39,6 +39,7 @@ const BILL_DENOMS: BillDenomination[] = [
 
 const HOLD_DELAY_MS = 350;
 const HOLD_REPEAT_MS = 90;
+const HOLD_MOVE_CANCEL_PX = 8;
 
 const parseCount = (count: CountValue) => {
   if (count === "") return 0;
@@ -57,6 +58,7 @@ export default function SafeBillCounter() {
   const [counterfeitsChecked, setCounterfeitsChecked] = useState(false);
   const repeatDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const repeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const repeatPointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const suppressClickRef = useRef(false);
 
   const total = useMemo(
@@ -103,19 +105,41 @@ export default function SafeBillCounter() {
       clearInterval(repeatIntervalRef.current);
       repeatIntervalRef.current = null;
     }
+
+    repeatPointerStartRef.current = null;
   }, []);
 
   const startHoldRepeat = useCallback(
     (action: () => void, event: PointerEvent<HTMLButtonElement>) => {
-      event.preventDefault();
-      suppressClickRef.current = true;
       stopHoldRepeat();
-      action();
+      suppressClickRef.current = false;
+      repeatPointerStartRef.current = {
+        x: event.clientX,
+        y: event.clientY,
+      };
 
       repeatDelayRef.current = setTimeout(() => {
+        suppressClickRef.current = true;
         action();
         repeatIntervalRef.current = setInterval(action, HOLD_REPEAT_MS);
       }, HOLD_DELAY_MS);
+    },
+    [stopHoldRepeat]
+  );
+
+  const handleHoldPointerMove = useCallback(
+    (event: PointerEvent<HTMLButtonElement>) => {
+      if (!repeatPointerStartRef.current || event.pointerType !== "touch") {
+        return;
+      }
+
+      const deltaX = Math.abs(event.clientX - repeatPointerStartRef.current.x);
+      const deltaY = Math.abs(event.clientY - repeatPointerStartRef.current.y);
+
+      if (deltaX > HOLD_MOVE_CANCEL_PX || deltaY > HOLD_MOVE_CANCEL_PX) {
+        suppressClickRef.current = false;
+        stopHoldRepeat();
+      }
     },
     [stopHoldRepeat]
   );
@@ -343,6 +367,7 @@ export default function SafeBillCounter() {
                           }
                           onPointerUp={stopHoldRepeat}
                           onPointerLeave={stopHoldRepeat}
+                          onPointerMove={handleHoldPointerMove}
                           onPointerCancel={stopHoldRepeat}
                           onClick={() =>
                             handleRepeatClick(() => adjustBill(index, -1))
@@ -379,6 +404,7 @@ export default function SafeBillCounter() {
                           }
                           onPointerUp={stopHoldRepeat}
                           onPointerLeave={stopHoldRepeat}
+                          onPointerMove={handleHoldPointerMove}
                           onPointerCancel={stopHoldRepeat}
                           onClick={() =>
                             handleRepeatClick(() => adjustBill(index, 1))

@@ -68,6 +68,7 @@ const formatMoney = (amount: number) =>
 
 const HOLD_DELAY_MS = 350;
 const HOLD_REPEAT_MS = 90;
+const HOLD_MOVE_CANCEL_PX = 8;
 const HOLD_TIP_STORAGE_KEY = "cashCounterHoldTipShows";
 const HOLD_TIP_DISMISSED_STORAGE_KEY = "cashCounterHoldTipDismissed";
 const HOLD_TIP_MAX_SHOWS = 3;
@@ -227,6 +228,7 @@ export default function CashCalculator() {
 
   const repeatDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const repeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const repeatPointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const tipHideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressClickRef = useRef(false);
   const showedHoldTipThisLoadRef = useRef(false);
@@ -407,6 +409,8 @@ export default function CashCalculator() {
       clearInterval(repeatIntervalRef.current);
       repeatIntervalRef.current = null;
     }
+
+    repeatPointerStartRef.current = null;
   }, []);
 
   const startHoldRepeat = useCallback(
@@ -415,19 +419,39 @@ export default function CashCalculator() {
       event: PointerEvent<HTMLButtonElement>,
       buttonId: string
     ) => {
-      event.preventDefault();
-      suppressClickRef.current = true;
       stopHoldRepeat();
+      suppressClickRef.current = false;
+      repeatPointerStartRef.current = {
+        x: event.clientX,
+        y: event.clientY,
+      };
       showHoldTip(buttonId);
-      action();
 
       repeatDelayRef.current = setTimeout(() => {
+        suppressClickRef.current = true;
         dismissHoldTip();
         action();
         repeatIntervalRef.current = setInterval(action, HOLD_REPEAT_MS);
       }, HOLD_DELAY_MS);
     },
     [dismissHoldTip, showHoldTip, stopHoldRepeat]
+  );
+
+  const handleHoldPointerMove = useCallback(
+    (event: PointerEvent<HTMLButtonElement>) => {
+      if (!repeatPointerStartRef.current || event.pointerType !== "touch") {
+        return;
+      }
+
+      const deltaX = Math.abs(event.clientX - repeatPointerStartRef.current.x);
+      const deltaY = Math.abs(event.clientY - repeatPointerStartRef.current.y);
+
+      if (deltaX > HOLD_MOVE_CANCEL_PX || deltaY > HOLD_MOVE_CANCEL_PX) {
+        suppressClickRef.current = false;
+        stopHoldRepeat();
+      }
+    },
+    [stopHoldRepeat]
   );
 
   const handleRepeatClick = (action: () => void) => {
@@ -676,6 +700,7 @@ export default function CashCalculator() {
                 }
                 onPointerUp={stopHoldRepeat}
                 onPointerLeave={stopHoldRepeat}
+                onPointerMove={handleHoldPointerMove}
                 onPointerCancel={stopHoldRepeat}
                 onClick={() =>
                   handleRepeatClick(() => adjustDenom(drawer.id, type, index, -1))
@@ -724,6 +749,7 @@ export default function CashCalculator() {
                 }
                 onPointerUp={stopHoldRepeat}
                 onPointerLeave={stopHoldRepeat}
+                onPointerMove={handleHoldPointerMove}
                 onPointerCancel={stopHoldRepeat}
                 onClick={() =>
                   handleRepeatClick(() => adjustDenom(drawer.id, type, index, 1))

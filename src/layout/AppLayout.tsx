@@ -17,6 +17,8 @@ import MenuIcon from "@mui/icons-material/Menu";
 import HomeIcon from "@mui/icons-material/Home";
 import PrizingIcon from "@mui/icons-material/EmojiEvents";
 import MoneyIcon from "@mui/icons-material/Money";
+import CatchingPokemonIcon from "@mui/icons-material/CatchingPokemon";
+import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 
 export default function AppLayout() {
   const navigate = useNavigate();
@@ -41,12 +43,26 @@ export default function AppLayout() {
     <Box sx={{ pb: 7 }}>
       <AppBar position="sticky">
         <Toolbar>
-          <img
-            src={GeekLogo}
-            style={{
-              width: "72px",
+          <Box
+            component="button"
+            type="button"
+            onClick={() => handleNavigation("/")}
+            sx={{
+              p: 0,
+              border: 0,
+              bgcolor: "transparent",
+              cursor: "pointer",
+              lineHeight: 0,
             }}
-          />
+            aria-label="Go home"
+          >
+            <img
+              src={GeekLogo}
+              style={{
+                width: "72px",
+              }}
+            />
+          </Box>
 
           <Stack direction="row" sx={{ ml: "auto" }}>
             <IconButton onClick={handleClick} sx={{ ml: "auto" }}>
@@ -80,6 +96,18 @@ export default function AppLayout() {
                   <PrizingIcon fontSize="small" />
                 </ListItemIcon>
                 <ListItemText>Prizing Calculator</ListItemText>
+              </MenuItem>
+              <MenuItem onClick={() => handleNavigation("/pokemon-set-symbols")}>
+                <ListItemIcon>
+                  <CatchingPokemonIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Pokemon Set Symbols</ListItemText>
+              </MenuItem>
+              <MenuItem onClick={() => handleNavigation("/mtg-set-symbols")}>
+                <ListItemIcon>
+                  <AutoFixHighIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>MTG Set Symbols</ListItemText>
               </MenuItem>
             </Menu>
           </Stack>
