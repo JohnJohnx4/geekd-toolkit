@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Box,
   Button,
   Chip,
@@ -11,6 +14,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import SearchIcon from "@mui/icons-material/Search";
 
 import { pokemonSets, pokemonSetSymbolSource } from "../data/pokemonSets";
@@ -19,26 +23,19 @@ const normalize = (value: string) => value.toLowerCase().trim();
 
 export default function PokemonSetSymbolsPage() {
   const [query, setQuery] = useState("");
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
-
-  const years = useMemo(
-    () => [...new Set(pokemonSets.map((set) => set.year))].sort((a, b) => b - a),
-    [],
-  );
+  const [expandedYear, setExpandedYear] = useState<number | null>(null);
 
   const filteredSets = useMemo(() => {
     const normalizedQuery = normalize(query);
 
     return pokemonSets.filter((set) => {
-      const matchesYear = selectedYear === null || set.year === selectedYear;
       const searchText = normalize(
         `${set.name} ${set.year} ${set.era} ${set.setNumber}`,
       );
-      const matchesQuery = !normalizedQuery || searchText.includes(normalizedQuery);
 
-      return matchesYear && matchesQuery;
+      return !normalizedQuery || searchText.includes(normalizedQuery);
     });
-  }, [query, selectedYear]);
+  }, [query]);
 
   const setsByYear = useMemo(() => {
     const groups = new Map<number, typeof pokemonSets>();
@@ -97,29 +94,13 @@ export default function PokemonSetSymbolsPage() {
               />
             </Box>
 
-            <Stack direction="row" spacing={1} sx={{ overflowX: "auto", pb: 0.5 }}>
-              <Chip
-                label="All"
-                color={selectedYear === null ? "primary" : "default"}
-                onClick={() => setSelectedYear(null)}
-              />
-              {years.map((year) => (
-                <Chip
-                  key={year}
-                  label={year}
-                  color={selectedYear === year ? "primary" : "default"}
-                  onClick={() => setSelectedYear(year)}
-                />
-              ))}
-            </Stack>
-
             <Stack
               direction={{ xs: "column", sm: "row" }}
               spacing={1}
               justifyContent="space-between"
             >
               <Typography variant="body2" color="text.secondary">
-                {filteredSets.length} sets found
+                Select a year to reveal its sets. {filteredSets.length} sets found.
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Source:{" "}
@@ -132,100 +113,122 @@ export default function PokemonSetSymbolsPage() {
         </Paper>
 
         {setsByYear.map(({ year, sets }) => (
-          <Box key={year}>
-            <Typography
-              variant="h2"
+          <Accordion
+            key={year}
+            expanded={expandedYear === year}
+            onChange={(_, isExpanded) => setExpandedYear(isExpanded ? year : null)}
+            sx={{
+              borderRadius: 2,
+              overflow: "hidden",
+              "&:before": { display: "none" },
+            }}
+          >
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
               sx={{
-                fontSize: { xs: 24, sm: 30 },
-                mb: 1.5,
-              }}
-            >
-              {year}
-            </Typography>
-
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: {
-                  xs: "1fr",
-                  sm: "repeat(2, minmax(0, 1fr))",
-                  md: "repeat(3, minmax(0, 1fr))",
+                minHeight: 64,
+                "& .MuiAccordionSummary-content": {
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 1.5,
                 },
-                gap: 1.5,
               }}
             >
-              {sets.map((set) => (
-                <Paper key={set.id} sx={{ p: 1.5, borderRadius: 2 }}>
-                  <Stack direction="row" spacing={1.5} alignItems="center">
-                    <Box
-                      sx={{
-                        width: 64,
-                        minWidth: 64,
-                        minHeight: 64,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        bgcolor: "grey.100",
-                        borderRadius: 1.5,
-                        border: "1px solid",
-                        borderColor: "divider",
-                        overflow: "hidden",
-                      }}
-                    >
-                      <Stack direction="row" spacing={0.5} justifyContent="center">
-                        {set.images.map((image) => (
-                          <Box
-                            key={image.localPath}
-                            component="img"
-                            src={image.localPath}
-                            alt={
-                              image.alt && image.alt !== "undefined"
-                                ? image.alt
-                                : `${set.name} set symbol`
-                            }
-                            loading="lazy"
-                            sx={{
-                              width: set.images.length > 1 ? 28 : 42,
-                              height: set.images.length > 1 ? 28 : 42,
-                              objectFit: "contain",
-                            }}
-                          />
-                        ))}
-                      </Stack>
-                    </Box>
+              <Box>
+                <Typography variant="h2" sx={{ fontSize: { xs: 24, sm: 30 } }}>
+                  {year}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {sets.length} matching {sets.length === 1 ? "set" : "sets"}
+                </Typography>
+              </Box>
+            </AccordionSummary>
 
-                    <Box sx={{ minWidth: 0, flex: 1 }}>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                        {set.name}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {set.era}
-                      </Typography>
-                      <Stack
-                        direction="row"
-                        spacing={1}
-                        alignItems="center"
-                        sx={{ mt: 1, flexWrap: "wrap", rowGap: 0.75 }}
+            <AccordionDetails sx={{ pt: 0 }}>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    sm: "repeat(2, minmax(0, 1fr))",
+                    md: "repeat(3, minmax(0, 1fr))",
+                  },
+                  gap: 1.5,
+                }}
+              >
+                {sets.map((set) => (
+                  <Paper key={set.id} sx={{ p: 1.5, borderRadius: 2 }}>
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Box
+                        sx={{
+                          width: 64,
+                          minWidth: 64,
+                          minHeight: 64,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          bgcolor: "grey.100",
+                          borderRadius: 1.5,
+                          border: "1px solid",
+                          borderColor: "divider",
+                          overflow: "hidden",
+                        }}
                       >
-                        <Chip size="small" label={set.setNumber || "No number"} />
-                        {set.checklistUrl ? (
-                          <Button
-                            size="small"
-                            href={set.checklistUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            sx={{ minHeight: 28 }}
-                          >
-                            Checklist
-                          </Button>
-                        ) : null}
-                      </Stack>
-                    </Box>
-                  </Stack>
-                </Paper>
-              ))}
-            </Box>
-          </Box>
+                        <Stack direction="row" spacing={0.5} justifyContent="center">
+                          {set.images.map((image) => (
+                            <Box
+                              key={image.localPath}
+                              component="img"
+                              src={image.localPath}
+                              alt={
+                                image.alt && image.alt !== "undefined"
+                                  ? image.alt
+                                  : `${set.name} set symbol`
+                              }
+                              loading="lazy"
+                              sx={{
+                                width: set.images.length > 1 ? 28 : 42,
+                                height: set.images.length > 1 ? 28 : 42,
+                                objectFit: "contain",
+                              }}
+                            />
+                          ))}
+                        </Stack>
+                      </Box>
+
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                          {set.name}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {set.era}
+                        </Typography>
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          alignItems="center"
+                          sx={{ mt: 1, flexWrap: "wrap", rowGap: 0.75 }}
+                        >
+                          <Chip size="small" label={set.setNumber || "No number"} />
+                          {set.checklistUrl ? (
+                            <Button
+                              size="small"
+                              href={set.checklistUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              sx={{ minHeight: 28 }}
+                            >
+                              Checklist
+                            </Button>
+                          ) : null}
+                        </Stack>
+                      </Box>
+                    </Stack>
+                  </Paper>
+                ))}
+              </Box>
+            </AccordionDetails>
+          </Accordion>
         ))}
 
         {!filteredSets.length ? (
