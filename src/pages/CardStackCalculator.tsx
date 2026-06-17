@@ -7,12 +7,15 @@ import {
   Chip,
   Container,
   Divider,
+  IconButton,
   InputAdornment,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
 import ClearIcon from "@mui/icons-material/Clear";
+import RemoveIcon from "@mui/icons-material/Remove";
 import StyleIcon from "@mui/icons-material/Style";
 
 type CountValue = number | "";
@@ -89,6 +92,19 @@ export default function CardStackCalculator() {
     setDenominations((prev) =>
       prev.map((denom, index) =>
         index === 0 ? { ...denom, value: Math.max(0, value) } : denom
+      )
+    );
+  };
+
+  const adjustCount = (index: number, delta: number) => {
+    setDenominations((prev) =>
+      prev.map((denom, denomIndex) =>
+        denomIndex === index
+          ? {
+              ...denom,
+              count: Math.max(0, parseCount(denom.count) + delta),
+            }
+          : denom
       )
     );
   };
@@ -239,6 +255,30 @@ export default function CardStackCalculator() {
                         }}
                         sx={{ flex: 1 }}
                       />
+
+                      <Stack
+                        direction="row"
+                        spacing={0.5}
+                        justifyContent="center"
+                        sx={{ minWidth: { sm: 104 } }}
+                      >
+                        <IconButton
+                          size="large"
+                          color="primary"
+                          onClick={() => adjustCount(index, -1)}
+                          aria-label={`Decrease ${denom.label} count`}
+                        >
+                          <RemoveIcon />
+                        </IconButton>
+                        <IconButton
+                          size="large"
+                          color="primary"
+                          onClick={() => adjustCount(index, 1)}
+                          aria-label={`Increase ${denom.label} count`}
+                        >
+                          <AddIcon />
+                        </IconButton>
+                      </Stack>
 
                       <Button
                         color="error"
