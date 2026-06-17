@@ -42,6 +42,13 @@ const LandingPage = () => {
         >
           MTG Set Symbols
         </Button>
+        <Button
+          variant="contained"
+          sx={{ p: 2 }}
+          onClick={() => navigate({ to: "/card-stack-calculator" })}
+        >
+          Card Stack Calculator
+        </Button>
       </Stack>
     </Container>
   );

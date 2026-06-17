@@ -11,6 +11,7 @@ import LandingPage from "./pages/LandingPage";
 import CashCalculator from "./pages/CashCalculator";
 import PokemonSetSymbolsPage from "./pages/PokemonSetSymbolsPage";
 import MtgSetSymbolsPage from "./pages/MtgSetSymbolsPage";
+import CardStackCalculator from "./pages/CardStackCalculator";
 
 // --------------------
 // Root layout
@@ -58,6 +59,12 @@ const mtgSetSymbolsRoute = createRoute({
   component: MtgSetSymbolsPage,
 });
 
+const cardStackCalculatorRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/card-stack-calculator",
+  component: CardStackCalculator,
+});
+
 // --------------------
 // Route tree
 // --------------------
@@ -68,6 +75,7 @@ const routeTree = rootRoute.addChildren([
   cashCalculatorRoute,
   pokemonSetSymbolsRoute,
   mtgSetSymbolsRoute,
+  cardStackCalculatorRoute,
 ]);
 
 export const router = createRouter({ routeTree });
