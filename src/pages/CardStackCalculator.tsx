@@ -58,22 +58,36 @@ export default function CardStackCalculator() {
   const [denominations, setDenominations] = useState<CardDenomination[]>(
     createDenominations
   );
+  const [offerPercent, setOfferPercent] = useState<CountValue>(60);
 
   const totals = useMemo(() => {
-    const cardCount = denominations.reduce(
+    const [bulk, ...pricedDenoms] = denominations;
+    const bulkCount = parseCount(bulk.count);
+    const bulkValue = bulkCount * bulk.value;
+    const pricedCardCount = pricedDenoms.reduce(
       (sum, denom) => sum + parseCount(denom.count),
       0
     );
-    const value = denominations.reduce(
+    const pricedValue = pricedDenoms.reduce(
       (sum, denom) => sum + parseCount(denom.count) * denom.value,
       0
     );
+    const offerRate = Math.max(0, parseCount(offerPercent)) / 100;
+    const offerValue = pricedValue * offerRate;
     const activeStacks = denominations.filter(
       (denom) => parseCount(denom.count) > 0
     ).length;
 
-    return { cardCount, value, activeStacks };
-  }, [denominations]);
+    return {
+      bulkCount,
+      bulkValue,
+      pricedCardCount,
+      pricedValue,
+      offerValue,
+      activeStacks,
+      combinedPayout: bulkValue + offerValue,
+    };
+  }, [denominations, offerPercent]);
 
   const updateCount = (index: number, count: CountValue) => {
     setDenominations((prev) =>
@@ -134,50 +148,107 @@ export default function CardStackCalculator() {
               </Stack>
 
               <Typography variant="body2" color="text.secondary">
-                Count how many cards are in each sorted value stack.
+                Count sorted stacks, keep bulk separate, and calculate the offer on
+                priced cards.
               </Typography>
 
               <Box
                 sx={{
                   display: "grid",
-                  gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" },
+                  gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" },
                   gap: 1,
                 }}
               >
                 <Card variant="outlined">
                   <CardContent>
                     <Typography variant="body2" color="text.secondary">
-                      Total Value
+                      Bulk Value
                     </Typography>
-                    <Typography variant="h4">${formatMoney(totals.value)}</Typography>
+                    <Typography variant="h4">
+                      ${formatMoney(totals.bulkValue)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {totals.bulkCount} bulk cards
+                    </Typography>
                   </CardContent>
                 </Card>
                 <Card variant="outlined">
                   <CardContent>
                     <Typography variant="body2" color="text.secondary">
-                      Cards Counted
+                      Priced Card Value
                     </Typography>
-                    <Typography variant="h4">{totals.cardCount}</Typography>
+                    <Typography variant="h4">
+                      ${formatMoney(totals.pricedValue)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {totals.pricedCardCount} priced cards
+                    </Typography>
                   </CardContent>
                 </Card>
                 <Card variant="outlined">
                   <CardContent>
                     <Typography variant="body2" color="text.secondary">
-                      Active Stacks
+                      Offer Amount
                     </Typography>
-                    <Typography variant="h4">{totals.activeStacks}</Typography>
+                    <Typography variant="h4">
+                      ${formatMoney(totals.offerValue)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {parseCount(offerPercent)}% of priced cards
+                    </Typography>
+                  </CardContent>
+                </Card>
+                <Card variant="outlined">
+                  <CardContent>
+                    <Typography variant="body2" color="text.secondary">
+                      Combined Payout
+                    </Typography>
+                    <Typography variant="h4">
+                      ${formatMoney(totals.combinedPayout)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Bulk plus offer
+                    </Typography>
                   </CardContent>
                 </Card>
               </Box>
 
-              <Button
-                color="error"
-                variant="outlined"
-                startIcon={<ClearIcon />}
-                onClick={clearAll}
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1.5}
+                alignItems={{ xs: "stretch", sm: "center" }}
               >
-                Clear All
-              </Button>
+                <TextField
+                  label="Offer percentage"
+                  type="number"
+                  value={offerPercent}
+                  onChange={(event) =>
+                    setOfferPercent(
+                      event.target.value === "" ? "" : Number(event.target.value)
+                    )
+                  }
+                  inputProps={{
+                    min: 0,
+                    step: 1,
+                    inputMode: "numeric",
+                  }}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">%</InputAdornment>
+                    ),
+                  }}
+                  sx={{ minWidth: { sm: 220 } }}
+                />
+
+                <Button
+                  color="error"
+                  variant="outlined"
+                  startIcon={<ClearIcon />}
+                  onClick={clearAll}
+                >
+                  Clear All
+                </Button>
+              </Stack>
             </Stack>
           </CardContent>
         </Card>
