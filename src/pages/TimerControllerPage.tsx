@@ -253,13 +253,20 @@ export default function TimerControllerPage() {
                             placeItems: "center",
                             borderRadius: 1.5,
                             bgcolor: tcg.background,
-                            color: tcg.color,
-                            fontWeight: 900,
-                            fontSize: 20,
-                            letterSpacing: 0,
+                            overflow: "hidden",
+                            p: 0.5,
                           }}
                         >
-                          {tcg.logo}
+                          <Box
+                            component="img"
+                            src={tcg.logoImage}
+                            alt={`${tcg.name} logo`}
+                            sx={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "contain",
+                            }}
+                          />
                         </Box>
                         <Box>
                           <Typography variant="h6">{tcg.name}</Typography>

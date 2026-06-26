@@ -116,13 +116,20 @@ export default function TimerDisplayPage() {
                           placeItems: "center",
                           borderRadius: 2,
                           bgcolor: tcg.background,
-                          color: tcg.color,
-                          fontWeight: 900,
-                          fontSize: { xs: 24, sm: 32 },
-                          letterSpacing: 0,
+                          overflow: "hidden",
+                          p: 0.75,
                         }}
                       >
-                        {tcg.logo}
+                        <Box
+                          component="img"
+                          src={tcg.logoImage}
+                          alt={`${tcg.name} logo`}
+                          sx={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "contain",
+                          }}
+                        />
                       </Box>
                       <Box sx={{ minWidth: 0 }}>
                         <Typography

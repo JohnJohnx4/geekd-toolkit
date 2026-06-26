@@ -1,3 +1,15 @@
+import magicLogo from "../assets/timer-logos/magic.svg";
+import pokemonLogo from "../assets/timer-logos/pokemon.svg";
+import yugiohLogo from "../assets/timer-logos/yugioh.svg";
+import lorcanaLogo from "../assets/timer-logos/lorcana.svg";
+import onePieceLogo from "../assets/timer-logos/one-piece.svg";
+import starWarsUnlimitedLogo from "../assets/timer-logos/star-wars-unlimited.svg";
+import unionArenaLogo from "../assets/timer-logos/union-arena.svg";
+import dragonBallFusionLogo from "../assets/timer-logos/dragon-ball-fusion.svg";
+import digimonLogo from "../assets/timer-logos/digimon.svg";
+import cookieRunLogo from "../assets/timer-logos/cookie-run.svg";
+import riftboundLogo from "../assets/timer-logos/riftbound.svg";
+
 export type TcgKey =
   | "magic"
   | "pokemon"
@@ -29,6 +41,7 @@ type TcgOption = {
   key: TcgKey;
   name: string;
   logo: string;
+  logoImage: string;
   color: string;
   background: string;
 };
@@ -40,6 +53,7 @@ export const TCG_OPTIONS: TcgOption[] = [
     key: "magic",
     name: "Magic",
     logo: "MTG",
+    logoImage: magicLogo,
     color: "#f7f1e2",
     background: "#1f2933",
   },
@@ -47,6 +61,7 @@ export const TCG_OPTIONS: TcgOption[] = [
     key: "pokemon",
     name: "Pokemon",
     logo: "PKM",
+    logoImage: pokemonLogo,
     color: "#172554",
     background: "#ffcb05",
   },
@@ -54,6 +69,7 @@ export const TCG_OPTIONS: TcgOption[] = [
     key: "yugioh",
     name: "Yu-Gi-Oh",
     logo: "YGO",
+    logoImage: yugiohLogo,
     color: "#f8fafc",
     background: "#991b1b",
   },
@@ -61,6 +77,7 @@ export const TCG_OPTIONS: TcgOption[] = [
     key: "lorcana",
     name: "Lorcana",
     logo: "LOR",
+    logoImage: lorcanaLogo,
     color: "#1e1b4b",
     background: "#c4b5fd",
   },
@@ -68,6 +85,7 @@ export const TCG_OPTIONS: TcgOption[] = [
     key: "onePiece",
     name: "One Piece",
     logo: "OP",
+    logoImage: onePieceLogo,
     color: "#111827",
     background: "#fde68a",
   },
@@ -75,6 +93,7 @@ export const TCG_OPTIONS: TcgOption[] = [
     key: "starWars",
     name: "Star Wars Unlimited",
     logo: "SWU",
+    logoImage: starWarsUnlimitedLogo,
     color: "#e0f2fe",
     background: "#0f172a",
   },
@@ -82,6 +101,7 @@ export const TCG_OPTIONS: TcgOption[] = [
     key: "unionArena",
     name: "Union Arena",
     logo: "UA",
+    logoImage: unionArenaLogo,
     color: "#f8fafc",
     background: "#2563eb",
   },
@@ -89,6 +109,7 @@ export const TCG_OPTIONS: TcgOption[] = [
     key: "dragonBallFusion",
     name: "DragonBall Fusion",
     logo: "DBF",
+    logoImage: dragonBallFusionLogo,
     color: "#111827",
     background: "#f97316",
   },
@@ -96,6 +117,7 @@ export const TCG_OPTIONS: TcgOption[] = [
     key: "digimon",
     name: "Digimon",
     logo: "DIG",
+    logoImage: digimonLogo,
     color: "#fefce8",
     background: "#0369a1",
   },
@@ -103,6 +125,7 @@ export const TCG_OPTIONS: TcgOption[] = [
     key: "cookieRun",
     name: "Cookie Run",
     logo: "CRK",
+    logoImage: cookieRunLogo,
     color: "#451a03",
     background: "#fbbf24",
   },
@@ -110,6 +133,7 @@ export const TCG_OPTIONS: TcgOption[] = [
     key: "riftbound",
     name: "Riftbound",
     logo: "RFT",
+    logoImage: riftboundLogo,
     color: "#ecfeff",
     background: "#155e75",
   },
