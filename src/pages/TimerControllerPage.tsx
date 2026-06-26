@@ -19,86 +19,24 @@ import {
 import AddAlarmIcon from "@mui/icons-material/AddAlarm";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import PauseIcon from "@mui/icons-material/Pause";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import TimerIcon from "@mui/icons-material/Timer";
-
-type TcgKey =
-  | "magic"
-  | "pokemon"
-  | "yugioh"
-  | "lorcana"
-  | "onePiece"
-  | "starWars";
-
-type TimerItem = {
-  id: number;
-  tcg: TcgKey;
-  durationSeconds: number;
-  remainingSeconds: number;
-  running: boolean;
-};
-
-type TcgOption = {
-  key: TcgKey;
-  name: string;
-  logo: string;
-  color: string;
-  background: string;
-};
+import {
+  formatTime,
+  getTcg,
+  TCG_OPTIONS,
+  TIMER_STORAGE_KEY,
+  type TcgKey,
+  type TimerItem,
+  type TimerSnapshot,
+} from "./timerControllerUtils";
 
 const MAX_TIMERS = 6;
 const MAX_DURATION_SECONDS = 60 * 60;
 const DEFAULT_DURATION_SECONDS = 50 * 60;
-
-const TCG_OPTIONS: TcgOption[] = [
-  {
-    key: "magic",
-    name: "Magic",
-    logo: "MTG",
-    color: "#f7f1e2",
-    background: "#1f2933",
-  },
-  {
-    key: "pokemon",
-    name: "Pokemon",
-    logo: "PKM",
-    color: "#172554",
-    background: "#ffcb05",
-  },
-  {
-    key: "yugioh",
-    name: "Yu-Gi-Oh",
-    logo: "YGO",
-    color: "#f8fafc",
-    background: "#991b1b",
-  },
-  {
-    key: "lorcana",
-    name: "Lorcana",
-    logo: "LOR",
-    color: "#1e1b4b",
-    background: "#c4b5fd",
-  },
-  {
-    key: "onePiece",
-    name: "One Piece",
-    logo: "OP",
-    color: "#111827",
-    background: "#fde68a",
-  },
-  {
-    key: "starWars",
-    name: "Star Wars Unlimited",
-    logo: "SWU",
-    color: "#e0f2fe",
-    background: "#0f172a",
-  },
-];
-
-const getTcg = (key: TcgKey) =>
-  TCG_OPTIONS.find((option) => option.key === key) ?? TCG_OPTIONS[0];
 
 const clampDuration = (seconds: number) =>
   Math.min(MAX_DURATION_SECONDS, Math.max(60, Math.floor(seconds)));
@@ -110,18 +48,6 @@ const createTimer = (id: number, tcg: TcgKey): TimerItem => ({
   remainingSeconds: DEFAULT_DURATION_SECONDS,
   running: false,
 });
-
-const formatTime = (seconds: number) => {
-  const isOvertime = seconds < 0;
-  const absoluteSeconds = Math.abs(Math.ceil(seconds));
-  const minutes = Math.floor(absoluteSeconds / 60);
-  const remainingSeconds = absoluteSeconds % 60;
-  const time = `${String(minutes).padStart(2, "0")}:${String(
-    remainingSeconds
-  ).padStart(2, "0")}`;
-
-  return isOvertime ? `-${time}` : time;
-};
 
 const parseDurationInput = (value: string) => {
   if (value === "") return "";
@@ -190,6 +116,21 @@ export default function TimerControllerPage() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    window.localStorage.setItem(
+      TIMER_STORAGE_KEY,
+      JSON.stringify({ timers, updatedAt: Date.now() } satisfies TimerSnapshot)
+    );
+  }, [timers]);
+
+  const openDisplayWindow = () => {
+    window.open(
+      `${window.location.origin}/timer-display`,
+      "geekd-timer-display",
+      "popup=yes,width=1200,height=760"
+    );
+  };
+
   return (
     <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 4 } }}>
       <Stack spacing={2.5}>
@@ -255,6 +196,13 @@ export default function TimerControllerPage() {
                   disabled={!timers.length}
                 >
                   Reset All
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<OpenInNewIcon />}
+                  onClick={openDisplayWindow}
+                >
+                  Pop Out Display
                 </Button>
               </Stack>
             </Stack>
