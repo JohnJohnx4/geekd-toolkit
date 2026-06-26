@@ -9,24 +9,10 @@ import {
   type TimerSnapshot,
 } from "./timerControllerUtils";
 
-const getDisplayedSeconds = (
-  snapshot: TimerSnapshot,
-  timerId: number,
-  now: number
-) => {
-  const timer = snapshot.timers.find((item) => item.id === timerId);
-  if (!timer) return 0;
-  if (!timer.running) return timer.remainingSeconds;
-
-  const elapsedSeconds = Math.floor((now - snapshot.updatedAt) / 1000);
-  return timer.remainingSeconds - elapsedSeconds;
-};
-
 export default function TimerDisplayPage() {
   const [snapshot, setSnapshot] = useState<TimerSnapshot | null>(() =>
     readTimerSnapshot()
   );
-  const [now, setNow] = useState(0);
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
@@ -39,22 +25,13 @@ export default function TimerDisplayPage() {
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
-  useEffect(() => {
-    const interval = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(interval);
-  }, []);
-
   const displayedTimers = useMemo(
     () =>
       snapshot?.timers.map((timer) => ({
         ...timer,
-        displayedSeconds: getDisplayedSeconds(
-          snapshot,
-          timer.id,
-          now || snapshot.updatedAt
-        ),
+        displayedSeconds: timer.remainingSeconds,
       })) ?? [],
-    [snapshot, now]
+    [snapshot]
   );
 
   return (
