@@ -27,6 +27,7 @@ import TimerIcon from "@mui/icons-material/Timer";
 import {
   formatTime,
   getTcg,
+  getTimerName,
   TCG_OPTIONS,
   TIMER_STORAGE_KEY,
   type TcgKey,
@@ -43,6 +44,7 @@ const clampDuration = (seconds: number) =>
 
 const createTimer = (id: number, tcg: TcgKey): TimerItem => ({
   id,
+  name: `Timer ${id}`,
   tcg,
   durationSeconds: DEFAULT_DURATION_SECONDS,
   remainingSeconds: DEFAULT_DURATION_SECONDS,
@@ -262,7 +264,7 @@ export default function TimerControllerPage() {
                         <Box>
                           <Typography variant="h6">{tcg.name}</Typography>
                           <Typography variant="body2" color="text.secondary">
-                            Timer {timer.id}
+                            {getTimerName(timer)}
                           </Typography>
                         </Box>
                       </Stack>
@@ -306,6 +308,24 @@ export default function TimerControllerPage() {
                       direction={{ xs: "column", sm: "row" }}
                       spacing={1}
                     >
+                      <TextField
+                        label="Timer name"
+                        value={timer.name ?? `Timer ${timer.id}`}
+                        onChange={(event) =>
+                          updateTimer(timer.id, (current) => ({
+                            ...current,
+                            name: event.target.value,
+                          }))
+                        }
+                        onBlur={() =>
+                          updateTimer(timer.id, (current) => ({
+                            ...current,
+                            name: getTimerName(current),
+                          }))
+                        }
+                        fullWidth
+                      />
+
                       <FormControl fullWidth>
                         <InputLabel>TCG</InputLabel>
                         <Select

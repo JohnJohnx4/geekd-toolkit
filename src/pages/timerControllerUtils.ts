@@ -8,6 +8,7 @@ export type TcgKey =
 
 export type TimerItem = {
   id: number;
+  name: string;
   tcg: TcgKey;
   durationSeconds: number;
   remainingSeconds: number;
@@ -76,6 +77,9 @@ export const TCG_OPTIONS: TcgOption[] = [
 
 export const getTcg = (key: TcgKey) =>
   TCG_OPTIONS.find((option) => option.key === key) ?? TCG_OPTIONS[0];
+
+export const getTimerName = (timer: Pick<TimerItem, "id"> & { name?: string }) =>
+  timer.name?.trim() || `Timer ${timer.id}`;
 
 export const formatTime = (seconds: number) => {
   const isOvertime = seconds < 0;

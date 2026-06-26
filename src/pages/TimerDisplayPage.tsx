@@ -3,6 +3,7 @@ import { Box, Chip, Container, Stack, Typography } from "@mui/material";
 import {
   formatTime,
   getTcg,
+  getTimerName,
   readTimerSnapshot,
   TIMER_STORAGE_KEY,
   type TimerSnapshot,
@@ -154,10 +155,10 @@ export default function TimerDisplayPage() {
                             lineHeight: 1.05,
                           }}
                         >
-                          {tcg.name}
+                          {getTimerName(timer)}
                         </Typography>
                         <Typography sx={{ color: "#cbd5e1", mt: 0.5 }}>
-                          Timer {timer.id}
+                          {tcg.name}
                         </Typography>
                       </Box>
                     </Stack>
