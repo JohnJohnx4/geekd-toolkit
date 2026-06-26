@@ -4,7 +4,12 @@ export type TcgKey =
   | "yugioh"
   | "lorcana"
   | "onePiece"
-  | "starWars";
+  | "starWars"
+  | "unionArena"
+  | "dragonBallFusion"
+  | "digimon"
+  | "cookieRun"
+  | "riftbound";
 
 export type TimerItem = {
   id: number;
@@ -72,6 +77,41 @@ export const TCG_OPTIONS: TcgOption[] = [
     logo: "SWU",
     color: "#e0f2fe",
     background: "#0f172a",
+  },
+  {
+    key: "unionArena",
+    name: "Union Arena",
+    logo: "UA",
+    color: "#f8fafc",
+    background: "#2563eb",
+  },
+  {
+    key: "dragonBallFusion",
+    name: "DragonBall Fusion",
+    logo: "DBF",
+    color: "#111827",
+    background: "#f97316",
+  },
+  {
+    key: "digimon",
+    name: "Digimon",
+    logo: "DIG",
+    color: "#fefce8",
+    background: "#0369a1",
+  },
+  {
+    key: "cookieRun",
+    name: "Cookie Run",
+    logo: "CRK",
+    color: "#451a03",
+    background: "#fbbf24",
+  },
+  {
+    key: "riftbound",
+    name: "Riftbound",
+    logo: "RFT",
+    color: "#ecfeff",
+    background: "#155e75",
   },
 ];
 
