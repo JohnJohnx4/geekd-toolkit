@@ -49,6 +49,13 @@ const LandingPage = () => {
         >
           Card Stack Calculator
         </Button>
+        <Button
+          variant="contained"
+          sx={{ p: 2 }}
+          onClick={() => navigate({ to: "/timer-controller" })}
+        >
+          Timer Controller
+        </Button>
       </Stack>
     </Container>
   );

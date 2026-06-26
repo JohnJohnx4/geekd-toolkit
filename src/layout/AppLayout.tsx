@@ -20,6 +20,7 @@ import MoneyIcon from "@mui/icons-material/Money";
 import CatchingPokemonIcon from "@mui/icons-material/CatchingPokemon";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 import StyleIcon from "@mui/icons-material/Style";
+import TimerIcon from "@mui/icons-material/Timer";
 
 export default function AppLayout() {
   const navigate = useNavigate();
@@ -115,6 +116,12 @@ export default function AppLayout() {
                   <StyleIcon fontSize="small" />
                 </ListItemIcon>
                 <ListItemText>Card Stack Calculator</ListItemText>
+              </MenuItem>
+              <MenuItem onClick={() => handleNavigation("/timer-controller")}>
+                <ListItemIcon>
+                  <TimerIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Timer Controller</ListItemText>
               </MenuItem>
             </Menu>
           </Stack>

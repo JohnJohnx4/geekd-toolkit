@@ -12,6 +12,7 @@ import CashCalculator from "./pages/CashCalculator";
 import PokemonSetSymbolsPage from "./pages/PokemonSetSymbolsPage";
 import MtgSetSymbolsPage from "./pages/MtgSetSymbolsPage";
 import CardStackCalculator from "./pages/CardStackCalculator";
+import TimerControllerPage from "./pages/TimerControllerPage";
 
 // --------------------
 // Root layout
@@ -65,6 +66,12 @@ const cardStackCalculatorRoute = createRoute({
   component: CardStackCalculator,
 });
 
+const timerControllerRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/timer-controller",
+  component: TimerControllerPage,
+});
+
 // --------------------
 // Route tree
 // --------------------
@@ -76,6 +83,7 @@ const routeTree = rootRoute.addChildren([
   pokemonSetSymbolsRoute,
   mtgSetSymbolsRoute,
   cardStackCalculatorRoute,
+  timerControllerRoute,
 ]);
 
 export const router = createRouter({ routeTree });
