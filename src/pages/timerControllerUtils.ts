@@ -1,14 +1,16 @@
 import magicLogo from "../assets/timer-logos/magic.svg";
-import pokemonLogo from "../assets/timer-logos/pokemon.svg";
+import pokemonLogo from "../assets/timer-logos/pokemon-tcg-logo.svg";
 import yugiohLogo from "../assets/timer-logos/yugioh.svg";
-import lorcanaLogo from "../assets/timer-logos/lorcana.svg";
-import onePieceLogo from "../assets/timer-logos/one-piece.svg";
+import lorcanaLogo from "../assets/timer-logos/disney-lorcana-logo.png";
+import onePieceLogo from "../assets/timer-logos/one-piece-card-game-logo-white.png";
 import starWarsUnlimitedLogo from "../assets/timer-logos/star-wars-unlimited.svg";
-import unionArenaLogo from "../assets/timer-logos/union-arena-official-white.png";
+import unionArenaLogo from "../assets/timer-logos/union-arena-logo.webp";
 import dragonBallFusionLogo from "../assets/timer-logos/dragon-ball-fusion-official-white.png";
-import digimonLogo from "../assets/timer-logos/digimon.svg";
+import digimonLogo from "../assets/timer-logos/digimon-card-game-logo.webp";
 import cookieRunLogo from "../assets/timer-logos/cookie-run.svg";
 import riftboundLogo from "../assets/timer-logos/riftbound.svg";
+import gundamLogo from "../assets/timer-logos/gundam-card-game-logo-white.png";
+import myLittlePonyLogo from "../assets/timer-logos/my-little-pony-logo.webp";
 
 export type TcgKey =
   | "magic"
@@ -21,7 +23,9 @@ export type TcgKey =
   | "dragonBallFusion"
   | "digimon"
   | "cookieRun"
-  | "riftbound";
+  | "riftbound"
+  | "gundam"
+  | "myLittlePony";
 
 export type TimerItem = {
   id: number;
@@ -63,7 +67,7 @@ export const TCG_OPTIONS: TcgOption[] = [
     logo: "PKM",
     logoImage: pokemonLogo,
     color: "#172554",
-    background: "#ffcb05",
+    background: "#f8fafc",
   },
   {
     key: "yugioh",
@@ -78,16 +82,16 @@ export const TCG_OPTIONS: TcgOption[] = [
     name: "Lorcana",
     logo: "LOR",
     logoImage: lorcanaLogo,
-    color: "#1e1b4b",
-    background: "#c4b5fd",
+    color: "#f8fafc",
+    background: "#111827",
   },
   {
     key: "onePiece",
     name: "One Piece",
     logo: "OP",
     logoImage: onePieceLogo,
-    color: "#111827",
-    background: "#fde68a",
+    color: "#f8fafc",
+    background: "#0f172a",
   },
   {
     key: "starWars",
@@ -103,7 +107,7 @@ export const TCG_OPTIONS: TcgOption[] = [
     logo: "UA",
     logoImage: unionArenaLogo,
     color: "#f8fafc",
-    background: "#2563eb",
+    background: "#0f172a",
   },
   {
     key: "dragonBallFusion",
@@ -119,7 +123,7 @@ export const TCG_OPTIONS: TcgOption[] = [
     logo: "DIG",
     logoImage: digimonLogo,
     color: "#fefce8",
-    background: "#0369a1",
+    background: "#0f172a",
   },
   {
     key: "cookieRun",
@@ -136,6 +140,22 @@ export const TCG_OPTIONS: TcgOption[] = [
     logoImage: riftboundLogo,
     color: "#ecfeff",
     background: "#155e75",
+  },
+  {
+    key: "gundam",
+    name: "Gundam Card Game",
+    logo: "GCG",
+    logoImage: gundamLogo,
+    color: "#f8fafc",
+    background: "#0f172a",
+  },
+  {
+    key: "myLittlePony",
+    name: "My Little Pony",
+    logo: "MLP",
+    logoImage: myLittlePonyLogo,
+    color: "#f8fafc",
+    background: "#1e1b4b",
   },
 ];
 
