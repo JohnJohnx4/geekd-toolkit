@@ -1,6 +1,6 @@
 import magicLogo from "../assets/timer-logos/magic-the-gathering-logo.png";
 import pokemonLogo from "../assets/timer-logos/pokemon-tcg-logo.svg";
-import yugiohLogo from "../assets/timer-logos/yugioh.svg";
+import yugiohLogo from "../assets/timer-logos/yugioh-trading-card-game-logo.png";
 import lorcanaLogo from "../assets/timer-logos/disney-lorcana-logo.png";
 import onePieceLogo from "../assets/timer-logos/one-piece-card-game-logo-white.png";
 import starWarsUnlimitedLogo from "../assets/timer-logos/star-wars-unlimited.svg";
