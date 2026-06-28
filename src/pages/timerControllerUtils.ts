@@ -7,7 +7,7 @@ import starWarsUnlimitedLogo from "../assets/timer-logos/star-wars-unlimited.svg
 import unionArenaLogo from "../assets/timer-logos/union-arena-logo.webp";
 import dragonBallFusionLogo from "../assets/timer-logos/dragon-ball-fusion-official-white.png";
 import digimonLogo from "../assets/timer-logos/digimon-card-game-logo.webp";
-import cookieRunLogo from "../assets/timer-logos/cookie-run.svg";
+import cookieRunLogo from "../assets/timer-logos/cookie-run-braverse-logo.webp";
 import riftboundLogo from "../assets/timer-logos/riftbound-league-of-legends-logo.png";
 import gundamLogo from "../assets/timer-logos/gundam-card-game-logo-white.png";
 import myLittlePonyLogo from "../assets/timer-logos/my-little-pony-logo.webp";
