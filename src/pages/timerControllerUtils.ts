@@ -39,6 +39,7 @@ export type TimerItem = {
 export type TimerSnapshot = {
   timers: TimerItem[];
   updatedAt: number;
+  overtimeEnabled?: boolean;
 };
 
 type TcgOption = {

@@ -13,6 +13,7 @@ export default function TimerDisplayPage() {
   const [snapshot, setSnapshot] = useState<TimerSnapshot | null>(() =>
     readTimerSnapshot()
   );
+  const overtimeEnabled = snapshot?.overtimeEnabled ?? true;
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
@@ -89,6 +90,7 @@ export default function TimerDisplayPage() {
               {displayedTimers.map((timer) => {
                 const tcg = getTcg(timer.tcg);
                 const isOvertime = timer.displayedSeconds < 0;
+                const showRoundOver = isOvertime && !overtimeEnabled;
 
                 return (
                   <Box
@@ -151,18 +153,24 @@ export default function TimerDisplayPage() {
                       textAlign="center"
                       sx={{
                         color: isOvertime ? "#fecaca" : "#f8fafc",
-                        fontSize: { xs: 76, sm: 104, lg: 116 },
+                        fontSize: showRoundOver
+                          ? { xs: 52, sm: 72, lg: 80 }
+                          : { xs: 76, sm: 104, lg: 116 },
                         fontWeight: 900,
                         lineHeight: 0.95,
                         fontVariantNumeric: "tabular-nums",
                       }}
                     >
-                      {formatTime(timer.displayedSeconds)}
+                      {showRoundOver
+                        ? "Round Over"
+                        : formatTime(timer.displayedSeconds)}
                     </Typography>
 
                     <Chip
                       label={
-                        isOvertime
+                        showRoundOver
+                          ? "Round Over"
+                          : isOvertime
                           ? "Overtime"
                           : timer.running
                           ? "Running"

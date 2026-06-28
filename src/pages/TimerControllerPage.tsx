@@ -6,6 +6,7 @@ import {
   CardContent,
   Chip,
   Container,
+  FormControlLabel,
   FormControl,
   IconButton,
   InputAdornment,
@@ -13,6 +14,7 @@ import {
   MenuItem,
   Select,
   Stack,
+  Switch,
   TextField,
   Typography,
 } from "@mui/material";
@@ -97,9 +99,15 @@ const parseDurationInput = (value: string) => {
   return String(Number(value));
 };
 
+const getOvertimeEnabled = (snapshot: TimerSnapshot | null) =>
+  snapshot?.overtimeEnabled ?? true;
+
 export default function TimerControllerPage() {
   const [timers, setTimers] = useState<TimerItem[]>(() =>
     normalizeSavedTimers(readTimerSnapshot(), true)
+  );
+  const [overtimeEnabled, setOvertimeEnabled] = useState(() =>
+    getOvertimeEnabled(readTimerSnapshot())
   );
 
   const timerCount = timers.length;
@@ -162,9 +170,13 @@ export default function TimerControllerPage() {
   useEffect(() => {
     window.localStorage.setItem(
       TIMER_STORAGE_KEY,
-      JSON.stringify({ timers, updatedAt: Date.now() } satisfies TimerSnapshot)
+      JSON.stringify({
+        timers,
+        updatedAt: Date.now(),
+        overtimeEnabled,
+      } satisfies TimerSnapshot)
     );
-  }, [timers]);
+  }, [overtimeEnabled, timers]);
 
   const openDisplayWindow = () => {
     window.open(
@@ -200,6 +212,11 @@ export default function TimerControllerPage() {
                 <Chip label={`${timerCount} of ${MAX_TIMERS} timers`} />
                 <Chip label={`${runningCount} running`} color="primary" />
                 <Chip label="Max length 60 minutes" variant="outlined" />
+                <Chip
+                  label={overtimeEnabled ? "Overtime on" : "Round over mode"}
+                  color={overtimeEnabled ? "success" : "warning"}
+                  variant={overtimeEnabled ? "filled" : "outlined"}
+                />
               </Box>
 
               <Stack
@@ -247,6 +264,21 @@ export default function TimerControllerPage() {
                 >
                   Pop Out Display
                 </Button>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={overtimeEnabled}
+                      onChange={(event) =>
+                        setOvertimeEnabled(event.target.checked)
+                      }
+                    />
+                  }
+                  label="Overtime"
+                  sx={{
+                    ml: { sm: "auto" },
+                    alignSelf: { xs: "flex-start", sm: "center" },
+                  }}
+                />
               </Stack>
             </Stack>
           </CardContent>
@@ -335,13 +367,15 @@ export default function TimerControllerPage() {
                         fontVariantNumeric: "tabular-nums",
                       }}
                     >
-                      {formatTime(timer.remainingSeconds)}
+                      {isOvertime && !overtimeEnabled
+                        ? "Round Over"
+                        : formatTime(timer.remainingSeconds)}
                     </Typography>
 
                     {isOvertime ? (
                       <Chip
                         color="error"
-                        label="Overtime"
+                        label={overtimeEnabled ? "Overtime" : "Round Over"}
                         sx={{ fontWeight: 800, alignSelf: "center" }}
                       />
                     ) : (
