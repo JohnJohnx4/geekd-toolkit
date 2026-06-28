@@ -13,7 +13,6 @@ export default function TimerDisplayPage() {
   const [snapshot, setSnapshot] = useState<TimerSnapshot | null>(() =>
     readTimerSnapshot()
   );
-  const overtimeEnabled = snapshot?.overtimeEnabled ?? true;
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
@@ -90,7 +89,8 @@ export default function TimerDisplayPage() {
               {displayedTimers.map((timer) => {
                 const tcg = getTcg(timer.tcg);
                 const isOvertime = timer.displayedSeconds < 0;
-                const showRoundOver = isOvertime && !overtimeEnabled;
+                const showRoundOver =
+                  isOvertime && !(timer.overtimeEnabled ?? true);
 
                 return (
                   <Box

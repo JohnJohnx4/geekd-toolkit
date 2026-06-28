@@ -34,6 +34,7 @@ export type TimerItem = {
   durationSeconds: number;
   remainingSeconds: number;
   running: boolean;
+  overtimeEnabled: boolean;
 };
 
 export type TimerSnapshot = {
