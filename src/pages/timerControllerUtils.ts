@@ -1,4 +1,4 @@
-import magicLogo from "../assets/timer-logos/magic.svg";
+import magicLogo from "../assets/timer-logos/magic-the-gathering-logo.png";
 import pokemonLogo from "../assets/timer-logos/pokemon-tcg-logo.svg";
 import yugiohLogo from "../assets/timer-logos/yugioh.svg";
 import lorcanaLogo from "../assets/timer-logos/disney-lorcana-logo.png";
