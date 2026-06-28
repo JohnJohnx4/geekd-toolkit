@@ -4,8 +4,8 @@ import yugiohLogo from "../assets/timer-logos/yugioh.svg";
 import lorcanaLogo from "../assets/timer-logos/lorcana.svg";
 import onePieceLogo from "../assets/timer-logos/one-piece.svg";
 import starWarsUnlimitedLogo from "../assets/timer-logos/star-wars-unlimited.svg";
-import unionArenaLogo from "../assets/timer-logos/union-arena.svg";
-import dragonBallFusionLogo from "../assets/timer-logos/dragon-ball-fusion.svg";
+import unionArenaLogo from "../assets/timer-logos/union-arena-official-white.png";
+import dragonBallFusionLogo from "../assets/timer-logos/dragon-ball-fusion-official-white.png";
 import digimonLogo from "../assets/timer-logos/digimon.svg";
 import cookieRunLogo from "../assets/timer-logos/cookie-run.svg";
 import riftboundLogo from "../assets/timer-logos/riftbound.svg";
@@ -110,8 +110,8 @@ export const TCG_OPTIONS: TcgOption[] = [
     name: "DragonBall Fusion",
     logo: "DBF",
     logoImage: dragonBallFusionLogo,
-    color: "#111827",
-    background: "#f97316",
+    color: "#f8fafc",
+    background: "#155e75",
   },
   {
     key: "digimon",
