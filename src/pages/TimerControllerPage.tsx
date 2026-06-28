@@ -265,9 +265,9 @@ export default function TimerControllerPage() {
             gridTemplateColumns: {
               xs: "1fr",
               sm: "repeat(2, minmax(0, 1fr))",
-              lg: "repeat(3, minmax(0, 1fr))",
+              xl: "repeat(3, minmax(0, 1fr))",
             },
-            gap: 2,
+            gap: { xs: 2, md: 2.5 },
           }}
         >
           {timers.map((timer) => {
@@ -285,14 +285,20 @@ export default function TimerControllerPage() {
                   borderColor: isOvertime ? "error.main" : "divider",
                 }}
               >
-                <CardContent>
-                  <Stack spacing={2}>
+                <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
+                  <Stack spacing={2.25}>
                     <Stack
                       direction="row"
                       justifyContent="space-between"
+                      alignItems="flex-start"
                       spacing={1}
                     >
-                      <Stack direction="row" spacing={1.25} alignItems="center">
+                      <Stack
+                        direction="row"
+                        spacing={1.25}
+                        alignItems="center"
+                        sx={{ minWidth: 0 }}
+                      >
                         <Box
                           sx={{
                             width: 72,
@@ -317,8 +323,16 @@ export default function TimerControllerPage() {
                             }}
                           />
                         </Box>
-                        <Box>
-                          <Typography variant="h6">{tcg.name}</Typography>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography
+                            variant="h6"
+                            sx={{
+                              lineHeight: 1.15,
+                              overflowWrap: "anywhere",
+                            }}
+                          >
+                            {tcg.name}
+                          </Typography>
                           <Typography variant="body2" color="text.secondary">
                             {getTimerName(timer)}
                           </Typography>
@@ -339,8 +353,11 @@ export default function TimerControllerPage() {
                       textAlign="center"
                       color={isOvertime ? "error.main" : "text.primary"}
                       sx={{
-                        fontSize: { xs: 56, sm: 64 },
+                        fontSize: showRoundOver
+                          ? { xs: 42, sm: 50 }
+                          : { xs: 56, sm: 64 },
                         fontVariantNumeric: "tabular-nums",
+                        lineHeight: 1.05,
                       }}
                     >
                       {showRoundOver
@@ -362,104 +379,131 @@ export default function TimerControllerPage() {
                       />
                     )}
 
+                    <Stack spacing={1.25}>
+                      <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={1.25}
+                      >
+                        <TextField
+                          label="Timer name"
+                          value={timer.name ?? `Timer ${timer.id}`}
+                          onChange={(event) =>
+                            updateTimer(timer.id, (current) => ({
+                              ...current,
+                              name: event.target.value,
+                            }))
+                          }
+                          onBlur={() =>
+                            updateTimer(timer.id, (current) => ({
+                              ...current,
+                              name: getTimerName(current),
+                            }))
+                          }
+                          fullWidth
+                        />
+
+                        <FormControl fullWidth>
+                          <InputLabel>TCG</InputLabel>
+                          <Select
+                            value={timer.tcg}
+                            label="TCG"
+                            onChange={(event) =>
+                              updateTimer(timer.id, (current) => ({
+                                ...current,
+                                tcg: event.target.value as TcgKey,
+                              }))
+                            }
+                          >
+                            {TCG_OPTIONS.map((option) => (
+                              <MenuItem key={option.key} value={option.key}>
+                                {option.name}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </Stack>
+
+                      <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={1.25}
+                        alignItems={{ xs: "stretch", sm: "center" }}
+                      >
+                        <TextField
+                          label="Length"
+                          type="number"
+                          value={durationMinutes}
+                          onChange={(event) => {
+                            const cleanValue = parseDurationInput(
+                              event.target.value
+                            );
+                            if (cleanValue === "") return;
+
+                            const durationSeconds = clampDuration(
+                              Number(cleanValue) * 60
+                            );
+                            updateTimer(timer.id, (current) => ({
+                              ...current,
+                              durationSeconds,
+                              remainingSeconds: current.running
+                                ? current.remainingSeconds
+                                : durationSeconds,
+                            }));
+                          }}
+                          inputProps={{
+                            min: 1,
+                            max: 60,
+                            step: 1,
+                            inputMode: "numeric",
+                          }}
+                          InputProps={{
+                            endAdornment: (
+                              <InputAdornment position="end">
+                                min
+                              </InputAdornment>
+                            ),
+                          }}
+                          sx={{ width: { sm: 150 } }}
+                        />
+
+                        <Box
+                          sx={{
+                            flex: 1,
+                            minHeight: 56,
+                            display: "flex",
+                            alignItems: "center",
+                            border: "1px solid",
+                            borderColor: "divider",
+                            borderRadius: 1,
+                            px: 1.5,
+                          }}
+                        >
+                          <FormControlLabel
+                            control={
+                              <Switch
+                                checked={timer.overtimeEnabled}
+                                onChange={(event) =>
+                                  updateTimer(timer.id, (current) => ({
+                                    ...current,
+                                    overtimeEnabled: event.target.checked,
+                                  }))
+                                }
+                              />
+                            }
+                            label="Overtime"
+                            sx={{
+                              m: 0,
+                              width: "100%",
+                              justifyContent: "space-between",
+                            }}
+                          />
+                        </Box>
+                      </Stack>
+                    </Stack>
+
                     <Stack
                       direction={{ xs: "column", sm: "row" }}
                       spacing={1}
                     >
-                      <TextField
-                        label="Timer name"
-                        value={timer.name ?? `Timer ${timer.id}`}
-                        onChange={(event) =>
-                          updateTimer(timer.id, (current) => ({
-                            ...current,
-                            name: event.target.value,
-                          }))
-                        }
-                        onBlur={() =>
-                          updateTimer(timer.id, (current) => ({
-                            ...current,
-                            name: getTimerName(current),
-                          }))
-                        }
-                        fullWidth
-                      />
-
-                      <FormControl fullWidth>
-                        <InputLabel>TCG</InputLabel>
-                        <Select
-                          value={timer.tcg}
-                          label="TCG"
-                          onChange={(event) =>
-                            updateTimer(timer.id, (current) => ({
-                              ...current,
-                              tcg: event.target.value as TcgKey,
-                            }))
-                          }
-                        >
-                          {TCG_OPTIONS.map((option) => (
-                            <MenuItem key={option.key} value={option.key}>
-                              {option.name}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-
-                      <TextField
-                        label="Length"
-                        type="number"
-                        value={durationMinutes}
-                        onChange={(event) => {
-                          const cleanValue = parseDurationInput(
-                            event.target.value
-                          );
-                          if (cleanValue === "") return;
-
-                          const durationSeconds = clampDuration(
-                            Number(cleanValue) * 60
-                          );
-                          updateTimer(timer.id, (current) => ({
-                            ...current,
-                            durationSeconds,
-                            remainingSeconds: current.running
-                              ? current.remainingSeconds
-                              : durationSeconds,
-                          }));
-                        }}
-                        inputProps={{
-                          min: 1,
-                          max: 60,
-                          step: 1,
-                          inputMode: "numeric",
-                        }}
-                        InputProps={{
-                          endAdornment: (
-                            <InputAdornment position="end">min</InputAdornment>
-                          ),
-                        }}
-                        sx={{ minWidth: { sm: 140 } }}
-                      />
-
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={timer.overtimeEnabled}
-                            onChange={(event) =>
-                              updateTimer(timer.id, (current) => ({
-                                ...current,
-                                overtimeEnabled: event.target.checked,
-                              }))
-                            }
-                          />
-                        }
-                        label="Overtime"
-                        sx={{
-                          alignSelf: { xs: "flex-start", sm: "center" },
-                          whiteSpace: "nowrap",
-                        }}
-                      />
-                    </Stack>
-
-                    <Stack direction="row" spacing={1}>
                       <Button
                         fullWidth
                         variant={timer.running ? "outlined" : "contained"}
