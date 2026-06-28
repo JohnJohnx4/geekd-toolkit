@@ -28,6 +28,7 @@ import {
   formatTime,
   getTcg,
   getTimerName,
+  readTimerSnapshot,
   TCG_OPTIONS,
   TIMER_STORAGE_KEY,
   type TcgKey,
@@ -51,15 +52,55 @@ const createTimer = (id: number, tcg: TcgKey): TimerItem => ({
   running: false,
 });
 
+const isTcgKey = (value: string): value is TcgKey =>
+  TCG_OPTIONS.some((option) => option.key === value);
+
+const normalizeSavedTimers = (
+  snapshot: TimerSnapshot | null,
+  applyElapsedTime = false
+): TimerItem[] => {
+  if (!snapshot?.timers.length) return [createTimer(1, "magic")];
+
+  const snapshotUpdatedAt = Number.isFinite(snapshot.updatedAt)
+    ? snapshot.updatedAt
+    : Date.now();
+  const elapsedSeconds = applyElapsedTime
+    ? Math.max(0, Math.floor((Date.now() - snapshotUpdatedAt) / 1000))
+    : 0;
+
+  return snapshot.timers.slice(0, MAX_TIMERS).map((timer, index) => {
+    const id = Number.isFinite(timer.id) ? timer.id : index + 1;
+    const durationSeconds = clampDuration(
+      Number.isFinite(timer.durationSeconds)
+        ? timer.durationSeconds
+        : DEFAULT_DURATION_SECONDS
+    );
+    const remainingSeconds = Number.isFinite(timer.remainingSeconds)
+      ? Math.floor(timer.remainingSeconds)
+      : durationSeconds;
+
+    return {
+      id,
+      name: getTimerName({ id, name: timer.name }),
+      tcg: isTcgKey(timer.tcg) ? timer.tcg : "magic",
+      durationSeconds,
+      remainingSeconds: timer.running
+        ? remainingSeconds - elapsedSeconds
+        : remainingSeconds,
+      running: Boolean(timer.running),
+    };
+  });
+};
+
 const parseDurationInput = (value: string) => {
   if (value === "") return "";
   return String(Number(value));
 };
 
 export default function TimerControllerPage() {
-  const [timers, setTimers] = useState<TimerItem[]>(() => [
-    createTimer(1, "magic"),
-  ]);
+  const [timers, setTimers] = useState<TimerItem[]>(() =>
+    normalizeSavedTimers(readTimerSnapshot(), true)
+  );
 
   const timerCount = timers.length;
   const runningCount = timers.filter((timer) => timer.running).length;
