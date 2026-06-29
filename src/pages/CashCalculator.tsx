@@ -973,6 +973,51 @@ export default function CashCalculator() {
                   .map((drawer) => {
                   const totals = getDrawerTotals(drawer);
                   const drawerIndex = drawer.id - 1;
+                  const billCounterSection = (
+                    <>
+                      <Stack spacing={0.5}>
+                        <Typography fontWeight={800}>Bills</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Leave-behind never keeps $50s or $100s, and keeps up
+                          to {MAX_BILLS_PER_DENOM} of each lower bill first.
+                        </Typography>
+                      </Stack>
+
+                      <Stack spacing={1.25}>
+                        {drawer.bills.map((denom, index) =>
+                          renderCounterRow(drawer, "bills", denom, index)
+                        )}
+                      </Stack>
+                    </>
+                  );
+                  const coinCounterSection = (
+                    <Accordion
+                      variant="outlined"
+                      defaultExpanded={activeTab === 0}
+                      sx={{
+                        borderRadius: 2,
+                        mt: activeTab === 0 ? 0 : 1.5,
+                        "&:before": { display: "none" },
+                      }}
+                    >
+                      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <MonetizationOnIcon fontSize="small" />
+                          <Typography fontWeight={800}>Coins</Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            ${formatMoney(totals.coinTotal)} stays
+                          </Typography>
+                        </Stack>
+                      </AccordionSummary>
+                      <AccordionDetails>
+                        <Stack spacing={1.25}>
+                          {drawer.coins.map((denom, index) =>
+                            renderCounterRow(drawer, "coins", denom, index)
+                          )}
+                        </Stack>
+                      </AccordionDetails>
+                    </Accordion>
+                  );
 
                   return (
                     <Accordion
@@ -1064,53 +1109,17 @@ export default function CashCalculator() {
 
                       <AccordionDetails>
                         <Stack spacing={2}>
-                          <Stack spacing={0.5}>
-                            <Typography fontWeight={800}>Bills</Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              Leave-behind never keeps $50s or $100s, and keeps
-                              up to {MAX_BILLS_PER_DENOM} of each lower bill
-                              first.
-                            </Typography>
-                          </Stack>
-
-                          <Stack spacing={1.25}>
-                            {drawer.bills.map((denom, index) =>
-                              renderCounterRow(drawer, "bills", denom, index)
-                            )}
-                          </Stack>
-
-                          <Accordion
-                            variant="outlined"
-                            sx={{
-                              borderRadius: 2,
-                              mt: 1.5,
-                              "&:before": { display: "none" },
-                            }}
-                          >
-                            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                              <Stack
-                                direction="row"
-                                spacing={1}
-                                alignItems="center"
-                              >
-                                <MonetizationOnIcon fontSize="small" />
-                                <Typography fontWeight={800}>Coins</Typography>
-                                <Typography
-                                  variant="body2"
-                                  color="text.secondary"
-                                >
-                                  ${formatMoney(totals.coinTotal)} stays
-                                </Typography>
-                              </Stack>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                              <Stack spacing={1.25}>
-                                {drawer.coins.map((denom, index) =>
-                                  renderCounterRow(drawer, "coins", denom, index)
-                                )}
-                              </Stack>
-                            </AccordionDetails>
-                          </Accordion>
+                          {activeTab === 0 ? (
+                            <>
+                              {coinCounterSection}
+                              {billCounterSection}
+                            </>
+                          ) : (
+                            <>
+                              {billCounterSection}
+                              {coinCounterSection}
+                            </>
+                          )}
 
                           <Card variant="outlined" sx={{ borderRadius: 2, p: 2 }}>
                             <Stack spacing={0.75}>
