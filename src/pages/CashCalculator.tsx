@@ -19,6 +19,11 @@ import {
   Chip,
   CircularProgress,
   Collapse,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Divider,
   IconButton,
   ListItemIcon,
@@ -470,6 +475,7 @@ export default function CashCalculator() {
   const [openHoldTipId, setOpenHoldTipId] = useState<string | null>(null);
   const [clearMenu, setClearMenu] = useState<ClearMenuState>(null);
   const [isResettingCounts, setIsResettingCounts] = useState(false);
+  const [isClearAllConfirmOpen, setIsClearAllConfirmOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -651,6 +657,15 @@ export default function CashCalculator() {
       setIsResettingCounts(false);
       resetDelayRef.current = null;
     }, 1500);
+  };
+
+  const requestClearAll = () => {
+    setIsClearAllConfirmOpen(true);
+  };
+
+  const confirmClearAll = () => {
+    setIsClearAllConfirmOpen(false);
+    clearAll();
   };
 
   const openClearMenu = (
@@ -1187,30 +1202,8 @@ export default function CashCalculator() {
                 {headerGuidance}
               </Typography>
 
-              <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-                <IconButton
-                  color="error"
-                  aria-label="More checkout actions"
-                  onClick={(event) =>
-                    openClearMenu(event, [
-                      {
-                        label: "Clear all counts",
-                        onClick: clearAll,
-                      },
-                    ])
-                  }
-                  sx={{
-                    border: "1px solid",
-                    borderColor: "divider",
-                    borderRadius: 1,
-                    minWidth: 48,
-                  }}
-                >
-                  <MoreVertIcon />
-                </IconButton>
-
-                {showReceiptActions ? (
-                  <>
+              {showReceiptActions ? (
+                <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
                     <Button
                       variant="contained"
                       fullWidth
@@ -1230,9 +1223,8 @@ export default function CashCalculator() {
                     >
                       Copy
                     </Button>
-                  </>
-                ) : null}
-              </Stack>
+                </Stack>
+              ) : null}
 
               {activeTab === 1 ? (
                 <Typography
@@ -1631,6 +1623,17 @@ export default function CashCalculator() {
                               sx={{ py: 1.15 }}
                             >
                               Finish Till {drawer.id}
+                            </Button>
+                          ) : null}
+                          {currentStep !== REVIEW_STEP ? (
+                            <Button
+                              fullWidth
+                              color="error"
+                              variant="outlined"
+                              startIcon={<ClearIcon />}
+                              onClick={requestClearAll}
+                            >
+                              Clear All Counts
                             </Button>
                           ) : null}
                         </Stack>
@@ -2148,6 +2151,33 @@ export default function CashCalculator() {
               </MenuItem>
             ))}
           </Menu>
+
+          <Dialog
+            open={isClearAllConfirmOpen}
+            onClose={() => setIsClearAllConfirmOpen(false)}
+            fullWidth
+            maxWidth="xs"
+          >
+            <DialogTitle>Clear all counts?</DialogTitle>
+            <DialogContent>
+              <DialogContentText>
+                This will reset every till, clear completed drawer progress, and
+                return the guided count to till 1.
+              </DialogContentText>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setIsClearAllConfirmOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                color="error"
+                variant="contained"
+                onClick={confirmClearAll}
+              >
+                Clear All Counts
+              </Button>
+            </DialogActions>
+          </Dialog>
         </>
       ) : (
         <SafeBillCounter />
