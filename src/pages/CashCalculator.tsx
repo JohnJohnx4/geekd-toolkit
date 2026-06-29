@@ -71,6 +71,7 @@ const HOLD_REPEAT_MS = 90;
 const HOLD_MOVE_CANCEL_PX = 8;
 const HOLD_TIP_STORAGE_KEY = "cashCounterHoldTipShows";
 const HOLD_TIP_DISMISSED_STORAGE_KEY = "cashCounterHoldTipDismissed";
+const DEPOSIT_PROGRESS_STORAGE_KEY = "cashCounterDepositProgress";
 const HOLD_TIP_MAX_SHOWS = 3;
 const HOLD_TIP_HIDE_MS = 1800;
 const DEFAULT_DRAWER_TARGET = 300;
@@ -100,6 +101,72 @@ const createRegister = (index: number): RegisterDrawer => ({
   bills: BILL_DENOMS.map((d) => ({ ...d, count: 0 })),
   coins: COIN_DENOMS.map((d) => ({ ...d, count: 0 })),
 });
+
+const isCountValue = (value: unknown): value is CountValue =>
+  value === "" || (typeof value === "number" && Number.isFinite(value));
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === "object";
+
+const hydrateDenoms = (
+  savedDenoms: unknown,
+  baseDenoms: CashDenomination[]
+): CashDenomination[] => {
+  if (!Array.isArray(savedDenoms)) return baseDenoms;
+
+  return baseDenoms.map((baseDenom) => {
+    const savedDenom = savedDenoms.find(
+      (denom) => isRecord(denom) && denom.value === baseDenom.value
+    );
+
+    if (isRecord(savedDenom) && isCountValue(savedDenom.count)) {
+      return { ...baseDenom, count: savedDenom.count };
+    }
+
+    return baseDenom;
+  });
+};
+
+const readSavedDepositDrawers = (): RegisterDrawer[] | null => {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const storedValue = window.localStorage.getItem(DEPOSIT_PROGRESS_STORAGE_KEY);
+    if (!storedValue) return null;
+
+    const parsedValue = JSON.parse(storedValue);
+    if (!isRecord(parsedValue)) return null;
+
+    const savedDrawers = parsedValue.drawers ?? parsedValue;
+    if (!Array.isArray(savedDrawers)) return null;
+
+    return Array.from({ length: 3 }, (_, index) => {
+      const baseDrawer = createRegister(index);
+      const savedDrawer = savedDrawers.find(
+        (drawer) => isRecord(drawer) && drawer.id === baseDrawer.id
+      );
+
+      if (!isRecord(savedDrawer)) return baseDrawer;
+
+      const target: CountValue = isCountValue(savedDrawer.target)
+        ? savedDrawer.target
+        : baseDrawer.target;
+
+      return {
+        ...baseDrawer,
+        enabled:
+          typeof savedDrawer.enabled === "boolean"
+            ? savedDrawer.enabled
+            : baseDrawer.enabled,
+        target: target === "" ? "" : Math.max(0, target),
+        bills: hydrateDenoms(savedDrawer.bills, baseDrawer.bills),
+        coins: hydrateDenoms(savedDrawer.coins, baseDrawer.coins),
+      };
+    });
+  } catch {
+    return null;
+  }
+};
 
 const getBillTotal = (drawer: RegisterDrawer) =>
   drawer.bills.reduce((sum, d) => sum + parseCount(d.count) * d.value, 0);
@@ -222,6 +289,7 @@ const getDrawerTotals = (drawer: RegisterDrawer) => {
 export default function CashCalculator() {
   const [activeTab, setActiveTab] = useState(0);
   const [drawers, setDrawers] = useState<RegisterDrawer[]>(() =>
+    readSavedDepositDrawers() ??
     Array.from({ length: 3 }, (_, index) => createRegister(index))
   );
   const [copyMessage, setCopyMessage] = useState("");
@@ -233,6 +301,20 @@ export default function CashCalculator() {
   const suppressClickRef = useRef(false);
   const showedHoldTipThisLoadRef = useRef(false);
   const [openHoldTipId, setOpenHoldTipId] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        DEPOSIT_PROGRESS_STORAGE_KEY,
+        JSON.stringify({
+          drawers,
+          updatedAt: Date.now(),
+        })
+      );
+    } catch {
+      // Keep counting usable if storage is full or unavailable.
+    }
+  }, [drawers]);
 
   const activeDrawers = useMemo(
     () => drawers.filter((drawer) => drawer.enabled),
