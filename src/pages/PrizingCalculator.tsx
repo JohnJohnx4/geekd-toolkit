@@ -15,6 +15,8 @@ import {
   FormControl,
   InputLabel,
   Button,
+  FormControlLabel,
+  Switch,
 } from "@mui/material";
 
 import ControlPointIcon from "@mui/icons-material/ControlPoint";
@@ -49,6 +51,23 @@ function calculateStaircasePrizing(
   return packs;
 }
 
+function calculateEvenPrizing(
+  playerCount: number,
+  topCut: number,
+  packsPerPlayer = 2,
+): number[] {
+  const totalPacks = playerCount * packsPerPlayer;
+  if (topCut <= 0 || topCut > totalPacks) return [];
+
+  const basePacks = Math.floor(totalPacks / topCut);
+  const extraPacks = totalPacks % topCut;
+
+  return Array.from(
+    { length: topCut },
+    (_, index) => basePacks + (index < extraPacks ? 1 : 0),
+  );
+}
+
 const cleanNumericDisplayValue = (value: string) => {
   if (value === "") return "";
 
@@ -66,6 +85,7 @@ export default function StaircasePrizingCalculator() {
   const [topCut, setTopCut] = useState("4");
   const [creditPerPack, setCreditPerPack] = useState("4");
   const [packsPerEntry, setPacksPerEntry] = useState("2");
+  const [useEvenSplit, setUseEvenSplit] = useState(false);
   const packsPerEntryNum = Number(packsPerEntry) || 0;
 
   const playersNum = Number(players) || 0;
@@ -73,13 +93,19 @@ export default function StaircasePrizingCalculator() {
   const creditNum = Number(creditPerPack) || 0;
 
   const prizes = useMemo(
-    () => calculateStaircasePrizing(playersNum, topCutNum, packsPerEntryNum),
-    [playersNum, topCutNum, packsPerEntryNum],
+    () =>
+      useEvenSplit
+        ? calculateEvenPrizing(playersNum, topCutNum, packsPerEntryNum)
+        : calculateStaircasePrizing(playersNum, topCutNum, packsPerEntryNum),
+    [playersNum, topCutNum, packsPerEntryNum, useEvenSplit],
   );
 
   const basePrizes = useMemo(
-    () => calculateStaircasePrizing(playersNum, topCutNum, packsPerEntryNum),
-    [playersNum, topCutNum, packsPerEntryNum],
+    () =>
+      useEvenSplit
+        ? calculateEvenPrizing(playersNum, topCutNum, packsPerEntryNum)
+        : calculateStaircasePrizing(playersNum, topCutNum, packsPerEntryNum),
+    [playersNum, topCutNum, packsPerEntryNum, useEvenSplit],
   );
 
   const [editablePrizes, setEditablePrizes] = useState<number[]>(basePrizes);
@@ -87,9 +113,9 @@ export default function StaircasePrizingCalculator() {
   const totalPacks = playersNum * packsPerEntryNum;
 
   const totalCredit = totalPacks * creditNum;
-  const hasManualChanges = editablePrizes.some(
-    (packs, index) => packs !== basePrizes[index],
-  );
+  const hasManualChanges =
+    editablePrizes.length !== basePrizes.length ||
+    editablePrizes.some((packs, index) => packs !== basePrizes[index]);
 
   const handleIncrement = (target: string) => {
     if (target === "packsPerEntry") {
@@ -185,6 +211,33 @@ export default function StaircasePrizingCalculator() {
                 <Typography variant="body2" color="text.secondary">
                   Set attendance, entry packs, and credit rate.
                 </Typography>
+              </Box>
+
+              <Box
+                sx={{
+                  border: "1px solid",
+                  borderColor: "divider",
+                  borderRadius: 2,
+                  px: 1.5,
+                  py: 0.75,
+                }}
+              >
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={useEvenSplit}
+                      onChange={(event) =>
+                        setUseEvenSplit(event.target.checked)
+                      }
+                    />
+                  }
+                  label={useEvenSplit ? "Even split" : "Pyramid split"}
+                  sx={{
+                    m: 0,
+                    width: "100%",
+                    justifyContent: "space-between",
+                  }}
+                />
               </Box>
 
               <Stack spacing={1.5}>
@@ -344,8 +397,10 @@ export default function StaircasePrizingCalculator() {
                     Prize Distribution
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Use arrows to redistribute packs if allotments are
-                    unbalanced.
+                    {useEvenSplit
+                      ? "Even split keeps prizes as close as possible."
+                      : "Pyramid split favors higher placements."}{" "}
+                    Use arrows to redistribute packs if needed.
                   </Typography>
                 </Box>
 
