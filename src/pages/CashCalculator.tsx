@@ -272,18 +272,21 @@ const addExtraBillsToReachAmount = (
   amountNeeded: number,
   maxBillAmount: number
 ) => {
-  let remainingAmount = Math.min(
-    amountNeeded,
-    Math.max(0, maxBillAmount - getLeaveBillTotal(leaveCounts))
-  );
+  let remainingAmount = amountNeeded;
 
   [...TILL_BILL_VALUES].reverse().forEach((value) => {
     if (remainingAmount <= 0) return;
-    if (value > remainingAmount) return;
+
+    const remainingBudget = Math.max(
+      0,
+      maxBillAmount - getLeaveBillTotal(leaveCounts)
+    );
+    if (value > remainingBudget) return;
 
     const countToUse = Math.min(
       counts[value] ?? 0,
-      Math.floor(remainingAmount / value)
+      Math.floor(remainingBudget / value),
+      Math.ceil(remainingAmount / value)
     );
 
     if (countToUse > 0) {
