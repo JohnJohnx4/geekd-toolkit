@@ -16,6 +16,7 @@ import {
   Card,
   CardContent,
   Chip,
+  Collapse,
   Divider,
   IconButton,
   ListItemIcon,
@@ -24,9 +25,6 @@ import {
   MenuItem,
   Snackbar,
   Stack,
-  Step,
-  StepLabel,
-  Stepper,
   Tab,
   Tabs,
   TextField,
@@ -320,6 +318,7 @@ export default function CashCalculator() {
   );
   const [currentStep, setCurrentStep] = useState(readSavedDepositStep);
   const [copyMessage, setCopyMessage] = useState("");
+  const [totalsExpanded, setTotalsExpanded] = useState(false);
 
   const repeatDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const repeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -865,6 +864,17 @@ export default function CashCalculator() {
     );
   };
 
+  const stepLabel =
+    currentStep === REVIEW_STEP
+      ? "Review"
+      : `Register ${currentStep + 1} of ${DRAWER_COUNT}`;
+  const nextStepLabel =
+    currentStep === REVIEW_STEP - 1
+      ? "Review"
+      : currentStep === REVIEW_STEP
+        ? "Start Over"
+        : "Next";
+
   return (
     <>
       <Card sx={{ maxWidth: 620, mx: "auto", borderRadius: 3, mb: 2 }}>
@@ -1194,8 +1204,7 @@ export default function CashCalculator() {
             bottom={0}
             bgcolor="background.paper"
             zIndex={99}
-            pt={1.5}
-            pb={2}
+            py={1}
             mt={4}
             sx={{
               borderTop: "1px solid",
@@ -1203,80 +1212,124 @@ export default function CashCalculator() {
               boxShadow: "0 -8px 24px rgba(15, 23, 42, 0.08)",
             }}
           >
-            <Stack spacing={1.25} px={2} maxWidth={620} mx="auto">
+            <Stack spacing={1} px={2} maxWidth={620} mx="auto">
               {activeTab === 0 ? (
-                <Card variant="outlined" sx={{ borderRadius: 2, p: 1.5 }}>
-                  <Stack spacing={1.5}>
-                    <Stepper activeStep={currentStep} alternativeLabel>
-                      {[
-                        "Register 1",
-                        "Register 2",
-                        "Register 3",
-                        "Review",
-                      ].map((label) => (
-                        <Step key={label}>
-                          <StepLabel>{label}</StepLabel>
-                        </Step>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Button
+                    variant="outlined"
+                    disabled={currentStep === 0}
+                    onClick={() =>
+                      setCurrentStep((step) => Math.max(0, step - 1))
+                    }
+                    sx={{ minWidth: 72 }}
+                  >
+                    Back
+                  </Button>
+                  <Stack
+                    alignItems="center"
+                    justifyContent="center"
+                    sx={{ flex: 1, minWidth: 0 }}
+                  >
+                    <Typography fontWeight={900} noWrap>
+                      {stepLabel}
+                    </Typography>
+                    <Stack direction="row" spacing={0.5}>
+                      {[0, 1, 2, 3].map((step) => (
+                        <Box
+                          key={step}
+                          sx={{
+                            width: 7,
+                            height: 7,
+                            borderRadius: "50%",
+                            bgcolor:
+                              step === currentStep
+                                ? "primary.main"
+                                : "divider",
+                          }}
+                        />
                       ))}
-                    </Stepper>
-
-                    <Stack direction="row" spacing={1}>
-                      <Button
-                        variant="outlined"
-                        fullWidth
-                        disabled={currentStep === 0}
-                        onClick={() =>
-                          setCurrentStep((step) => Math.max(0, step - 1))
-                        }
-                      >
-                        Back
-                      </Button>
-                      <Button
-                        variant="contained"
-                        fullWidth
-                        onClick={() =>
-                          setCurrentStep((step) =>
-                            step === REVIEW_STEP
-                              ? 0
-                              : Math.min(REVIEW_STEP, step + 1)
-                          )
-                        }
-                      >
-                        {currentStep === REVIEW_STEP - 1
-                          ? "Review Checkout"
-                          : currentStep === REVIEW_STEP
-                            ? "Start Over"
-                            : "Next Drawer"}
-                      </Button>
                     </Stack>
                   </Stack>
-                </Card>
+                  <Button
+                    variant="contained"
+                    onClick={() =>
+                      setCurrentStep((step) =>
+                        step === REVIEW_STEP
+                          ? 0
+                          : Math.min(REVIEW_STEP, step + 1)
+                      )
+                    }
+                    sx={{ minWidth: 92 }}
+                  >
+                    {nextStepLabel}
+                  </Button>
+                </Stack>
               ) : null}
 
-              <Stack direction="row" justifyContent="space-between">
-                <Typography color="text.secondary">
-                  All drawers counted
-                </Typography>
-                <Typography fontWeight={700}>
-                  ${formatMoney(overallTotals.countedTotal)}
-                </Typography>
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                justifyContent="space-between"
+              >
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={() => setTotalsExpanded((expanded) => !expanded)}
+                  endIcon={
+                    <ExpandMoreIcon
+                      sx={{
+                        transform: totalsExpanded
+                          ? "rotate(180deg)"
+                          : "rotate(0deg)",
+                        transition: "transform 160ms ease",
+                      }}
+                    />
+                  }
+                  sx={{
+                    color: "text.secondary",
+                    fontWeight: 800,
+                    minWidth: 0,
+                    px: 0,
+                  }}
+                >
+                  Totals
+                </Button>
+                <Stack direction="row" spacing={1} alignItems="baseline">
+                  <Typography color="text.secondary">Deposit</Typography>
+                  <Typography fontSize={18} fontWeight={900}>
+                    ${formatMoney(overallTotals.deposit)}
+                  </Typography>
+                </Stack>
               </Stack>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography color="text.secondary">
-                  Amount left in drawers
-                </Typography>
-                <Typography fontWeight={700}>
-                  ${formatMoney(overallTotals.leftInDrawer)}
-                </Typography>
-              </Stack>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography fontSize={18} fontWeight={900}>
-                  Deposit
-                </Typography>
-                <Typography fontSize={18} fontWeight={900}>
-                  ${formatMoney(overallTotals.deposit)}
-                </Typography>
-              </Stack>
+
+              <Collapse in={totalsExpanded} timeout="auto" unmountOnExit>
+                <Stack spacing={0.75}>
+                  <Divider />
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography color="text.secondary">
+                      All drawers counted
+                    </Typography>
+                    <Typography fontWeight={700}>
+                      ${formatMoney(overallTotals.countedTotal)}
+                    </Typography>
+                  </Stack>
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography color="text.secondary">
+                      Amount left in drawers
+                    </Typography>
+                    <Typography fontWeight={700}>
+                      ${formatMoney(overallTotals.leftInDrawer)}
+                    </Typography>
+                  </Stack>
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography fontWeight={900}>Deposit</Typography>
+                    <Typography fontWeight={900}>
+                      ${formatMoney(overallTotals.deposit)}
+                    </Typography>
+                  </Stack>
+                </Stack>
+              </Collapse>
             </Stack>
           </Box>
 
