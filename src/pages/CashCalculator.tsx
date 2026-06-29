@@ -256,7 +256,10 @@ const fillWithLowerBills = (
   });
 };
 
-const getRegisterSummaries = (drawers: RegisterDrawer[]) => {
+const getRegisterSummaries = (
+  drawers: RegisterDrawer[],
+  allowTransfers: boolean
+) => {
   const adjustedCounts = drawers.map(getBillCounts);
   const transferIns = drawers.map(() => [] as Array<{
     label: string;
@@ -273,46 +276,48 @@ const getRegisterSummaries = (drawers: RegisterDrawer[]) => {
     drawerName: string;
   }>);
 
-  TILL_BILL_VALUES.forEach((value) => {
-    drawers.forEach((drawer, receiverIndex) => {
-      let needed =
-        TILL_BILL_MINIMUM_COUNTS[value] -
-        (adjustedCounts[receiverIndex][value] ?? 0);
+  if (allowTransfers) {
+    TILL_BILL_VALUES.forEach((value) => {
+      drawers.forEach((drawer, receiverIndex) => {
+        let needed =
+          TILL_BILL_MINIMUM_COUNTS[value] -
+          (adjustedCounts[receiverIndex][value] ?? 0);
 
-      if (needed <= 0) return;
+        if (needed <= 0) return;
 
-      drawers.forEach((donor, donorIndex) => {
-        if (needed <= 0 || donorIndex === receiverIndex) return;
+        drawers.forEach((donor, donorIndex) => {
+          if (needed <= 0 || donorIndex === receiverIndex) return;
 
-        const donorExtra =
-          (adjustedCounts[donorIndex][value] ?? 0) -
-          TILL_BILL_MINIMUM_COUNTS[value];
-        const countToTransfer = Math.min(needed, Math.max(0, donorExtra));
+          const donorExtra =
+            (adjustedCounts[donorIndex][value] ?? 0) -
+            TILL_BILL_MINIMUM_COUNTS[value];
+          const countToTransfer = Math.min(needed, Math.max(0, donorExtra));
 
-        if (countToTransfer <= 0) return;
+          if (countToTransfer <= 0) return;
 
-        adjustedCounts[donorIndex][value] -= countToTransfer;
-        adjustedCounts[receiverIndex][value] += countToTransfer;
-        needed -= countToTransfer;
+          adjustedCounts[donorIndex][value] -= countToTransfer;
+          adjustedCounts[receiverIndex][value] += countToTransfer;
+          needed -= countToTransfer;
 
-        const transfer = {
-          label: getBillLabel(value),
-          value,
-          count: countToTransfer,
-          total: countToTransfer * value,
-        };
+          const transfer = {
+            label: getBillLabel(value),
+            value,
+            count: countToTransfer,
+            total: countToTransfer * value,
+          };
 
-        transferOuts[donorIndex].push({
-          ...transfer,
-          drawerName: drawer.name,
-        });
-        transferIns[receiverIndex].push({
-          ...transfer,
-          drawerName: donor.name,
+          transferOuts[donorIndex].push({
+            ...transfer,
+            drawerName: drawer.name,
+          });
+          transferIns[receiverIndex].push({
+            ...transfer,
+            drawerName: donor.name,
+          });
         });
       });
     });
-  });
+  }
 
   return drawers.map((drawer, drawerIndex) => {
     const billTotal = getBillTotal(drawer);
@@ -414,9 +419,11 @@ export default function CashCalculator() {
     }
   }, [currentStep, drawers]);
 
+  const allowRegisterTransfers =
+    activeTab === 1 || currentStep === REVIEW_STEP;
   const registerSummaries = useMemo(
-    () => getRegisterSummaries(drawers),
-    [drawers]
+    () => getRegisterSummaries(drawers, allowRegisterTransfers),
+    [allowRegisterTransfers, drawers]
   );
 
   const overallTotals = useMemo(
@@ -772,7 +779,7 @@ export default function CashCalculator() {
         context.textAlign = "left";
         context.font = "700 14px Rubik, Arial, sans-serif";
         context.fillStyle = "#1f1f1f";
-        context.fillText("Transfers", 48, y);
+        context.fillText("Move bills between registers", 48, y);
         y += 20;
         context.font = "400 13px Rubik, Arial, sans-serif";
 
@@ -1293,7 +1300,7 @@ export default function CashCalculator() {
                                   <Divider />
                                   <Stack spacing={0.5}>
                                     <Typography fontWeight={800}>
-                                      Transfers
+                                      Move bills between registers
                                     </Typography>
                                     {totals.transferIns.map((transfer) => (
                                       <Stack
