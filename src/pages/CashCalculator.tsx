@@ -1124,6 +1124,7 @@ export default function CashCalculator() {
     currentStep === REVIEW_STEP || completedDrawers[currentStep] === true;
   const currentDrawerCalculating =
     currentStep !== REVIEW_STEP && calculatingDrawerId === currentStep + 1;
+  const showReceiptActions = activeTab === 1 || currentStep === REVIEW_STEP;
   const nextStepLabel =
     currentDrawerCalculating
       ? "Calculating"
@@ -1208,25 +1209,29 @@ export default function CashCalculator() {
                   <MoreVertIcon />
                 </IconButton>
 
-                <Button
-                  variant="contained"
-                  fullWidth
-                  startIcon={<DownloadIcon />}
-                  onClick={handleExportReceipt}
-                  sx={{ minWidth: 0 }}
-                >
-                  Export
-                </Button>
+                {showReceiptActions ? (
+                  <>
+                    <Button
+                      variant="contained"
+                      fullWidth
+                      startIcon={<DownloadIcon />}
+                      onClick={handleExportReceipt}
+                      sx={{ minWidth: 0 }}
+                    >
+                      Export
+                    </Button>
 
-                <Button
-                  variant="outlined"
-                  fullWidth
-                  startIcon={<ContentCopyIcon />}
-                  onClick={handleCopyReceipt}
-                  sx={{ minWidth: 0 }}
-                >
-                  Copy
-                </Button>
+                    <Button
+                      variant="outlined"
+                      fullWidth
+                      startIcon={<ContentCopyIcon />}
+                      onClick={handleCopyReceipt}
+                      sx={{ minWidth: 0 }}
+                    >
+                      Copy
+                    </Button>
+                  </>
+                ) : null}
               </Stack>
 
               {activeTab === 1 ? (
