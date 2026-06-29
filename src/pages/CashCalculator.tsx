@@ -314,7 +314,6 @@ const getDrawerTotals = (drawer: RegisterDrawer) => {
 
 export default function CashCalculator() {
   const [activeTab, setActiveTab] = useState(0);
-  const [depositViewTab, setDepositViewTab] = useState(0);
   const [drawers, setDrawers] = useState<RegisterDrawer[]>(() =>
     readSavedDepositDrawers() ??
     Array.from({ length: DRAWER_COUNT }, (_, index) => createRegister(index))
@@ -875,16 +874,19 @@ export default function CashCalculator() {
           variant="fullWidth"
         >
           <Tab label="Deposit Counting" />
+          <Tab label="Closing Deposits" />
           <Tab label="Safe Counting" />
         </Tabs>
       </Card>
 
-      {activeTab === 0 ? (
+      {activeTab === 0 || activeTab === 1 ? (
         <>
           <Card sx={{ maxWidth: 620, mx: "auto", borderRadius: 3 }}>
             <CardContent>
               <Typography variant="h6" textAlign="center" gutterBottom>
-                Closing Drawer Count
+                {activeTab === 0
+                  ? "Guided Closing Count"
+                  : "Closing Deposit Count"}
               </Typography>
 
               <Typography
@@ -896,27 +898,6 @@ export default function CashCalculator() {
                 Count all three drawers. Coins stay in each drawer, then leave
                 enough bills to land at $300.xx.
               </Typography>
-
-              <Tabs
-                value={depositViewTab}
-                onChange={(_, nextTab) => setDepositViewTab(nextTab)}
-                variant="fullWidth"
-                sx={{
-                  mb: 2,
-                  border: "1px solid",
-                  borderColor: "divider",
-                  borderRadius: 2,
-                  minHeight: 42,
-                  "& .MuiTab-root": {
-                    minHeight: 42,
-                    textTransform: "none",
-                    fontWeight: 800,
-                  },
-                }}
-              >
-                <Tab label="Guided Closing" />
-                <Tab label="All Drawers" />
-              </Tabs>
 
               <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
                 <IconButton
@@ -961,7 +942,7 @@ export default function CashCalculator() {
                 </Button>
               </Stack>
 
-              {depositViewTab === 0 ? (
+              {activeTab === 0 ? (
                 <Card
                   variant="outlined"
                   sx={{ borderRadius: 2, p: 1.5, mb: 2 }}
@@ -1025,7 +1006,7 @@ export default function CashCalculator() {
               <Stack spacing={1.5}>
                 {drawers
                   .filter((_, index) =>
-                    depositViewTab === 1 || currentStep === REVIEW_STEP
+                    activeTab === 1 || currentStep === REVIEW_STEP
                       ? true
                       : index === currentStep
                   )
@@ -1037,7 +1018,7 @@ export default function CashCalculator() {
                     <Accordion
                       key={drawer.id}
                       defaultExpanded={
-                        depositViewTab === 1
+                        activeTab === 1
                           ? drawerIndex === 0
                           : currentStep !== REVIEW_STEP
                       }
@@ -1060,7 +1041,7 @@ export default function CashCalculator() {
                                 variant="caption"
                                 color="text.secondary"
                               >
-                                {depositViewTab === 0
+                                {activeTab === 0
                                   ? `Step ${drawerIndex + 1} of ${DRAWER_COUNT}`
                                   : "Closing drawer"}
                               </Typography>
