@@ -41,6 +41,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 import ClearIcon from "@mui/icons-material/Clear";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import EditIcon from "@mui/icons-material/Edit";
 import SafeBillCounter from "./SafeBillCounter";
 
 type CountValue = number | "";
@@ -1100,8 +1101,6 @@ export default function CashCalculator() {
   const nextStepLabel =
     currentDrawerCalculating
       ? "Calculating"
-      : activeTab === 0 && !currentDrawerCompleted
-      ? "Complete Drawer"
       : currentStep === REVIEW_STEP - 1
       ? "Review"
       : currentStep === REVIEW_STEP
@@ -1110,11 +1109,6 @@ export default function CashCalculator() {
 
   const handleGuidedStepAction = () => {
     if (currentDrawerCalculating) return;
-
-    if (!currentDrawerCompleted) {
-      completeCurrentDrawer();
-      return;
-    }
 
     setCurrentStep((step) =>
       step === REVIEW_STEP ? 0 : Math.min(REVIEW_STEP, step + 1)
@@ -1412,22 +1406,10 @@ export default function CashCalculator() {
                             <Stack spacing={0.75}>
                               {activeTab === 0 &&
                               currentStep !== REVIEW_STEP ? (
-                                <Stack
-                                  direction="row"
-                                  justifyContent="space-between"
-                                  alignItems="center"
-                                  spacing={1}
-                                >
+                                <Stack spacing={0.5}>
                                   <Typography fontWeight={800}>
                                     Drawer overview
                                   </Typography>
-                                  <Button
-                                    size="small"
-                                    variant="outlined"
-                                    onClick={() => markDrawerIncomplete(drawer.id)}
-                                  >
-                                    Edit Count
-                                  </Button>
                                 </Stack>
                               ) : null}
                               <Stack
@@ -1559,6 +1541,22 @@ export default function CashCalculator() {
                                   ${formatMoney(totals.deposit)}
                                 </Typography>
                               </Stack>
+                              {activeTab === 0 &&
+                              currentStep !== REVIEW_STEP ? (
+                                <>
+                                  <Divider />
+                                  <Button
+                                    fullWidth
+                                    variant="outlined"
+                                    startIcon={<EditIcon />}
+                                    onClick={() =>
+                                      markDrawerIncomplete(drawer.id)
+                                    }
+                                  >
+                                    Edit Register Count
+                                  </Button>
+                                </>
+                              ) : null}
                             </Stack>
                           </Card>
                           ) : (
@@ -1586,6 +1584,18 @@ export default function CashCalculator() {
                               </Stack>
                             </Card>
                           )}
+                          {activeTab === 0 &&
+                          currentStep !== REVIEW_STEP &&
+                          showEditableCounters ? (
+                            <Button
+                              fullWidth
+                              variant="contained"
+                              onClick={completeCurrentDrawer}
+                              sx={{ py: 1.15 }}
+                            >
+                              Finish Count
+                            </Button>
+                          ) : null}
                         </Stack>
                       </AccordionDetails>
                     </Accordion>
@@ -1649,7 +1659,9 @@ export default function CashCalculator() {
                   <Button
                     variant="contained"
                     onClick={handleGuidedStepAction}
-                    disabled={currentDrawerCalculating}
+                    disabled={
+                      currentDrawerCalculating || !currentDrawerCompleted
+                    }
                     sx={{ minWidth: 124 }}
                   >
                     {nextStepLabel}
