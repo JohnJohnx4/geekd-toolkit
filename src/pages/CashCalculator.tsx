@@ -768,18 +768,18 @@ export default function CashCalculator() {
     const prefix = `${drawer.id}-${type}-${index}`;
 
     return (
-      <Card key={denom.value} variant="outlined" sx={{ borderRadius: 2, p: 1.5 }}>
-        <Stack spacing={1}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Stack spacing={0.25}>
-              <Typography fontWeight={700}>{denom.label}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                ${formatMoney(total)}
-              </Typography>
-            </Stack>
+      <Card key={denom.value} variant="outlined" sx={{ borderRadius: 1.5, p: 1 }}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Stack sx={{ flex: 1, minWidth: 0 }}>
+            <Typography fontWeight={800} noWrap>
+              {denom.label}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              ${formatMoney(total)}
+            </Typography>
           </Stack>
 
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <Stack direction="row" alignItems="center" spacing={0.5}>
             <Tooltip
               title="Hold to count faster"
               open={openHoldTipId === `${prefix}-decrement`}
@@ -790,7 +790,7 @@ export default function CashCalculator() {
               disableTouchListener
             >
               <IconButton
-                size="large"
+                size="small"
                 onPointerDown={(e) =>
                   startHoldRepeat(
                     () => adjustDenom(drawer.id, type, index, -1),
@@ -805,13 +805,15 @@ export default function CashCalculator() {
                 onClick={() =>
                   handleRepeatClick(() => adjustDenom(drawer.id, type, index, -1))
                 }
+                sx={{ width: 34, height: 34 }}
               >
                 <RemoveIcon />
               </IconButton>
             </Tooltip>
 
             <TextField
-              label={type === "bills" ? "Bills" : "Qty"}
+              aria-label={`${denom.label} ${type === "bills" ? "bills" : "coins"}`}
+              size="small"
               type="number"
               value={denom.count}
               onChange={(event) =>
@@ -824,9 +826,9 @@ export default function CashCalculator() {
               }
               inputProps={{
                 inputMode: "numeric",
-                style: { textAlign: "center", fontSize: 18 },
+                style: { textAlign: "center", fontSize: 16, padding: "8px 6px" },
               }}
-              sx={{ width: 120 }}
+              sx={{ width: 76 }}
             />
 
             <Tooltip
@@ -839,7 +841,7 @@ export default function CashCalculator() {
               disableTouchListener
             >
               <IconButton
-                size="large"
+                size="small"
                 onPointerDown={(e) =>
                   startHoldRepeat(
                     () => adjustDenom(drawer.id, type, index, 1),
@@ -854,6 +856,7 @@ export default function CashCalculator() {
                 onClick={() =>
                   handleRepeatClick(() => adjustDenom(drawer.id, type, index, 1))
                 }
+                sx={{ width: 34, height: 34 }}
               >
                 <AddIcon />
               </IconButton>
@@ -983,24 +986,23 @@ export default function CashCalculator() {
                         </Typography>
                       </Stack>
 
-                      <Stack spacing={1.25}>
+                      <Stack spacing={0.75}>
                         {drawer.bills.map((denom, index) =>
                           renderCounterRow(drawer, "bills", denom, index)
                         )}
                       </Stack>
                     </>
                   );
-                  const coinCounterSection = (
-                    <Accordion
-                      variant="outlined"
-                      defaultExpanded={activeTab === 0}
-                      sx={{
-                        borderRadius: 2,
-                        mt: activeTab === 0 ? 0 : 1.5,
-                        "&:before": { display: "none" },
-                      }}
-                    >
-                      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  const coinCounterRows = (
+                    <Stack spacing={0.75}>
+                      {drawer.coins.map((denom, index) =>
+                        renderCounterRow(drawer, "coins", denom, index)
+                      )}
+                    </Stack>
+                  );
+                  const coinCounterSection =
+                    activeTab === 0 ? (
+                      <Stack spacing={0.75}>
                         <Stack direction="row" spacing={1} alignItems="center">
                           <MonetizationOnIcon fontSize="small" />
                           <Typography fontWeight={800}>Coins</Typography>
@@ -1008,16 +1010,29 @@ export default function CashCalculator() {
                             ${formatMoney(totals.coinTotal)} stays
                           </Typography>
                         </Stack>
-                      </AccordionSummary>
-                      <AccordionDetails>
-                        <Stack spacing={1.25}>
-                          {drawer.coins.map((denom, index) =>
-                            renderCounterRow(drawer, "coins", denom, index)
-                          )}
-                        </Stack>
-                      </AccordionDetails>
-                    </Accordion>
-                  );
+                        {coinCounterRows}
+                      </Stack>
+                    ) : (
+                      <Accordion
+                        variant="outlined"
+                        sx={{
+                          borderRadius: 2,
+                          mt: 1.5,
+                          "&:before": { display: "none" },
+                        }}
+                      >
+                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <MonetizationOnIcon fontSize="small" />
+                            <Typography fontWeight={800}>Coins</Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              ${formatMoney(totals.coinTotal)} stays
+                            </Typography>
+                          </Stack>
+                        </AccordionSummary>
+                        <AccordionDetails>{coinCounterRows}</AccordionDetails>
+                      </Accordion>
+                    );
 
                   return (
                     <Accordion
