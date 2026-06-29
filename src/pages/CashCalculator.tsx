@@ -942,57 +942,7 @@ export default function CashCalculator() {
                 </Button>
               </Stack>
 
-              {activeTab === 0 ? (
-                <Card
-                  variant="outlined"
-                  sx={{ borderRadius: 2, p: 1.5, mb: 2 }}
-                >
-                  <Stack spacing={1.5}>
-                    <Stepper activeStep={currentStep} alternativeLabel>
-                      {[
-                        "Register 1",
-                        "Register 2",
-                        "Register 3",
-                        "Review",
-                      ].map((label) => (
-                        <Step key={label}>
-                          <StepLabel>{label}</StepLabel>
-                        </Step>
-                      ))}
-                    </Stepper>
-
-                    <Stack direction="row" spacing={1}>
-                      <Button
-                        variant="outlined"
-                        fullWidth
-                        disabled={currentStep === 0}
-                        onClick={() =>
-                          setCurrentStep((step) => Math.max(0, step - 1))
-                        }
-                      >
-                        Back
-                      </Button>
-                      <Button
-                        variant="contained"
-                        fullWidth
-                        onClick={() =>
-                          setCurrentStep((step) =>
-                            step === REVIEW_STEP
-                              ? 0
-                              : Math.min(REVIEW_STEP, step + 1)
-                          )
-                        }
-                      >
-                        {currentStep === REVIEW_STEP - 1
-                          ? "Review Checkout"
-                          : currentStep === REVIEW_STEP
-                            ? "Start Over"
-                            : "Next Drawer"}
-                      </Button>
-                    </Stack>
-                  </Stack>
-                </Card>
-              ) : (
+              {activeTab === 1 ? (
                 <Typography
                   variant="body2"
                   color="text.secondary"
@@ -1001,7 +951,7 @@ export default function CashCalculator() {
                 >
                   Count every drawer from one screen.
                 </Typography>
-              )}
+              ) : null}
 
               <Stack spacing={1.5}>
                 {drawers
@@ -1244,11 +1194,65 @@ export default function CashCalculator() {
             bottom={0}
             bgcolor="background.paper"
             zIndex={99}
-            py={2}
-            my={4}
+            pt={1.5}
+            pb={2}
+            mt={4}
+            sx={{
+              borderTop: "1px solid",
+              borderColor: "divider",
+              boxShadow: "0 -8px 24px rgba(15, 23, 42, 0.08)",
+            }}
           >
-            <Divider />
-            <Stack spacing={0.75} my={2} px={2} maxWidth={620} mx="auto">
+            <Stack spacing={1.25} px={2} maxWidth={620} mx="auto">
+              {activeTab === 0 ? (
+                <Card variant="outlined" sx={{ borderRadius: 2, p: 1.5 }}>
+                  <Stack spacing={1.5}>
+                    <Stepper activeStep={currentStep} alternativeLabel>
+                      {[
+                        "Register 1",
+                        "Register 2",
+                        "Register 3",
+                        "Review",
+                      ].map((label) => (
+                        <Step key={label}>
+                          <StepLabel>{label}</StepLabel>
+                        </Step>
+                      ))}
+                    </Stepper>
+
+                    <Stack direction="row" spacing={1}>
+                      <Button
+                        variant="outlined"
+                        fullWidth
+                        disabled={currentStep === 0}
+                        onClick={() =>
+                          setCurrentStep((step) => Math.max(0, step - 1))
+                        }
+                      >
+                        Back
+                      </Button>
+                      <Button
+                        variant="contained"
+                        fullWidth
+                        onClick={() =>
+                          setCurrentStep((step) =>
+                            step === REVIEW_STEP
+                              ? 0
+                              : Math.min(REVIEW_STEP, step + 1)
+                          )
+                        }
+                      >
+                        {currentStep === REVIEW_STEP - 1
+                          ? "Review Checkout"
+                          : currentStep === REVIEW_STEP
+                            ? "Start Over"
+                            : "Next Drawer"}
+                      </Button>
+                    </Stack>
+                  </Stack>
+                </Card>
+              ) : null}
+
               <Stack direction="row" justifyContent="space-between">
                 <Typography color="text.secondary">
                   All drawers counted
