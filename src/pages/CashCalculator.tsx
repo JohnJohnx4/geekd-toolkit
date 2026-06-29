@@ -1359,6 +1359,14 @@ export default function CashCalculator() {
                       </Stack>
                       <Divider />
                       <Stack direction="row" justifyContent="space-between">
+                        <Typography color="text.secondary">
+                          Total cash counted
+                        </Typography>
+                        <Typography fontWeight={700}>
+                          ${formatMoney(overallTotals.countedTotal)}
+                        </Typography>
+                      </Stack>
+                      <Stack direction="row" justifyContent="space-between">
                         <Typography fontWeight={900}>Total deposit</Typography>
                         <Typography fontWeight={900}>
                           ${formatMoney(overallTotals.deposit)}
