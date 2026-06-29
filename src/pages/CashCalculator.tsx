@@ -11,6 +11,7 @@ import {
   AccordionDetails,
   AccordionSummary,
   Alert,
+  Backdrop,
   Box,
   Button,
   Card,
@@ -465,8 +466,10 @@ export default function CashCalculator() {
   const suppressClickRef = useRef(false);
   const showedHoldTipThisLoadRef = useRef(false);
   const calculateDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resetDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [openHoldTipId, setOpenHoldTipId] = useState<string | null>(null);
   const [clearMenu, setClearMenu] = useState<ClearMenuState>(null);
+  const [isResettingCounts, setIsResettingCounts] = useState(false);
 
   useEffect(() => {
     try {
@@ -621,14 +624,33 @@ export default function CashCalculator() {
   };
 
   const clearAll = () => {
-    setCompletedDrawers(Array.from({ length: DRAWER_COUNT }, () => false));
-    setDrawers((prev) =>
-      prev.map((drawer) => ({
-        ...drawer,
-        bills: drawer.bills.map((denom) => ({ ...denom, count: 0 })),
-        coins: drawer.coins.map((denom) => ({ ...denom, count: 0 })),
-      }))
-    );
+    if (resetDelayRef.current) {
+      clearTimeout(resetDelayRef.current);
+    }
+
+    if (calculateDelayRef.current) {
+      clearTimeout(calculateDelayRef.current);
+      calculateDelayRef.current = null;
+    }
+
+    setIsResettingCounts(true);
+    setCalculatingDrawerId(null);
+    setOpenHoldTipId(null);
+    setCopyMessage("");
+
+    resetDelayRef.current = setTimeout(() => {
+      setActiveTab(0);
+      setCurrentStep(0);
+      setTotalsExpanded(false);
+      setCompletedDrawers(Array.from({ length: DRAWER_COUNT }, () => false));
+      setDrawers(
+        Array.from({ length: DRAWER_COUNT }, (_, index) =>
+          createRegister(index)
+        )
+      );
+      setIsResettingCounts(false);
+      resetDelayRef.current = null;
+    }, 1500);
   };
 
   const openClearMenu = (
@@ -766,6 +788,10 @@ export default function CashCalculator() {
 
       if (calculateDelayRef.current) {
         clearTimeout(calculateDelayRef.current);
+      }
+
+      if (resetDelayRef.current) {
+        clearTimeout(resetDelayRef.current);
       }
     },
     [stopHoldRepeat]
@@ -2121,6 +2147,23 @@ export default function CashCalculator() {
       ) : (
         <SafeBillCounter />
       )}
+      <Backdrop
+        open={isResettingCounts}
+        sx={{
+          color: "common.white",
+          zIndex: (theme) => theme.zIndex.modal + 1,
+        }}
+      >
+        <Stack spacing={2} alignItems="center" textAlign="center">
+          <CircularProgress color="inherit" />
+          <Stack spacing={0.5}>
+            <Typography fontWeight={900}>Resetting counts</Typography>
+            <Typography variant="body2">
+              Clearing the registers and returning to till 1.
+            </Typography>
+          </Stack>
+        </Stack>
+      </Backdrop>
     </>
   );
 }
