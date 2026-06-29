@@ -48,6 +48,18 @@ function calculateStaircasePrizing(
   return packs;
 }
 
+const cleanNumericDisplayValue = (value: string) => {
+  if (value === "") return "";
+
+  if (value.includes(".")) {
+    const [whole, decimal] = value.split(".");
+    const cleanedWhole = whole.replace(/^0+(?=\d)/, "") || "0";
+    return `${cleanedWhole}.${decimal ?? ""}`;
+  }
+
+  return value.replace(/^0+(?=\d)/, "");
+};
+
 export default function StaircasePrizingCalculator() {
   const [players, setPlayers] = useState("16");
   const [topCut, setTopCut] = useState("4");
@@ -170,7 +182,7 @@ export default function StaircasePrizingCalculator() {
               label="Players"
               type="number"
               value={players}
-              onChange={(e) => setPlayers(e.target.value)}
+              onChange={(e) => setPlayers(cleanNumericDisplayValue(e.target.value))}
               onBlur={() => {
                 if (Number(players) < 0) setPlayers("0");
               }}
@@ -190,7 +202,9 @@ export default function StaircasePrizingCalculator() {
               label="Packs per Entry"
               type="number"
               value={packsPerEntry}
-              onChange={(e) => setPacksPerEntry(e.target.value)}
+              onChange={(e) =>
+                setPacksPerEntry(cleanNumericDisplayValue(e.target.value))
+              }
               onBlur={() => {
                 if (Number(packsPerEntry) < 0) setPacksPerEntry("0");
               }}
@@ -210,7 +224,7 @@ export default function StaircasePrizingCalculator() {
               label="Top Cut"
               type="number"
               value={topCut}
-              onChange={(e) => setTopCut(e.target.value)}
+              onChange={(e) => setTopCut(cleanNumericDisplayValue(e.target.value))}
               onBlur={() => {
                 if (Number(players) < 0) setPlayers("0");
               }}
@@ -232,7 +246,9 @@ export default function StaircasePrizingCalculator() {
             <OutlinedInput
               type="number"
               value={creditPerPack}
-              onChange={(e) => setCreditPerPack(e.target.value)}
+              onChange={(e) =>
+                setCreditPerPack(cleanNumericDisplayValue(e.target.value))
+              }
               fullWidth
               id="outlined-adornment-amount"
               label="Credit per Pack Rate"

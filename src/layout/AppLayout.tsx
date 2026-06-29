@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Outlet, useNavigate } from "@tanstack/react-router";
+import { Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   AppBar,
   Box,
@@ -19,12 +19,18 @@ import PrizingIcon from "@mui/icons-material/EmojiEvents";
 import MoneyIcon from "@mui/icons-material/Money";
 import CatchingPokemonIcon from "@mui/icons-material/CatchingPokemon";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
+import TimerIcon from "@mui/icons-material/Timer";
 
 export default function AppLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
+
+  if (location.pathname === "/timer-display") {
+    return <Outlet />;
+  }
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
@@ -108,6 +114,12 @@ export default function AppLayout() {
                   <AutoFixHighIcon fontSize="small" />
                 </ListItemIcon>
                 <ListItemText>MTG Set Symbols</ListItemText>
+              </MenuItem>
+              <MenuItem onClick={() => handleNavigation("/timer-controller")}>
+                <ListItemIcon>
+                  <TimerIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Timer Controller</ListItemText>
               </MenuItem>
             </Menu>
           </Stack>
