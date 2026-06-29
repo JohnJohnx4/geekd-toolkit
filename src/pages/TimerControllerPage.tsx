@@ -92,6 +92,11 @@ const normalizeSavedTimers = (
         : remainingSeconds,
       running: Boolean(timer.running),
       overtimeEnabled: timer.overtimeEnabled ?? snapshot.overtimeEnabled ?? true,
+      startedAt:
+        typeof timer.startedAt === "string" &&
+        Number.isFinite(Date.parse(timer.startedAt))
+          ? timer.startedAt
+          : undefined,
     };
   });
 };
@@ -99,6 +104,15 @@ const normalizeSavedTimers = (
 const parseDurationInput = (value: string) => {
   if (value === "") return "";
   return String(Number(value));
+};
+
+const formatStartedAt = (startedAt?: string) => {
+  if (!startedAt) return "Not started yet";
+
+  return `Started ${new Date(startedAt).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  })}`;
 };
 
 export default function TimerControllerPage() {
@@ -136,7 +150,17 @@ export default function TimerControllerPage() {
   };
 
   const setAllRunning = (running: boolean) => {
-    setTimers((prev) => prev.map((timer) => ({ ...timer, running })));
+    const startedAt = new Date().toISOString();
+    setTimers((prev) =>
+      prev.map((timer) => ({
+        ...timer,
+        running,
+        startedAt:
+          running && !timer.running
+            ? timer.startedAt ?? startedAt
+            : timer.startedAt,
+      }))
+    );
   };
 
   const resetAll = () => {
@@ -145,6 +169,7 @@ export default function TimerControllerPage() {
         ...timer,
         remainingSeconds: timer.durationSeconds,
         running: false,
+        startedAt: undefined,
       }))
     );
   };
@@ -379,6 +404,15 @@ export default function TimerControllerPage() {
                       />
                     )}
 
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      textAlign="center"
+                      sx={{ fontWeight: 700 }}
+                    >
+                      {formatStartedAt(timer.startedAt)}
+                    </Typography>
+
                     <Stack spacing={1.25}>
                       <Stack
                         direction={{ xs: "column", sm: "row" }}
@@ -514,6 +548,10 @@ export default function TimerControllerPage() {
                           updateTimer(timer.id, (current) => ({
                             ...current,
                             running: !current.running,
+                            startedAt:
+                              current.running || current.startedAt
+                                ? current.startedAt
+                                : new Date().toISOString(),
                           }))
                         }
                       >
@@ -528,6 +566,7 @@ export default function TimerControllerPage() {
                             ...current,
                             running: false,
                             remainingSeconds: current.durationSeconds,
+                            startedAt: undefined,
                           }))
                         }
                       >

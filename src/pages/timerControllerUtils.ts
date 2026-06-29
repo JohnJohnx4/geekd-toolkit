@@ -35,6 +35,7 @@ export type TimerItem = {
   remainingSeconds: number;
   running: boolean;
   overtimeEnabled: boolean;
+  startedAt?: string;
 };
 
 export type TimerSnapshot = {
