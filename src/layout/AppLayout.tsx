@@ -19,7 +19,6 @@ import PrizingIcon from "@mui/icons-material/EmojiEvents";
 import MoneyIcon from "@mui/icons-material/Money";
 import CatchingPokemonIcon from "@mui/icons-material/CatchingPokemon";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
-import StyleIcon from "@mui/icons-material/Style";
 import TimerIcon from "@mui/icons-material/Timer";
 
 export default function AppLayout() {
@@ -115,12 +114,6 @@ export default function AppLayout() {
                   <AutoFixHighIcon fontSize="small" />
                 </ListItemIcon>
                 <ListItemText>MTG Set Symbols</ListItemText>
-              </MenuItem>
-              <MenuItem onClick={() => handleNavigation("/card-stack-calculator")}>
-                <ListItemIcon>
-                  <StyleIcon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText>Card Stack Calculator</ListItemText>
               </MenuItem>
               <MenuItem onClick={() => handleNavigation("/timer-controller")}>
                 <ListItemIcon>

@@ -10,7 +10,6 @@ import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 import CatchingPokemonIcon from "@mui/icons-material/CatchingPokemon";
 import MoneyIcon from "@mui/icons-material/Money";
 import PriceCheckIcon from "@mui/icons-material/PriceCheck";
-import StyleIcon from "@mui/icons-material/Style";
 import TimerIcon from "@mui/icons-material/Timer";
 import { useNavigate } from "@tanstack/react-router";
 
@@ -46,14 +45,6 @@ const tools = [
     icon: AutoFixHighIcon,
     color: "#581c87",
     background: "#f3e8ff",
-  },
-  {
-    label: "Card Stack Calculator",
-    description: "Total sorted card stacks and offers",
-    path: "/card-stack-calculator",
-    icon: StyleIcon,
-    color: "#9f1239",
-    background: "#ffe4e6",
   },
   {
     label: "Timer Controller",
