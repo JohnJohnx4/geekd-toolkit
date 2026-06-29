@@ -283,7 +283,7 @@ const addExtraBillsToReachAmount = (
 
     const countToUse = Math.min(
       counts[value] ?? 0,
-      Math.ceil(remainingAmount / value)
+      Math.floor(remainingAmount / value)
     );
 
     if (countToUse > 0) {
