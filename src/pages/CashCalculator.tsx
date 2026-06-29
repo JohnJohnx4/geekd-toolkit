@@ -88,9 +88,21 @@ const DEPOSIT_PROGRESS_STORAGE_KEY = "cashCounterDepositProgress";
 const HOLD_TIP_MAX_SHOWS = 3;
 const HOLD_TIP_HIDE_MS = 1800;
 const DEFAULT_DRAWER_TARGET = 300;
-const MAX_BILLS_PER_DENOM = 25;
 const DRAWER_COUNT = 3;
 const REVIEW_STEP = DRAWER_COUNT;
+const TILL_BILL_TARGET_COUNTS: Record<number, number> = {
+  20: 5,
+  10: 6,
+  5: 8,
+  1: 25,
+};
+const TILL_BILL_MINIMUM_COUNTS: Record<number, number> = {
+  20: 2,
+  10: 4,
+  5: 4,
+  1: 9,
+};
+const TILL_BILL_VALUES = [20, 10, 5, 1];
 
 const BILL_DENOMS = [
   { label: "$100", value: 100 },
@@ -198,116 +210,174 @@ const getBillTotal = (drawer: RegisterDrawer) =>
 const getCoinTotal = (drawer: RegisterDrawer) =>
   drawer.coins.reduce((sum, d) => sum + parseCount(d.count) * d.value, 0);
 
-const isBetterLowerBillPlan = (next: number[], current: number[]) => {
-  for (let index = next.length - 1; index >= 0; index -= 1) {
-    if (next[index] !== current[index]) {
-      return next[index] > current[index];
-    }
-  }
+const getBillLabel = (value: number) =>
+  BILL_DENOMS.find((bill) => bill.value === value)?.label ?? `$${value}`;
 
-  return false;
-};
+const getBillCounts = (drawer: RegisterDrawer) => {
+  const counts: Record<number, number> = {};
 
-const getBillsLeftPlan = (bills: CashDenomination[], required: number) => {
-  const emptyCounts = bills.map(() => 0);
-
-  if (required <= 0) {
-    return { amount: 0, counts: emptyCounts };
-  }
-
-  const billOptions = bills.map((bill, index) => ({
-    index,
-    value: bill.value,
-    count:
-      bill.value >= 50
-        ? 0
-        : Math.min(parseCount(bill.count), MAX_BILLS_PER_DENOM),
-  }));
-  const maxPossible = billOptions.reduce(
-    (sum, bill) => sum + bill.value * bill.count,
-    0
-  );
-
-  if (maxPossible <= required) {
-    return {
-      amount: maxPossible,
-      counts: billOptions.reduce((counts, bill) => {
-        counts[bill.index] = bill.count;
-        return counts;
-      }, [...emptyCounts]),
-    };
-  }
-
-  const possible = new Map<number, number[]>();
-  possible.set(0, emptyCounts);
-
-  billOptions.forEach((bill) => {
-    const current = Array.from(possible.entries());
-
-    for (let count = 1; count <= bill.count; count += 1) {
-      current.forEach(([amount, counts]) => {
-        const nextAmount = amount + bill.value * count;
-
-        if (nextAmount <= maxPossible) {
-          const nextCounts = [...counts];
-          nextCounts[bill.index] += count;
-          const existingCounts = possible.get(nextAmount);
-
-          if (
-            !existingCounts ||
-            isBetterLowerBillPlan(nextCounts, existingCounts)
-          ) {
-            possible.set(nextAmount, nextCounts);
-          }
-        }
-      });
-    }
+  BILL_DENOMS.forEach((bill) => {
+    counts[bill.value] = 0;
   });
 
-  for (let amount = required; amount <= maxPossible; amount += 1) {
-    const counts = possible.get(amount);
+  drawer.bills.forEach((bill) => {
+    counts[bill.value] = parseCount(bill.count);
+  });
 
-    if (counts) {
-      return { amount, counts };
-    }
-  }
-
-  return {
-    amount: maxPossible,
-    counts: billOptions.reduce((counts, bill) => {
-      counts[bill.index] = bill.count;
-      return counts;
-    }, [...emptyCounts]),
-  };
+  return counts;
 };
 
-const getDrawerTotals = (drawer: RegisterDrawer) => {
-  const billTotal = getBillTotal(drawer);
-  const coinTotal = getCoinTotal(drawer);
-  const target = DEFAULT_DRAWER_TARGET;
-  const billsNeededToLeave = Math.ceil(Math.max(0, target - coinTotal));
-  const billsLeftPlan = getBillsLeftPlan(drawer.bills, billsNeededToLeave);
-  const billsLeft = billsLeftPlan.amount;
-  const deposit = Math.max(0, billTotal - billsLeft);
-  const leftInDrawer = coinTotal + billsLeft;
+const getTransferTotal = (
+  transfers: Array<{ value: number; count: number }>
+) => transfers.reduce((sum, transfer) => sum + transfer.value * transfer.count, 0);
 
-  return {
-    billTotal,
-    coinTotal,
-    target,
-    countedTotal: billTotal + coinTotal,
-    billsLeft,
-    billsLeftPlan: drawer.bills
-      .map((bill, index) => ({
-        label: bill.label,
-        value: bill.value,
-        count: billsLeftPlan.counts[index],
-        total: billsLeftPlan.counts[index] * bill.value,
-      }))
-      .filter((bill) => bill.count > 0),
-    leftInDrawer,
-    deposit,
-  };
+const fillWithLowerBills = (
+  counts: Record<number, number>,
+  leaveCounts: Record<number, number>,
+  value: number,
+  missingCount: number
+) => {
+  let remainingValue = value * missingCount;
+  const lowerValues = TILL_BILL_VALUES.filter((billValue) => billValue < value);
+
+  lowerValues.forEach((lowerValue) => {
+    if (remainingValue < lowerValue) return;
+
+    const countToUse = Math.min(
+      counts[lowerValue] ?? 0,
+      Math.floor(remainingValue / lowerValue)
+    );
+
+    if (countToUse > 0) {
+      leaveCounts[lowerValue] += countToUse;
+      counts[lowerValue] -= countToUse;
+      remainingValue -= countToUse * lowerValue;
+    }
+  });
+};
+
+const getRegisterSummaries = (drawers: RegisterDrawer[]) => {
+  const adjustedCounts = drawers.map(getBillCounts);
+  const transferIns = drawers.map(() => [] as Array<{
+    label: string;
+    value: number;
+    count: number;
+    total: number;
+    drawerName: string;
+  }>);
+  const transferOuts = drawers.map(() => [] as Array<{
+    label: string;
+    value: number;
+    count: number;
+    total: number;
+    drawerName: string;
+  }>);
+
+  TILL_BILL_VALUES.forEach((value) => {
+    drawers.forEach((drawer, receiverIndex) => {
+      let needed =
+        TILL_BILL_MINIMUM_COUNTS[value] -
+        (adjustedCounts[receiverIndex][value] ?? 0);
+
+      if (needed <= 0) return;
+
+      drawers.forEach((donor, donorIndex) => {
+        if (needed <= 0 || donorIndex === receiverIndex) return;
+
+        const donorExtra =
+          (adjustedCounts[donorIndex][value] ?? 0) -
+          TILL_BILL_MINIMUM_COUNTS[value];
+        const countToTransfer = Math.min(needed, Math.max(0, donorExtra));
+
+        if (countToTransfer <= 0) return;
+
+        adjustedCounts[donorIndex][value] -= countToTransfer;
+        adjustedCounts[receiverIndex][value] += countToTransfer;
+        needed -= countToTransfer;
+
+        const transfer = {
+          label: getBillLabel(value),
+          value,
+          count: countToTransfer,
+          total: countToTransfer * value,
+        };
+
+        transferOuts[donorIndex].push({
+          ...transfer,
+          drawerName: drawer.name,
+        });
+        transferIns[receiverIndex].push({
+          ...transfer,
+          drawerName: donor.name,
+        });
+      });
+    });
+  });
+
+  return drawers.map((drawer, drawerIndex) => {
+    const billTotal = getBillTotal(drawer);
+    const coinTotal = getCoinTotal(drawer);
+    const target = DEFAULT_DRAWER_TARGET;
+    const availableCounts = { ...adjustedCounts[drawerIndex] };
+    const leaveCounts = TILL_BILL_VALUES.reduce<Record<number, number>>(
+      (counts, value) => {
+        counts[value] = 0;
+        return counts;
+      },
+      {}
+    );
+
+    TILL_BILL_VALUES.forEach((value) => {
+      const targetCount = TILL_BILL_TARGET_COUNTS[value];
+      const countToUse = Math.min(availableCounts[value] ?? 0, targetCount);
+
+      if (countToUse > 0) {
+        leaveCounts[value] += countToUse;
+        availableCounts[value] -= countToUse;
+      }
+
+      fillWithLowerBills(
+        availableCounts,
+        leaveCounts,
+        value,
+        targetCount - countToUse
+      );
+    });
+
+    const billsLeft = TILL_BILL_VALUES.reduce(
+      (sum, value) => sum + value * leaveCounts[value],
+      0
+    );
+    const transferInTotal = getTransferTotal(transferIns[drawerIndex]);
+    const transferOutTotal = getTransferTotal(transferOuts[drawerIndex]);
+    const adjustedBillTotal = billTotal + transferInTotal - transferOutTotal;
+    const deposit = Math.max(0, adjustedBillTotal - billsLeft);
+    const leftInDrawer = coinTotal + billsLeft;
+
+    return {
+      drawer,
+      totals: {
+        billTotal,
+        adjustedBillTotal,
+        coinTotal,
+        target,
+        countedTotal: billTotal + coinTotal,
+        billsLeft,
+        billsLeftPlan: TILL_BILL_VALUES.map((value) => ({
+          label: getBillLabel(value),
+          value,
+          count: leaveCounts[value],
+          total: leaveCounts[value] * value,
+        })).filter((bill) => bill.count > 0),
+        transferIns: transferIns[drawerIndex],
+        transferOuts: transferOuts[drawerIndex],
+        transferInTotal,
+        transferOutTotal,
+        leftInDrawer,
+        deposit,
+      },
+    };
+  });
 };
 
 export default function CashCalculator() {
@@ -345,11 +415,7 @@ export default function CashCalculator() {
   }, [currentStep, drawers]);
 
   const registerSummaries = useMemo(
-    () =>
-      drawers.map((drawer) => ({
-        drawer,
-        totals: getDrawerTotals(drawer),
-      })),
+    () => getRegisterSummaries(drawers),
     [drawers]
   );
 
@@ -597,7 +663,10 @@ export default function CashCalculator() {
       1,
       registerSummaries.reduce(
         (sum, { totals }) =>
-          sum + 174 + Math.max(1, totals.billsLeftPlan.length) * 18,
+          sum +
+          174 +
+          Math.max(1, totals.billsLeftPlan.length) * 18 +
+          (totals.transferIns.length + totals.transferOuts.length) * 18,
         0
       )
     );
@@ -694,6 +763,38 @@ export default function CashCalculator() {
           context.textAlign = "right";
           context.fillStyle = "#1f1f1f";
           context.fillText(`$${formatMoney(bill.total)}`, width - 64, y);
+          y += 18;
+        });
+      }
+
+      if (totals.transferIns.length || totals.transferOuts.length) {
+        y += 6;
+        context.textAlign = "left";
+        context.font = "700 14px Rubik, Arial, sans-serif";
+        context.fillStyle = "#1f1f1f";
+        context.fillText("Transfers", 48, y);
+        y += 20;
+        context.font = "400 13px Rubik, Arial, sans-serif";
+
+        totals.transferIns.forEach((transfer) => {
+          context.textAlign = "left";
+          context.fillStyle = "#555";
+          context.fillText(
+            `Receive ${transfer.label} x ${transfer.count} from ${transfer.drawerName}`,
+            64,
+            y
+          );
+          y += 18;
+        });
+
+        totals.transferOuts.forEach((transfer) => {
+          context.textAlign = "left";
+          context.fillStyle = "#555";
+          context.fillText(
+            `Send ${transfer.label} x ${transfer.count} to ${transfer.drawerName}`,
+            64,
+            y
+          );
           y += 18;
         });
       }
@@ -975,14 +1076,13 @@ export default function CashCalculator() {
               ) : null}
 
               <Stack spacing={1.5}>
-                {drawers
+                {registerSummaries
                   .filter((_, index) =>
                     activeTab === 1 || currentStep === REVIEW_STEP
                       ? true
                       : index === currentStep
                   )
-                  .map((drawer) => {
-                  const totals = getDrawerTotals(drawer);
+                  .map(({ drawer, totals }) => {
                   const drawerIndex = drawer.id - 1;
                   const billCounterSection = (
                     <>
@@ -1161,7 +1261,8 @@ export default function CashCalculator() {
                                   >
                                     Minimum drawer amount not reached.
                                   </Typography>
-                                ) : totals.billsLeftPlan.length === 0 ? (
+                                ) : null}
+                                {totals.billsLeftPlan.length === 0 ? (
                                   <Typography
                                     variant="body2"
                                     color="text.secondary"
@@ -1186,6 +1287,51 @@ export default function CashCalculator() {
                                   ))
                                 )}
                               </Stack>
+                              {totals.transferIns.length ||
+                              totals.transferOuts.length ? (
+                                <>
+                                  <Divider />
+                                  <Stack spacing={0.5}>
+                                    <Typography fontWeight={800}>
+                                      Transfers
+                                    </Typography>
+                                    {totals.transferIns.map((transfer) => (
+                                      <Stack
+                                        key={`in-${transfer.drawerName}-${transfer.value}`}
+                                        direction="row"
+                                        justifyContent="space-between"
+                                        spacing={1}
+                                      >
+                                        <Typography color="text.secondary">
+                                          Get {transfer.label} x{" "}
+                                          {transfer.count} from{" "}
+                                          {transfer.drawerName}
+                                        </Typography>
+                                        <Typography>
+                                          ${formatMoney(transfer.total)}
+                                        </Typography>
+                                      </Stack>
+                                    ))}
+                                    {totals.transferOuts.map((transfer) => (
+                                      <Stack
+                                        key={`out-${transfer.drawerName}-${transfer.value}`}
+                                        direction="row"
+                                        justifyContent="space-between"
+                                        spacing={1}
+                                      >
+                                        <Typography color="text.secondary">
+                                          Send {transfer.label} x{" "}
+                                          {transfer.count} to{" "}
+                                          {transfer.drawerName}
+                                        </Typography>
+                                        <Typography>
+                                          ${formatMoney(transfer.total)}
+                                        </Typography>
+                                      </Stack>
+                                    ))}
+                                  </Stack>
+                                </>
+                              ) : null}
                               <Divider />
                               <Stack
                                 direction="row"
