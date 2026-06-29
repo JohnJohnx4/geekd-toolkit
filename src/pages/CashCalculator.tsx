@@ -15,10 +15,8 @@ import {
   Button,
   Card,
   CardContent,
-  Checkbox,
   Chip,
   Divider,
-  FormControlLabel,
   IconButton,
   ListItemIcon,
   ListItemText,
@@ -26,6 +24,9 @@ import {
   MenuItem,
   Snackbar,
   Stack,
+  Step,
+  StepLabel,
+  Stepper,
   Tab,
   Tabs,
   TextField,
@@ -90,6 +91,8 @@ const HOLD_TIP_MAX_SHOWS = 3;
 const HOLD_TIP_HIDE_MS = 1800;
 const DEFAULT_DRAWER_TARGET = 300;
 const MAX_BILLS_PER_DENOM = 25;
+const DRAWER_COUNT = 3;
+const REVIEW_STEP = DRAWER_COUNT;
 
 const BILL_DENOMS = [
   { label: "$100", value: 100 },
@@ -110,7 +113,7 @@ const COIN_DENOMS = [
 const createRegister = (index: number): RegisterDrawer => ({
   id: index + 1,
   name: `Register ${index + 1}`,
-  enabled: index === 0,
+  enabled: true,
   bills: BILL_DENOMS.map((d) => ({ ...d, count: 0 })),
   coins: COIN_DENOMS.map((d) => ({ ...d, count: 0 })),
 });
@@ -153,7 +156,7 @@ const readSavedDepositDrawers = (): RegisterDrawer[] | null => {
     const savedDrawers = parsedValue.drawers ?? parsedValue;
     if (!Array.isArray(savedDrawers)) return null;
 
-    return Array.from({ length: 3 }, (_, index) => {
+    return Array.from({ length: DRAWER_COUNT }, (_, index) => {
       const baseDrawer = createRegister(index);
       const savedDrawer = savedDrawers.find(
         (drawer) => isRecord(drawer) && drawer.id === baseDrawer.id
@@ -163,16 +166,31 @@ const readSavedDepositDrawers = (): RegisterDrawer[] | null => {
 
       return {
         ...baseDrawer,
-        enabled:
-          typeof savedDrawer.enabled === "boolean"
-            ? savedDrawer.enabled
-            : baseDrawer.enabled,
+        enabled: true,
         bills: hydrateDenoms(savedDrawer.bills, baseDrawer.bills),
         coins: hydrateDenoms(savedDrawer.coins, baseDrawer.coins),
       };
     });
   } catch {
     return null;
+  }
+};
+
+const readSavedDepositStep = () => {
+  if (typeof window === "undefined") return 0;
+
+  try {
+    const storedValue = window.localStorage.getItem(DEPOSIT_PROGRESS_STORAGE_KEY);
+    if (!storedValue) return 0;
+
+    const parsedValue = JSON.parse(storedValue);
+    if (!isRecord(parsedValue) || typeof parsedValue.currentStep !== "number") {
+      return 0;
+    }
+
+    return Math.min(REVIEW_STEP, Math.max(0, Math.floor(parsedValue.currentStep)));
+  } catch {
+    return 0;
   }
 };
 
@@ -298,8 +316,9 @@ export default function CashCalculator() {
   const [activeTab, setActiveTab] = useState(0);
   const [drawers, setDrawers] = useState<RegisterDrawer[]>(() =>
     readSavedDepositDrawers() ??
-    Array.from({ length: 3 }, (_, index) => createRegister(index))
+    Array.from({ length: DRAWER_COUNT }, (_, index) => createRegister(index))
   );
+  const [currentStep, setCurrentStep] = useState(readSavedDepositStep);
   const [copyMessage, setCopyMessage] = useState("");
 
   const repeatDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -317,26 +336,22 @@ export default function CashCalculator() {
         DEPOSIT_PROGRESS_STORAGE_KEY,
         JSON.stringify({
           drawers,
+          currentStep,
           updatedAt: Date.now(),
         })
       );
     } catch {
       // Keep counting usable if storage is full or unavailable.
     }
-  }, [drawers]);
-
-  const activeDrawers = useMemo(
-    () => drawers.filter((drawer) => drawer.enabled),
-    [drawers]
-  );
+  }, [currentStep, drawers]);
 
   const registerSummaries = useMemo(
     () =>
-      activeDrawers.map((drawer) => ({
+      drawers.map((drawer) => ({
         drawer,
         totals: getDrawerTotals(drawer),
       })),
-    [activeDrawers]
+    [drawers]
   );
 
   const overallTotals = useMemo(
@@ -868,7 +883,17 @@ export default function CashCalculator() {
           <Card sx={{ maxWidth: 620, mx: "auto", borderRadius: 3 }}>
             <CardContent>
               <Typography variant="h6" textAlign="center" gutterBottom>
-                Register Checkout
+                Closing Drawer Count
+              </Typography>
+
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                textAlign="center"
+                sx={{ mb: 2 }}
+              >
+                Count all three drawers. Coins stay in each drawer, then leave
+                enough bills to land at $300.xx.
               </Typography>
 
               <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
@@ -914,14 +939,63 @@ export default function CashCalculator() {
                 </Button>
               </Stack>
 
+              <Card variant="outlined" sx={{ borderRadius: 2, p: 1.5, mb: 2 }}>
+                <Stack spacing={1.5}>
+                  <Stepper activeStep={currentStep} alternativeLabel>
+                    {["Register 1", "Register 2", "Register 3", "Review"].map(
+                      (label) => (
+                        <Step key={label}>
+                          <StepLabel>{label}</StepLabel>
+                        </Step>
+                      )
+                    )}
+                  </Stepper>
+
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      variant="outlined"
+                      fullWidth
+                      disabled={currentStep === 0}
+                      onClick={() =>
+                        setCurrentStep((step) => Math.max(0, step - 1))
+                      }
+                    >
+                      Back
+                    </Button>
+                    <Button
+                      variant="contained"
+                      fullWidth
+                      onClick={() =>
+                        setCurrentStep((step) =>
+                          step === REVIEW_STEP
+                            ? 0
+                            : Math.min(REVIEW_STEP, step + 1)
+                        )
+                      }
+                    >
+                      {currentStep === REVIEW_STEP - 1
+                        ? "Review Checkout"
+                        : currentStep === REVIEW_STEP
+                          ? "Start Over"
+                          : "Next Drawer"}
+                    </Button>
+                  </Stack>
+                </Stack>
+              </Card>
+
               <Stack spacing={1.5}>
-                {drawers.map((drawer) => {
+                {drawers
+                  .filter((_, index) =>
+                    currentStep === REVIEW_STEP ? true : index === currentStep
+                  )
+                  .map((drawer) => {
                   const totals = getDrawerTotals(drawer);
+                  const drawerIndex = drawer.id - 1;
 
                   return (
                     <Accordion
                       key={drawer.id}
-                      defaultExpanded={drawer.id === 1}
+                      defaultExpanded={currentStep !== REVIEW_STEP}
                       disableGutters
                       sx={{ borderRadius: 2, overflow: "hidden" }}
                     >
@@ -933,30 +1007,22 @@ export default function CashCalculator() {
                             justifyContent="space-between"
                             spacing={1}
                           >
-                            <FormControlLabel
-                              control={
-                                <Checkbox
-                                  checked={drawer.enabled}
-                                  onClick={(event) => event.stopPropagation()}
-                                  onChange={(event) =>
-                                    updateDrawer(drawer.id, (current) => ({
-                                      ...current,
-                                      enabled: event.target.checked,
-                                    }))
-                                  }
-                                />
-                              }
-                              label={
-                                <Typography fontWeight={800}>
-                                  {drawer.name}
-                                </Typography>
-                              }
-                            />
+                            <Stack spacing={0.25}>
+                              <Typography fontWeight={800}>
+                                {drawer.name}
+                              </Typography>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
+                                Step {drawerIndex + 1} of {DRAWER_COUNT}
+                              </Typography>
+                            </Stack>
                             <Chip
                               size="small"
-                              color={drawer.enabled ? "primary" : "default"}
+                              color="primary"
                               label={`Deposit $${formatMoney(
-                                drawer.enabled ? totals.deposit : 0
+                                totals.deposit
                               )}`}
                             />
                           </Stack>
