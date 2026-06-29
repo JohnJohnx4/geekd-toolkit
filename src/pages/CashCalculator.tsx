@@ -980,10 +980,6 @@ export default function CashCalculator() {
                     <>
                       <Stack spacing={0.5}>
                         <Typography fontWeight={800}>Bills</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Leave-behind never keeps $50s or $100s, and keeps up
-                          to {MAX_BILLS_PER_DENOM} of each lower bill first.
-                        </Typography>
                       </Stack>
 
                       <Stack spacing={0.75}>
@@ -1006,9 +1002,6 @@ export default function CashCalculator() {
                         <Stack direction="row" spacing={1} alignItems="center">
                           <MonetizationOnIcon fontSize="small" />
                           <Typography fontWeight={800}>Coins</Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            ${formatMoney(totals.coinTotal)} stays
-                          </Typography>
                         </Stack>
                         {coinCounterRows}
                       </Stack>
@@ -1025,9 +1018,6 @@ export default function CashCalculator() {
                           <Stack direction="row" spacing={1} alignItems="center">
                             <MonetizationOnIcon fontSize="small" />
                             <Typography fontWeight={800}>Coins</Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              ${formatMoney(totals.coinTotal)} stays
-                            </Typography>
                           </Stack>
                         </AccordionSummary>
                         <AccordionDetails>{coinCounterRows}</AccordionDetails>
@@ -1154,7 +1144,16 @@ export default function CashCalculator() {
                                 <Typography fontWeight={800}>
                                   Leave these bills
                                 </Typography>
-                                {totals.billsLeftPlan.length === 0 ? (
+                                {totals.leftInDrawer <
+                                DEFAULT_DRAWER_TARGET ? (
+                                  <Typography
+                                    variant="body2"
+                                    color="error"
+                                    fontWeight={700}
+                                  >
+                                    Minimum drawer amount not reached.
+                                  </Typography>
+                                ) : totals.billsLeftPlan.length === 0 ? (
                                   <Typography
                                     variant="body2"
                                     color="text.secondary"
