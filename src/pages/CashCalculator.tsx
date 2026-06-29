@@ -204,6 +204,30 @@ const readSavedDepositStep = () => {
   }
 };
 
+const readSavedCompletedDrawers = () => {
+  if (typeof window === "undefined") {
+    return Array.from({ length: DRAWER_COUNT }, () => false);
+  }
+
+  try {
+    const storedValue = window.localStorage.getItem(DEPOSIT_PROGRESS_STORAGE_KEY);
+    if (!storedValue) return Array.from({ length: DRAWER_COUNT }, () => false);
+
+    const parsedValue = JSON.parse(storedValue);
+    if (!isRecord(parsedValue) || !Array.isArray(parsedValue.completedDrawers)) {
+      return Array.from({ length: DRAWER_COUNT }, () => false);
+    }
+    const savedCompletedDrawers = parsedValue.completedDrawers;
+
+    return Array.from(
+      { length: DRAWER_COUNT },
+      (_, index) => savedCompletedDrawers[index] === true
+    );
+  } catch {
+    return Array.from({ length: DRAWER_COUNT }, () => false);
+  }
+};
+
 const getBillTotal = (drawer: RegisterDrawer) =>
   drawer.bills.reduce((sum, d) => sum + parseCount(d.count) * d.value, 0);
 
@@ -422,6 +446,9 @@ export default function CashCalculator() {
     Array.from({ length: DRAWER_COUNT }, (_, index) => createRegister(index))
   );
   const [currentStep, setCurrentStep] = useState(readSavedDepositStep);
+  const [completedDrawers, setCompletedDrawers] = useState(
+    readSavedCompletedDrawers
+  );
   const [copyMessage, setCopyMessage] = useState("");
   const [totalsExpanded, setTotalsExpanded] = useState(false);
 
@@ -441,13 +468,14 @@ export default function CashCalculator() {
         JSON.stringify({
           drawers,
           currentStep,
+          completedDrawers,
           updatedAt: Date.now(),
         })
       );
     } catch {
       // Keep counting usable if storage is full or unavailable.
     }
-  }, [currentStep, drawers]);
+  }, [completedDrawers, currentStep, drawers]);
 
   const allowRegisterTransfers =
     activeTab === 1 || currentStep === REVIEW_STEP;
@@ -494,6 +522,24 @@ export default function CashCalculator() {
     );
   };
 
+  const markDrawerIncomplete = (drawerId: number) => {
+    setCompletedDrawers((prev) =>
+      prev.map((completed, index) =>
+        index === drawerId - 1 ? false : completed
+      )
+    );
+  };
+
+  const completeCurrentDrawer = () => {
+    if (currentStep >= REVIEW_STEP) return;
+
+    setCompletedDrawers((prev) =>
+      prev.map((completed, index) =>
+        index === currentStep ? true : completed
+      )
+    );
+  };
+
   const updateDenom = (
     drawerId: number,
     type: "bills" | "coins",
@@ -533,6 +579,7 @@ export default function CashCalculator() {
   };
 
   const clearSection = (drawerId: number, type: "bills" | "coins") => {
+    markDrawerIncomplete(drawerId);
     updateDrawer(drawerId, (drawer) => ({
       ...drawer,
       [type]: drawer[type].map((denom) => ({ ...denom, count: 0 })),
@@ -540,6 +587,7 @@ export default function CashCalculator() {
   };
 
   const clearDrawer = (drawerId: number) => {
+    markDrawerIncomplete(drawerId);
     updateDrawer(drawerId, (drawer) => ({
       ...drawer,
       bills: drawer.bills.map((denom) => ({ ...denom, count: 0 })),
@@ -548,6 +596,7 @@ export default function CashCalculator() {
   };
 
   const clearAll = () => {
+    setCompletedDrawers(Array.from({ length: DRAWER_COUNT }, () => false));
     setDrawers((prev) =>
       prev.map((drawer) => ({
         ...drawer,
@@ -1017,12 +1066,27 @@ export default function CashCalculator() {
     currentStep === REVIEW_STEP
       ? "Review"
       : `Register ${currentStep + 1} of ${DRAWER_COUNT}`;
+  const currentDrawerCompleted =
+    currentStep === REVIEW_STEP || completedDrawers[currentStep] === true;
   const nextStepLabel =
-    currentStep === REVIEW_STEP - 1
+    activeTab === 0 && !currentDrawerCompleted
+      ? "Complete Drawer"
+      : currentStep === REVIEW_STEP - 1
       ? "Review"
       : currentStep === REVIEW_STEP
         ? "Start Over"
         : "Next";
+
+  const handleGuidedStepAction = () => {
+    if (!currentDrawerCompleted) {
+      completeCurrentDrawer();
+      return;
+    }
+
+    setCurrentStep((step) =>
+      step === REVIEW_STEP ? 0 : Math.min(REVIEW_STEP, step + 1)
+    );
+  };
 
   return (
     <>
@@ -1121,6 +1185,10 @@ export default function CashCalculator() {
                   )
                   .map(({ drawer, totals }) => {
                   const drawerIndex = drawer.id - 1;
+                  const showDrawerPlan =
+                    activeTab === 1 ||
+                    currentStep === REVIEW_STEP ||
+                    completedDrawers[drawerIndex] === true;
                   const billCounterSection = (
                     <>
                       <Stack spacing={0.5}>
@@ -1246,8 +1314,10 @@ export default function CashCalculator() {
                               <MoreVertIcon fontSize="small" />
                             </IconButton>
                             <Typography variant="body2" color="text.secondary">
-                              Counted ${formatMoney(totals.countedTotal)} |
-                              Left ${formatMoney(totals.leftInDrawer)}
+                              Counted ${formatMoney(totals.countedTotal)}
+                              {showDrawerPlan
+                                ? ` | Left $${formatMoney(totals.leftInDrawer)}`
+                                : ""}
                             </Typography>
                           </Stack>
                           <Typography variant="caption" color="text.secondary">
@@ -1271,6 +1341,7 @@ export default function CashCalculator() {
                             </>
                           )}
 
+                          {showDrawerPlan ? (
                           <Card variant="outlined" sx={{ borderRadius: 2, p: 2 }}>
                             <Stack spacing={0.75}>
                               <Stack
@@ -1404,6 +1475,31 @@ export default function CashCalculator() {
                               </Stack>
                             </Stack>
                           </Card>
+                          ) : (
+                            <Card variant="outlined" sx={{ borderRadius: 2, p: 2 }}>
+                              <Stack spacing={0.75}>
+                                <Typography fontWeight={800}>
+                                  Drawer count in progress
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  Complete this drawer count to calculate what
+                                  should stay in the register.
+                                </Typography>
+                                <Divider />
+                                <Stack
+                                  direction="row"
+                                  justifyContent="space-between"
+                                >
+                                  <Typography color="text.secondary">
+                                    Counted so far
+                                  </Typography>
+                                  <Typography fontWeight={700}>
+                                    ${formatMoney(totals.countedTotal)}
+                                  </Typography>
+                                </Stack>
+                              </Stack>
+                            </Card>
+                          )}
                         </Stack>
                       </AccordionDetails>
                     </Accordion>
@@ -1466,14 +1562,8 @@ export default function CashCalculator() {
                   </Stack>
                   <Button
                     variant="contained"
-                    onClick={() =>
-                      setCurrentStep((step) =>
-                        step === REVIEW_STEP
-                          ? 0
-                          : Math.min(REVIEW_STEP, step + 1)
-                      )
-                    }
-                    sx={{ minWidth: 92 }}
+                    onClick={handleGuidedStepAction}
+                    sx={{ minWidth: 124 }}
                   >
                     {nextStepLabel}
                   </Button>
@@ -1532,29 +1622,43 @@ export default function CashCalculator() {
                           ${formatMoney(activeDrawerTotals?.countedTotal ?? 0)}
                         </Typography>
                       </Stack>
-                      <Stack direction="row" justifyContent="space-between">
-                        <Typography color="text.secondary">
-                          Drawer left
+                      {currentDrawerCompleted ? (
+                        <>
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography color="text.secondary">
+                              Drawer left
+                            </Typography>
+                            <Typography fontWeight={700}>
+                              $
+                              {formatMoney(
+                                activeDrawerTotals?.leftInDrawer ?? 0
+                              )}
+                            </Typography>
+                          </Stack>
+                          <Divider />
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography color="text.secondary">
+                              Total cash counted
+                            </Typography>
+                            <Typography fontWeight={700}>
+                              ${formatMoney(overallTotals.countedTotal)}
+                            </Typography>
+                          </Stack>
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography fontWeight={900}>
+                              Total deposit
+                            </Typography>
+                            <Typography fontWeight={900}>
+                              ${formatMoney(overallTotals.deposit)}
+                            </Typography>
+                          </Stack>
+                        </>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          Complete this drawer to calculate what stays in the
+                          register.
                         </Typography>
-                        <Typography fontWeight={700}>
-                          ${formatMoney(activeDrawerTotals?.leftInDrawer ?? 0)}
-                        </Typography>
-                      </Stack>
-                      <Divider />
-                      <Stack direction="row" justifyContent="space-between">
-                        <Typography color="text.secondary">
-                          Total cash counted
-                        </Typography>
-                        <Typography fontWeight={700}>
-                          ${formatMoney(overallTotals.countedTotal)}
-                        </Typography>
-                      </Stack>
-                      <Stack direction="row" justifyContent="space-between">
-                        <Typography fontWeight={900}>Total deposit</Typography>
-                        <Typography fontWeight={900}>
-                          ${formatMoney(overallTotals.deposit)}
-                        </Typography>
-                      </Stack>
+                      )}
                     </>
                   ) : (
                     <>
