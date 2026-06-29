@@ -842,7 +842,6 @@ export default function CashCalculator() {
       const rows = [
         ["Counted", totals.countedTotal],
         ["Coins staying", totals.coinTotal],
-        ["Drawer target", totals.target],
         ["Left in drawer", totals.leftInDrawer],
       ] as const;
 
@@ -1366,10 +1365,6 @@ export default function CashCalculator() {
                                 : ""}
                             </Typography>
                           </Stack>
-                          <Typography variant="caption" color="text.secondary">
-                            Drawer target: $
-                            {formatMoney(DEFAULT_DRAWER_TARGET)}
-                          </Typography>
                         </Stack>
                       </AccordionSummary>
 
