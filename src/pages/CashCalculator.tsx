@@ -40,6 +40,7 @@ import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
 import DownloadIcon from "@mui/icons-material/Download";
 import ClearIcon from "@mui/icons-material/Clear";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import DeleteIcon from "@mui/icons-material/Delete";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import SafeBillCounter from "./SafeBillCounter";
 
@@ -766,7 +767,7 @@ export default function CashCalculator() {
             <IconButton
               size="small"
               color="error"
-              aria-label={`More ${denom.label} actions`}
+              aria-label={`Clear ${denom.label}`}
               onClick={(event) =>
                 openClearMenu(event, [
                   {
@@ -776,7 +777,7 @@ export default function CashCalculator() {
                 ])
               }
             >
-              <MoreVertIcon />
+              <DeleteIcon />
             </IconButton>
             <Stack spacing={0.25}>
               <Typography fontWeight={700}>{denom.label}</Typography>
