@@ -373,6 +373,14 @@ export default function CashCalculator() {
       ),
     [registerSummaries]
   );
+  const activeDrawerTotals = registerSummaries[currentStep]?.totals;
+  const showGuidedDrawerTotal = activeTab === 0 && currentStep !== REVIEW_STEP;
+  const footerTotalLabel = showGuidedDrawerTotal
+    ? "Current drawer"
+    : "Deposit";
+  const footerTotalValue = showGuidedDrawerTotal
+    ? activeDrawerTotals?.countedTotal ?? 0
+    : overallTotals.deposit;
 
   const updateDrawer = (
     drawerId: number,
@@ -1319,9 +1327,11 @@ export default function CashCalculator() {
                   Totals
                 </Button>
                 <Stack direction="row" spacing={1} alignItems="baseline">
-                  <Typography color="text.secondary">Deposit</Typography>
+                  <Typography color="text.secondary">
+                    {footerTotalLabel}
+                  </Typography>
                   <Typography fontSize={18} fontWeight={900}>
-                    ${formatMoney(overallTotals.deposit)}
+                    ${formatMoney(footerTotalValue)}
                   </Typography>
                 </Stack>
               </Stack>
@@ -1329,28 +1339,51 @@ export default function CashCalculator() {
               <Collapse in={totalsExpanded} timeout="auto" unmountOnExit>
                 <Stack spacing={0.75}>
                   <Divider />
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography color="text.secondary">
-                      All drawers counted
-                    </Typography>
-                    <Typography fontWeight={700}>
-                      ${formatMoney(overallTotals.countedTotal)}
-                    </Typography>
-                  </Stack>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography color="text.secondary">
-                      Amount left in drawers
-                    </Typography>
-                    <Typography fontWeight={700}>
-                      ${formatMoney(overallTotals.leftInDrawer)}
-                    </Typography>
-                  </Stack>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography fontWeight={900}>Deposit</Typography>
-                    <Typography fontWeight={900}>
-                      ${formatMoney(overallTotals.deposit)}
-                    </Typography>
-                  </Stack>
+                  {showGuidedDrawerTotal ? (
+                    <>
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography color="text.secondary">
+                          Drawer counted
+                        </Typography>
+                        <Typography fontWeight={700}>
+                          ${formatMoney(activeDrawerTotals?.countedTotal ?? 0)}
+                        </Typography>
+                      </Stack>
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography color="text.secondary">
+                          Drawer left
+                        </Typography>
+                        <Typography fontWeight={700}>
+                          ${formatMoney(activeDrawerTotals?.leftInDrawer ?? 0)}
+                        </Typography>
+                      </Stack>
+                    </>
+                  ) : (
+                    <>
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography color="text.secondary">
+                          All drawers counted
+                        </Typography>
+                        <Typography fontWeight={700}>
+                          ${formatMoney(overallTotals.countedTotal)}
+                        </Typography>
+                      </Stack>
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography color="text.secondary">
+                          Amount left in drawers
+                        </Typography>
+                        <Typography fontWeight={700}>
+                          ${formatMoney(overallTotals.leftInDrawer)}
+                        </Typography>
+                      </Stack>
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography fontWeight={900}>Deposit</Typography>
+                        <Typography fontWeight={900}>
+                          ${formatMoney(overallTotals.deposit)}
+                        </Typography>
+                      </Stack>
+                    </>
+                  )}
                 </Stack>
               </Collapse>
             </Stack>
