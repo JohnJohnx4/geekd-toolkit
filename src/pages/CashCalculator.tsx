@@ -1357,6 +1357,13 @@ export default function CashCalculator() {
                           ${formatMoney(activeDrawerTotals?.leftInDrawer ?? 0)}
                         </Typography>
                       </Stack>
+                      <Divider />
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography fontWeight={900}>Total deposit</Typography>
+                        <Typography fontWeight={900}>
+                          ${formatMoney(overallTotals.deposit)}
+                        </Typography>
+                      </Stack>
                     </>
                   ) : (
                     <>
