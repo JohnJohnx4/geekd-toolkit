@@ -40,7 +40,6 @@ import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
 import DownloadIcon from "@mui/icons-material/Download";
 import ClearIcon from "@mui/icons-material/Clear";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import DeleteIcon from "@mui/icons-material/Delete";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import SafeBillCounter from "./SafeBillCounter";
 
@@ -408,12 +407,6 @@ export default function CashCalculator() {
     }));
   };
 
-  const clearDenom = (
-    drawerId: number,
-    type: "bills" | "coins",
-    index: number
-  ) => updateDenom(drawerId, type, index, 0);
-
   const clearSection = (drawerId: number, type: "bills" | "coins") => {
     updateDrawer(drawerId, (drawer) => ({
       ...drawer,
@@ -764,28 +757,12 @@ export default function CashCalculator() {
       <Card key={denom.value} variant="outlined" sx={{ borderRadius: 2, p: 1.5 }}>
         <Stack spacing={1}>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Box sx={{ width: 34 }} />
             <Stack spacing={0.25}>
               <Typography fontWeight={700}>{denom.label}</Typography>
               <Typography variant="body2" color="text.secondary">
                 ${formatMoney(total)}
               </Typography>
             </Stack>
-            <IconButton
-              size="small"
-              color="error"
-              aria-label={`Clear ${denom.label}`}
-              onClick={(event) =>
-                openClearMenu(event, [
-                  {
-                    label: `Clear ${denom.label}`,
-                    onClick: () => clearDenom(drawer.id, type, index),
-                  },
-                ])
-              }
-            >
-              <DeleteIcon />
-            </IconButton>
           </Stack>
 
           <Stack direction="row" alignItems="center" justifyContent="space-between">
@@ -893,15 +870,6 @@ export default function CashCalculator() {
               <Typography variant="h6" textAlign="center" gutterBottom>
                 Register Checkout
               </Typography>
-
-              <Chip
-                label={`Leaves $${formatMoney(
-                  DEFAULT_DRAWER_TARGET
-                )} in each enabled drawer`}
-                color="primary"
-                variant="outlined"
-                sx={{ mb: 2, width: "100%" }}
-              />
 
               <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
                 <IconButton
