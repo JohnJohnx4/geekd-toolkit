@@ -237,64 +237,71 @@ const getLeaveBillTotal = (leaveCounts: Record<number, number>) =>
     0
   );
 
-const fillWithLowerBills = (
-  counts: Record<number, number>,
-  leaveCounts: Record<number, number>,
-  value: number,
-  missingCount: number,
-  maxBillAmount: number
-) => {
-  let remainingValue = Math.min(
-    value * missingCount,
-    Math.max(0, maxBillAmount - getLeaveBillTotal(leaveCounts))
+const getTillPlanScore = (counts: Record<number, number>) => {
+  const minimumDeficit = TILL_BILL_VALUES.reduce(
+    (sum, value) =>
+      sum + Math.max(0, TILL_BILL_MINIMUM_COUNTS[value] - (counts[value] ?? 0)),
+    0
   );
-  const lowerValues = TILL_BILL_VALUES.filter((billValue) => billValue < value);
+  const targetDistance = TILL_BILL_VALUES.reduce(
+    (sum, value) =>
+      sum + Math.abs((counts[value] ?? 0) - TILL_BILL_TARGET_COUNTS[value]),
+    0
+  );
+  const lowerBillPreference = [...TILL_BILL_VALUES]
+    .reverse()
+    .reduce((sum, value, index) => sum + (counts[value] ?? 0) * (index + 1), 0);
 
-  lowerValues.forEach((lowerValue) => {
-    if (remainingValue < lowerValue) return;
-
-    const countToUse = Math.min(
-      counts[lowerValue] ?? 0,
-      Math.floor(remainingValue / lowerValue)
-    );
-
-    if (countToUse > 0) {
-      leaveCounts[lowerValue] += countToUse;
-      counts[lowerValue] -= countToUse;
-      remainingValue -= countToUse * lowerValue;
-    }
-  });
+  return minimumDeficit * 100000 + targetDistance * 100 - lowerBillPreference;
 };
 
-const addExtraBillsToReachAmount = (
-  counts: Record<number, number>,
-  leaveCounts: Record<number, number>,
-  amountNeeded: number,
+const getBestTillLeaveCounts = (
+  availableCounts: Record<number, number>,
+  targetBillAmount: number,
   maxBillAmount: number
 ) => {
-  let remainingAmount = amountNeeded;
+  const emptyCounts = TILL_BILL_VALUES.reduce<Record<number, number>>(
+    (counts, value) => {
+      counts[value] = 0;
+      return counts;
+    },
+    {}
+  );
+  const possible = new Map<number, Record<number, number>>();
+  possible.set(0, emptyCounts);
 
-  [...TILL_BILL_VALUES].reverse().forEach((value) => {
-    if (remainingAmount <= 0) return;
+  TILL_BILL_VALUES.forEach((value) => {
+    const currentPlans = Array.from(possible.entries());
+    const availableCount = availableCounts[value] ?? 0;
 
-    const remainingBudget = Math.max(
-      0,
-      maxBillAmount - getLeaveBillTotal(leaveCounts)
-    );
-    if (value > remainingBudget) return;
+    currentPlans.forEach(([amount, counts]) => {
+      for (let count = 1; count <= availableCount; count += 1) {
+        const nextAmount = amount + value * count;
+        if (nextAmount > maxBillAmount) break;
 
-    const countToUse = Math.min(
-      counts[value] ?? 0,
-      Math.floor(remainingBudget / value),
-      Math.ceil(remainingAmount / value)
-    );
+        const nextCounts = { ...counts, [value]: (counts[value] ?? 0) + count };
+        const existingCounts = possible.get(nextAmount);
 
-    if (countToUse > 0) {
-      leaveCounts[value] += countToUse;
-      counts[value] -= countToUse;
-      remainingAmount -= countToUse * value;
-    }
+        if (
+          !existingCounts ||
+          getTillPlanScore(nextCounts) < getTillPlanScore(existingCounts)
+        ) {
+          possible.set(nextAmount, nextCounts);
+        }
+      }
+    });
   });
+
+  if (possible.has(targetBillAmount)) {
+    return possible.get(targetBillAmount) ?? emptyCounts;
+  }
+
+  for (let amount = Math.min(targetBillAmount, maxBillAmount); amount >= 0; amount -= 1) {
+    const counts = possible.get(amount);
+    if (counts) return counts;
+  }
+
+  return emptyCounts;
 };
 
 const getRegisterSummaries = (
@@ -364,56 +371,18 @@ const getRegisterSummaries = (
     const billTotal = getBillTotal(drawer);
     const coinTotal = getCoinTotal(drawer);
     const target = DEFAULT_DRAWER_TARGET;
-    const maxBillsToLeave = Math.max(0, Math.floor(300.99 - coinTotal));
-    const availableCounts = { ...adjustedCounts[drawerIndex] };
-    const leaveCounts = TILL_BILL_VALUES.reduce<Record<number, number>>(
-      (counts, value) => {
-        counts[value] = 0;
-        return counts;
-      },
-      {}
+    const coinCents = Math.round(coinTotal * 100);
+    const targetBillAmount = Math.max(
+      0,
+      Math.ceil((DEFAULT_DRAWER_TARGET * 100 - coinCents) / 100)
     );
-
-    TILL_BILL_VALUES.forEach((value) => {
-      const targetCount = TILL_BILL_TARGET_COUNTS[value];
-      const remainingBillBudget = Math.max(
-        0,
-        maxBillsToLeave - getLeaveBillTotal(leaveCounts)
-      );
-      const countToUse = Math.min(
-        availableCounts[value] ?? 0,
-        targetCount,
-        Math.floor(remainingBillBudget / value)
-      );
-
-      if (countToUse > 0) {
-        leaveCounts[value] += countToUse;
-        availableCounts[value] -= countToUse;
-      }
-
-      fillWithLowerBills(
-        availableCounts,
-        leaveCounts,
-        value,
-        targetCount - countToUse,
-        maxBillsToLeave
-      );
-    });
-
-    let billsLeft = TILL_BILL_VALUES.reduce(
-      (sum, value) => sum + value * leaveCounts[value],
-      0
-    );
-    addExtraBillsToReachAmount(
-      availableCounts,
-      leaveCounts,
-      Math.max(0, target - coinTotal - billsLeft),
+    const maxBillsToLeave = Math.max(0, Math.floor((30099 - coinCents) / 100));
+    const leaveCounts = getBestTillLeaveCounts(
+      adjustedCounts[drawerIndex],
+      targetBillAmount,
       maxBillsToLeave
     );
-    billsLeft = TILL_BILL_VALUES.reduce(
-      (sum, value) => sum + value * leaveCounts[value],
-      0
-    );
+    const billsLeft = getLeaveBillTotal(leaveCounts);
     const transferInTotal = getTransferTotal(transferIns[drawerIndex]);
     const transferOutTotal = getTransferTotal(transferOuts[drawerIndex]);
     const adjustedBillTotal = billTotal + transferInTotal - transferOutTotal;
