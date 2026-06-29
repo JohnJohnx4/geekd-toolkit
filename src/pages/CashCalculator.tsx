@@ -1106,6 +1106,18 @@ export default function CashCalculator() {
       : currentStep === REVIEW_STEP
         ? "Start Over"
         : "Next";
+  const headerGuidance =
+    activeTab === 1
+      ? "Count all three drawers from one screen. Coins stay in each drawer, then leave enough bills to land at $300.xx."
+      : currentStep === REVIEW_STEP
+        ? "Review the completed drawer counts and total deposit before exporting."
+        : currentDrawerCalculating
+          ? `Calculating what should stay in drawer ${currentStep + 1}.`
+          : currentDrawerCompleted
+            ? `Count complete. Total left in drawer should be $${formatMoney(
+                activeDrawerTotals?.leftInDrawer ?? 0
+              )}. Press Next to continue.`
+            : `Calculate bills and coins in drawer ${currentStep + 1}.`;
 
   const handleGuidedStepAction = () => {
     if (currentDrawerCalculating) return;
@@ -1145,8 +1157,7 @@ export default function CashCalculator() {
                 textAlign="center"
                 sx={{ mb: 2 }}
               >
-                Count all three drawers. Coins stay in each drawer, then leave
-                enough bills to land at $300.xx.
+                {headerGuidance}
               </Typography>
 
               <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
