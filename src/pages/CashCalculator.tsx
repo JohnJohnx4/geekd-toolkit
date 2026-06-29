@@ -1593,7 +1593,7 @@ export default function CashCalculator() {
                               onClick={completeCurrentDrawer}
                               sx={{ py: 1.15 }}
                             >
-                              Finish Count
+                              Finish Till {drawer.id}
                             </Button>
                           ) : null}
                         </Stack>
