@@ -50,7 +50,6 @@ type RegisterDrawer = {
   id: number;
   name: string;
   enabled: boolean;
-  target: CountValue;
   bills: CashDenomination[];
   coins: CashDenomination[];
 };
@@ -97,7 +96,6 @@ const createRegister = (index: number): RegisterDrawer => ({
   id: index + 1,
   name: `Register ${index + 1}`,
   enabled: index === 0,
-  target: DEFAULT_DRAWER_TARGET,
   bills: BILL_DENOMS.map((d) => ({ ...d, count: 0 })),
   coins: COIN_DENOMS.map((d) => ({ ...d, count: 0 })),
 });
@@ -148,17 +146,12 @@ const readSavedDepositDrawers = (): RegisterDrawer[] | null => {
 
       if (!isRecord(savedDrawer)) return baseDrawer;
 
-      const target: CountValue = isCountValue(savedDrawer.target)
-        ? savedDrawer.target
-        : baseDrawer.target;
-
       return {
         ...baseDrawer,
         enabled:
           typeof savedDrawer.enabled === "boolean"
             ? savedDrawer.enabled
             : baseDrawer.enabled,
-        target: target === "" ? "" : Math.max(0, target),
         bills: hydrateDenoms(savedDrawer.bills, baseDrawer.bills),
         coins: hydrateDenoms(savedDrawer.coins, baseDrawer.coins),
       };
@@ -260,7 +253,7 @@ const getBillsLeftPlan = (bills: CashDenomination[], required: number) => {
 const getDrawerTotals = (drawer: RegisterDrawer) => {
   const billTotal = getBillTotal(drawer);
   const coinTotal = getCoinTotal(drawer);
-  const target = parseCount(drawer.target);
+  const target = DEFAULT_DRAWER_TARGET;
   const billsNeededToLeave = Math.ceil(Math.max(0, target - coinTotal));
   const billsLeftPlan = getBillsLeftPlan(drawer.bills, billsNeededToLeave);
   const billsLeft = billsLeftPlan.amount;
@@ -358,13 +351,6 @@ export default function CashCalculator() {
     setDrawers((prev) =>
       prev.map((drawer) => (drawer.id === drawerId ? updater(drawer) : drawer))
     );
-  };
-
-  const updateTarget = (drawerId: number, target: CountValue) => {
-    updateDrawer(drawerId, (drawer) => ({
-      ...drawer,
-      target: target === "" ? "" : Math.max(0, target),
-    }));
   };
 
   const updateDenom = (
@@ -867,6 +853,15 @@ export default function CashCalculator() {
                 Register Checkout
               </Typography>
 
+              <Chip
+                label={`Leaves $${formatMoney(
+                  DEFAULT_DRAWER_TARGET
+                )} in each enabled drawer`}
+                color="primary"
+                variant="outlined"
+                sx={{ mb: 2, width: "100%" }}
+              />
+
               <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
                 <Button
                   variant="contained"
@@ -950,37 +945,15 @@ export default function CashCalculator() {
                             Counted ${formatMoney(totals.countedTotal)} | Left $
                             {formatMoney(totals.leftInDrawer)}
                           </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Drawer target: $
+                            {formatMoney(DEFAULT_DRAWER_TARGET)}
+                          </Typography>
                         </Stack>
                       </AccordionSummary>
 
                       <AccordionDetails>
                         <Stack spacing={2}>
-                          <TextField
-                            label="Leave in drawer"
-                            type="number"
-                            value={drawer.target}
-                            onChange={(event) =>
-                              updateTarget(
-                                drawer.id,
-                                event.target.value === ""
-                                  ? ""
-                                  : Number(event.target.value)
-                              )
-                            }
-                            InputProps={{
-                              startAdornment: (
-                                <Typography
-                                  color="text.secondary"
-                                  sx={{ mr: 0.5 }}
-                                >
-                                  $
-                                </Typography>
-                              ),
-                            }}
-                            inputProps={{ inputMode: "decimal" }}
-                            fullWidth
-                          />
-
                           <Stack direction="row" spacing={1}>
                             <Button
                               size="small"
