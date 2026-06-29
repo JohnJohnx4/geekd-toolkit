@@ -24,6 +24,7 @@ import {
   ListItemText,
   Menu,
   MenuItem,
+  Paper,
   Snackbar,
   Stack,
   Tab,
@@ -1278,6 +1279,334 @@ export default function CashCalculator() {
                       </Accordion>
                     );
 
+                  if (activeTab === 0) {
+                    return (
+                      <Paper
+                        key={drawer.id}
+                        variant="outlined"
+                        sx={{ borderRadius: 2, p: 2 }}
+                      >
+                        <Stack spacing={2}>
+                          <Stack spacing={1}>
+                            <Stack
+                              direction="row"
+                              alignItems="center"
+                              justifyContent="space-between"
+                              spacing={1}
+                            >
+                              <Stack spacing={0.25}>
+                                <Typography fontWeight={800}>
+                                  {drawer.name}
+                                </Typography>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  {currentStep === REVIEW_STEP
+                                    ? "Completed drawer"
+                                    : `Step ${drawerIndex + 1} of ${DRAWER_COUNT}`}
+                                </Typography>
+                              </Stack>
+                              <Chip
+                                size="small"
+                                color="primary"
+                                label={
+                                  showDrawerPlan
+                                    ? `Deposit $${formatMoney(totals.deposit)}`
+                                    : `Counted $${formatMoney(
+                                        totals.countedTotal
+                                      )}`
+                                }
+                              />
+                            </Stack>
+                            <Stack
+                              direction="row"
+                              spacing={0.75}
+                              alignItems="center"
+                            >
+                              <IconButton
+                                size="small"
+                                color="error"
+                                aria-label={`${drawer.name} clear actions`}
+                                onClick={(event) => {
+                                  openClearMenu(event, [
+                                    {
+                                      label: "Clear register",
+                                      onClick: () => clearDrawer(drawer.id),
+                                    },
+                                    {
+                                      label: "Clear bills",
+                                      onClick: () =>
+                                        clearSection(drawer.id, "bills"),
+                                    },
+                                    {
+                                      label: "Clear coins",
+                                      onClick: () =>
+                                        clearSection(drawer.id, "coins"),
+                                    },
+                                  ]);
+                                }}
+                                sx={{
+                                  border: "1px solid",
+                                  borderColor: "divider",
+                                  borderRadius: 1,
+                                }}
+                              >
+                                <MoreVertIcon fontSize="small" />
+                              </IconButton>
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                              >
+                                Counted ${formatMoney(totals.countedTotal)}
+                                {showDrawerPlan
+                                  ? ` | Left $${formatMoney(
+                                      totals.leftInDrawer
+                                    )}`
+                                  : ""}
+                              </Typography>
+                            </Stack>
+                          </Stack>
+
+                          {showEditableCounters ? (
+                            <>
+                              {coinCounterSection}
+                              {billCounterSection}
+                            </>
+                          ) : null}
+
+                          {isDrawerCalculating ? (
+                            <Card
+                              variant="outlined"
+                              sx={{ borderRadius: 2, p: 2.5 }}
+                            >
+                              <Stack
+                                spacing={1.25}
+                                alignItems="center"
+                                textAlign="center"
+                              >
+                                <CircularProgress size={28} />
+                                <Typography fontWeight={800}>
+                                  Calculating drawer plan
+                                </Typography>
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                >
+                                  Checking the counted cash and choosing what
+                                  should stay in this register.
+                                </Typography>
+                              </Stack>
+                            </Card>
+                          ) : showDrawerPlan ? (
+                            <Card
+                              variant="outlined"
+                              sx={{ borderRadius: 2, p: 2 }}
+                            >
+                              <Stack spacing={0.75}>
+                                {currentStep !== REVIEW_STEP ? (
+                                  <Stack spacing={0.5}>
+                                    <Typography fontWeight={800}>
+                                      Drawer overview
+                                    </Typography>
+                                  </Stack>
+                                ) : null}
+                                <Stack
+                                  direction="row"
+                                  justifyContent="space-between"
+                                >
+                                  <Typography color="text.secondary">
+                                    Counted
+                                  </Typography>
+                                  <Typography fontWeight={700}>
+                                    ${formatMoney(totals.countedTotal)}
+                                  </Typography>
+                                </Stack>
+                                <Divider />
+                                <Stack spacing={0.5}>
+                                  <Typography fontWeight={800}>
+                                    Leave these bills
+                                  </Typography>
+                                  {totals.leftInDrawer <
+                                  DEFAULT_DRAWER_TARGET ? (
+                                    <Typography
+                                      variant="body2"
+                                      color="error"
+                                      fontWeight={700}
+                                    >
+                                      Minimum drawer amount not reached.
+                                    </Typography>
+                                  ) : null}
+                                  {totals.billsLeftPlan.length === 0 ? (
+                                    <Typography
+                                      variant="body2"
+                                      color="text.secondary"
+                                    >
+                                      No bills needed; coins already cover the
+                                      drawer target.
+                                    </Typography>
+                                  ) : (
+                                    totals.billsLeftPlan.map((bill) => (
+                                      <Stack
+                                        key={bill.label}
+                                        direction="row"
+                                        justifyContent="space-between"
+                                      >
+                                        <Typography color="text.secondary">
+                                          {bill.label} x {bill.count}
+                                        </Typography>
+                                        <Typography>
+                                          ${formatMoney(bill.total)}
+                                        </Typography>
+                                      </Stack>
+                                    ))
+                                  )}
+                                </Stack>
+                                {totals.transferIns.length ||
+                                totals.transferOuts.length ? (
+                                  <>
+                                    <Divider />
+                                    <Stack spacing={0.5}>
+                                      <Typography fontWeight={800}>
+                                        Move bills between registers
+                                      </Typography>
+                                      {totals.transferIns.map((transfer) => (
+                                        <Stack
+                                          key={`in-${transfer.drawerName}-${transfer.value}`}
+                                          direction="row"
+                                          justifyContent="space-between"
+                                          spacing={1}
+                                        >
+                                          <Typography color="text.secondary">
+                                            Get {transfer.label} x{" "}
+                                            {transfer.count} from{" "}
+                                            {transfer.drawerName}
+                                          </Typography>
+                                          <Typography>
+                                            ${formatMoney(transfer.total)}
+                                          </Typography>
+                                        </Stack>
+                                      ))}
+                                      {totals.transferOuts.map((transfer) => (
+                                        <Stack
+                                          key={`out-${transfer.drawerName}-${transfer.value}`}
+                                          direction="row"
+                                          justifyContent="space-between"
+                                          spacing={1}
+                                        >
+                                          <Typography color="text.secondary">
+                                            Send {transfer.label} x{" "}
+                                            {transfer.count} to{" "}
+                                            {transfer.drawerName}
+                                          </Typography>
+                                          <Typography>
+                                            ${formatMoney(transfer.total)}
+                                          </Typography>
+                                        </Stack>
+                                      ))}
+                                    </Stack>
+                                  </>
+                                ) : null}
+                                <Divider />
+                                <Stack
+                                  direction="row"
+                                  justifyContent="space-between"
+                                >
+                                  <Typography color="text.secondary">
+                                    Coins staying
+                                  </Typography>
+                                  <Typography>
+                                    ${formatMoney(totals.coinTotal)}
+                                  </Typography>
+                                </Stack>
+                                <Stack
+                                  direction="row"
+                                  justifyContent="space-between"
+                                >
+                                  <Typography color="text.secondary">
+                                    Left in drawer
+                                  </Typography>
+                                  <Typography>
+                                    ${formatMoney(totals.leftInDrawer)}
+                                  </Typography>
+                                </Stack>
+                                <Divider />
+                                <Stack
+                                  direction="row"
+                                  justifyContent="space-between"
+                                >
+                                  <Typography fontWeight={900}>
+                                    Deposit
+                                  </Typography>
+                                  <Typography fontWeight={900}>
+                                    ${formatMoney(totals.deposit)}
+                                  </Typography>
+                                </Stack>
+                                {currentStep !== REVIEW_STEP ? (
+                                  <>
+                                    <Divider />
+                                    <Button
+                                      fullWidth
+                                      variant="outlined"
+                                      startIcon={<EditIcon />}
+                                      onClick={() =>
+                                        markDrawerIncomplete(drawer.id)
+                                      }
+                                    >
+                                      Edit Register Count
+                                    </Button>
+                                  </>
+                                ) : null}
+                              </Stack>
+                            </Card>
+                          ) : (
+                            <Card
+                              variant="outlined"
+                              sx={{ borderRadius: 2, p: 2 }}
+                            >
+                              <Stack spacing={0.75}>
+                                <Typography fontWeight={800}>
+                                  Drawer count in progress
+                                </Typography>
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                >
+                                  Complete this drawer count to calculate what
+                                  should stay in the register.
+                                </Typography>
+                                <Divider />
+                                <Stack
+                                  direction="row"
+                                  justifyContent="space-between"
+                                >
+                                  <Typography color="text.secondary">
+                                    Counted so far
+                                  </Typography>
+                                  <Typography fontWeight={700}>
+                                    ${formatMoney(totals.countedTotal)}
+                                  </Typography>
+                                </Stack>
+                              </Stack>
+                            </Card>
+                          )}
+
+                          {currentStep !== REVIEW_STEP &&
+                          showEditableCounters ? (
+                            <Button
+                              fullWidth
+                              variant="contained"
+                              onClick={completeCurrentDrawer}
+                              sx={{ py: 1.15 }}
+                            >
+                              Finish Till {drawer.id}
+                            </Button>
+                          ) : null}
+                        </Stack>
+                      </Paper>
+                    );
+                  }
+
                   return (
                     <Accordion
                       key={drawer.id}
@@ -1305,9 +1634,7 @@ export default function CashCalculator() {
                                 variant="caption"
                                 color="text.secondary"
                               >
-                                {activeTab === 0
-                                  ? `Step ${drawerIndex + 1} of ${DRAWER_COUNT}`
-                                  : "Closing drawer"}
+                                Closing drawer
                               </Typography>
                             </Stack>
                             <Chip
@@ -1371,17 +1698,10 @@ export default function CashCalculator() {
                       <AccordionDetails>
                         <Stack spacing={2}>
                           {showEditableCounters ? (
-                            activeTab === 0 ? (
-                              <>
-                                {coinCounterSection}
-                                {billCounterSection}
-                              </>
-                            ) : (
-                              <>
-                                {billCounterSection}
-                                {coinCounterSection}
-                              </>
-                            )
+                            <>
+                              {billCounterSection}
+                              {coinCounterSection}
+                            </>
                           ) : null}
 
                           {isDrawerCalculating ? (
@@ -1410,14 +1730,6 @@ export default function CashCalculator() {
                           ) : showDrawerPlan ? (
                           <Card variant="outlined" sx={{ borderRadius: 2, p: 2 }}>
                             <Stack spacing={0.75}>
-                              {activeTab === 0 &&
-                              currentStep !== REVIEW_STEP ? (
-                                <Stack spacing={0.5}>
-                                  <Typography fontWeight={800}>
-                                    Drawer overview
-                                  </Typography>
-                                </Stack>
-                              ) : null}
                               <Stack
                                 direction="row"
                                 justifyContent="space-between"
@@ -1547,22 +1859,6 @@ export default function CashCalculator() {
                                   ${formatMoney(totals.deposit)}
                                 </Typography>
                               </Stack>
-                              {activeTab === 0 &&
-                              currentStep !== REVIEW_STEP ? (
-                                <>
-                                  <Divider />
-                                  <Button
-                                    fullWidth
-                                    variant="outlined"
-                                    startIcon={<EditIcon />}
-                                    onClick={() =>
-                                      markDrawerIncomplete(drawer.id)
-                                    }
-                                  >
-                                    Edit Register Count
-                                  </Button>
-                                </>
-                              ) : null}
                             </Stack>
                           </Card>
                           ) : (
@@ -1590,18 +1886,6 @@ export default function CashCalculator() {
                               </Stack>
                             </Card>
                           )}
-                          {activeTab === 0 &&
-                          currentStep !== REVIEW_STEP &&
-                          showEditableCounters ? (
-                            <Button
-                              fullWidth
-                              variant="contained"
-                              onClick={completeCurrentDrawer}
-                              sx={{ py: 1.15 }}
-                            >
-                              Finish Till {drawer.id}
-                            </Button>
-                          ) : null}
                         </Stack>
                       </AccordionDetails>
                     </Accordion>
