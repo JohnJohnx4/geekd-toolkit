@@ -231,11 +231,15 @@ export default function StaircasePrizingCalculator() {
                       }
                     />
                   }
-                  label={useEvenSplit ? "Even split" : "Pyramid split"}
+                  label="Even split"
                   sx={{
                     m: 0,
                     width: "100%",
                     justifyContent: "space-between",
+                    color: useEvenSplit ? "text.primary" : "text.disabled",
+                    "& .MuiFormControlLabel-label": {
+                      fontWeight: useEvenSplit ? 800 : 400,
+                    },
                   }}
                 />
               </Box>
