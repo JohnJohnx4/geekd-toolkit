@@ -991,24 +991,17 @@ export default function CashCalculator() {
                               )}`}
                             />
                           </Stack>
-                          <Typography variant="body2" color="text.secondary">
-                            Counted ${formatMoney(totals.countedTotal)} | Left $
-                            {formatMoney(totals.leftInDrawer)}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Drawer target: $
-                            {formatMoney(DEFAULT_DRAWER_TARGET)}
-                          </Typography>
-                        </Stack>
-                      </AccordionSummary>
-
-                      <AccordionDetails>
-                        <Stack spacing={2}>
-                          <Stack direction="row" justifyContent="flex-start">
+                          <Stack
+                            direction="row"
+                            spacing={0.75}
+                            alignItems="center"
+                          >
                             <IconButton
+                              size="small"
                               color="error"
                               aria-label={`${drawer.name} clear actions`}
-                              onClick={(event) =>
+                              onClick={(event) => {
+                                event.stopPropagation();
                                 openClearMenu(event, [
                                   {
                                     label: "Clear register",
@@ -1024,18 +1017,30 @@ export default function CashCalculator() {
                                     onClick: () =>
                                       clearSection(drawer.id, "coins"),
                                   },
-                                ])
-                              }
+                                ]);
+                              }}
                               sx={{
                                 border: "1px solid",
                                 borderColor: "divider",
                                 borderRadius: 1,
                               }}
                             >
-                              <MoreVertIcon />
+                              <MoreVertIcon fontSize="small" />
                             </IconButton>
+                            <Typography variant="body2" color="text.secondary">
+                              Counted ${formatMoney(totals.countedTotal)} |
+                              Left ${formatMoney(totals.leftInDrawer)}
+                            </Typography>
                           </Stack>
+                          <Typography variant="caption" color="text.secondary">
+                            Drawer target: $
+                            {formatMoney(DEFAULT_DRAWER_TARGET)}
+                          </Typography>
+                        </Stack>
+                      </AccordionSummary>
 
+                      <AccordionDetails>
+                        <Stack spacing={2}>
                           <Stack spacing={0.5}>
                             <Typography fontWeight={800}>Bills</Typography>
                             <Typography variant="body2" color="text.secondary">
