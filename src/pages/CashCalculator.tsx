@@ -763,12 +763,6 @@ export default function CashCalculator() {
       <Card key={denom.value} variant="outlined" sx={{ borderRadius: 2, p: 1.5 }}>
         <Stack spacing={1}>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Stack spacing={0.25}>
-              <Typography fontWeight={700}>{denom.label}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                ${formatMoney(total)}
-              </Typography>
-            </Stack>
             <IconButton
               size="small"
               color="error"
@@ -784,6 +778,13 @@ export default function CashCalculator() {
             >
               <MoreVertIcon />
             </IconButton>
+            <Stack spacing={0.25}>
+              <Typography fontWeight={700}>{denom.label}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                ${formatMoney(total)}
+              </Typography>
+            </Stack>
+            <Box sx={{ width: 34 }} />
           </Stack>
 
           <Stack direction="row" alignItems="center" justifyContent="space-between">
@@ -902,26 +903,6 @@ export default function CashCalculator() {
               />
 
               <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-                <Button
-                  variant="contained"
-                  fullWidth
-                  startIcon={<DownloadIcon />}
-                  onClick={handleExportReceipt}
-                  sx={{ minWidth: 0 }}
-                >
-                  Export
-                </Button>
-
-                <Button
-                  variant="outlined"
-                  fullWidth
-                  startIcon={<ContentCopyIcon />}
-                  onClick={handleCopyReceipt}
-                  sx={{ minWidth: 0 }}
-                >
-                  Copy
-                </Button>
-
                 <IconButton
                   color="error"
                   aria-label="More checkout actions"
@@ -942,6 +923,26 @@ export default function CashCalculator() {
                 >
                   <MoreVertIcon />
                 </IconButton>
+
+                <Button
+                  variant="contained"
+                  fullWidth
+                  startIcon={<DownloadIcon />}
+                  onClick={handleExportReceipt}
+                  sx={{ minWidth: 0 }}
+                >
+                  Export
+                </Button>
+
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  startIcon={<ContentCopyIcon />}
+                  onClick={handleCopyReceipt}
+                  sx={{ minWidth: 0 }}
+                >
+                  Copy
+                </Button>
               </Stack>
 
               <Stack spacing={1.5}>
@@ -1003,7 +1004,7 @@ export default function CashCalculator() {
 
                       <AccordionDetails>
                         <Stack spacing={2}>
-                          <Stack direction="row" justifyContent="flex-end">
+                          <Stack direction="row" justifyContent="flex-start">
                             <IconButton
                               color="error"
                               aria-label={`${drawer.name} clear actions`}
