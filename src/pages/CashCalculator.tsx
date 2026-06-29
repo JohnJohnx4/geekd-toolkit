@@ -256,6 +256,29 @@ const fillWithLowerBills = (
   });
 };
 
+const addExtraBillsToReachAmount = (
+  counts: Record<number, number>,
+  leaveCounts: Record<number, number>,
+  amountNeeded: number
+) => {
+  let remainingAmount = amountNeeded;
+
+  [...TILL_BILL_VALUES].reverse().forEach((value) => {
+    if (remainingAmount <= 0) return;
+
+    const countToUse = Math.min(
+      counts[value] ?? 0,
+      Math.ceil(remainingAmount / value)
+    );
+
+    if (countToUse > 0) {
+      leaveCounts[value] += countToUse;
+      counts[value] -= countToUse;
+      remainingAmount -= countToUse * value;
+    }
+  });
+};
+
 const getRegisterSummaries = (
   drawers: RegisterDrawer[],
   allowTransfers: boolean
@@ -349,7 +372,16 @@ const getRegisterSummaries = (
       );
     });
 
-    const billsLeft = TILL_BILL_VALUES.reduce(
+    let billsLeft = TILL_BILL_VALUES.reduce(
+      (sum, value) => sum + value * leaveCounts[value],
+      0
+    );
+    addExtraBillsToReachAmount(
+      availableCounts,
+      leaveCounts,
+      Math.max(0, target - coinTotal - billsLeft)
+    );
+    billsLeft = TILL_BILL_VALUES.reduce(
       (sum, value) => sum + value * leaveCounts[value],
       0
     );
