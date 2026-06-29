@@ -764,6 +764,13 @@ export default function CashCalculator() {
       <Card key={denom.value} variant="outlined" sx={{ borderRadius: 2, p: 1.5 }}>
         <Stack spacing={1}>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Box sx={{ width: 34 }} />
+            <Stack spacing={0.25}>
+              <Typography fontWeight={700}>{denom.label}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                ${formatMoney(total)}
+              </Typography>
+            </Stack>
             <IconButton
               size="small"
               color="error"
@@ -779,13 +786,6 @@ export default function CashCalculator() {
             >
               <DeleteIcon />
             </IconButton>
-            <Stack spacing={0.25}>
-              <Typography fontWeight={700}>{denom.label}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                ${formatMoney(total)}
-              </Typography>
-            </Stack>
-            <Box sx={{ width: 34 }} />
           </Stack>
 
           <Stack direction="row" alignItems="center" justifyContent="space-between">
