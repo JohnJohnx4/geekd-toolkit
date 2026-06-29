@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
-import type { PointerEvent } from "react";
+import type { MouseEvent as ReactMouseEvent, PointerEvent } from "react";
 import {
   Accordion,
   AccordionDetails,
@@ -20,6 +20,10 @@ import {
   Divider,
   FormControlLabel,
   IconButton,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
   Snackbar,
   Stack,
   Tab,
@@ -36,6 +40,7 @@ import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
 import DownloadIcon from "@mui/icons-material/Download";
 import ClearIcon from "@mui/icons-material/Clear";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import SafeBillCounter from "./SafeBillCounter";
 
 type CountValue = number | "";
@@ -53,6 +58,16 @@ type RegisterDrawer = {
   bills: CashDenomination[];
   coins: CashDenomination[];
 };
+
+type ClearMenuAction = {
+  label: string;
+  onClick: () => void;
+};
+
+type ClearMenuState = {
+  anchorEl: HTMLElement;
+  actions: ClearMenuAction[];
+} | null;
 
 const parseCount = (count: CountValue) => {
   if (count === "") return 0;
@@ -294,6 +309,7 @@ export default function CashCalculator() {
   const suppressClickRef = useRef(false);
   const showedHoldTipThisLoadRef = useRef(false);
   const [openHoldTipId, setOpenHoldTipId] = useState<string | null>(null);
+  const [clearMenu, setClearMenu] = useState<ClearMenuState>(null);
 
   useEffect(() => {
     try {
@@ -420,6 +436,22 @@ export default function CashCalculator() {
         coins: drawer.coins.map((denom) => ({ ...denom, count: 0 })),
       }))
     );
+  };
+
+  const openClearMenu = (
+    event: ReactMouseEvent<HTMLElement>,
+    actions: ClearMenuAction[]
+  ) => {
+    setClearMenu({ anchorEl: event.currentTarget, actions });
+  };
+
+  const closeClearMenu = () => {
+    setClearMenu(null);
+  };
+
+  const runClearAction = (action: ClearMenuAction) => {
+    closeClearMenu();
+    action.onClick();
   };
 
   const hideHoldTip = useCallback(() => {
@@ -737,14 +769,21 @@ export default function CashCalculator() {
                 ${formatMoney(total)}
               </Typography>
             </Stack>
-            <Button
+            <IconButton
               size="small"
               color="error"
-              startIcon={<ClearIcon />}
-              onClick={() => clearDenom(drawer.id, type, index)}
+              aria-label={`More ${denom.label} actions`}
+              onClick={(event) =>
+                openClearMenu(event, [
+                  {
+                    label: `Clear ${denom.label}`,
+                    onClick: () => clearDenom(drawer.id, type, index),
+                  },
+                ])
+              }
             >
-              Clear
-            </Button>
+              <MoreVertIcon />
+            </IconButton>
           </Stack>
 
           <Stack direction="row" alignItems="center" justifyContent="space-between">
@@ -882,18 +921,28 @@ export default function CashCalculator() {
                 >
                   Copy
                 </Button>
-              </Stack>
 
-              <Button
-                variant="outlined"
-                color="error"
-                fullWidth
-                startIcon={<ClearIcon />}
-                onClick={clearAll}
-                sx={{ mb: 2 }}
-              >
-                Clear All Counts
-              </Button>
+                <IconButton
+                  color="error"
+                  aria-label="More checkout actions"
+                  onClick={(event) =>
+                    openClearMenu(event, [
+                      {
+                        label: "Clear all counts",
+                        onClick: clearAll,
+                      },
+                    ])
+                  }
+                  sx={{
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: 1,
+                    minWidth: 48,
+                  }}
+                >
+                  <MoreVertIcon />
+                </IconButton>
+              </Stack>
 
               <Stack spacing={1.5}>
                 {drawers.map((drawer) => {
@@ -954,31 +1003,36 @@ export default function CashCalculator() {
 
                       <AccordionDetails>
                         <Stack spacing={2}>
-                          <Stack direction="row" spacing={1}>
-                            <Button
-                              size="small"
+                          <Stack direction="row" justifyContent="flex-end">
+                            <IconButton
                               color="error"
-                              startIcon={<ClearIcon />}
-                              onClick={() => clearDrawer(drawer.id)}
+                              aria-label={`${drawer.name} clear actions`}
+                              onClick={(event) =>
+                                openClearMenu(event, [
+                                  {
+                                    label: "Clear register",
+                                    onClick: () => clearDrawer(drawer.id),
+                                  },
+                                  {
+                                    label: "Clear bills",
+                                    onClick: () =>
+                                      clearSection(drawer.id, "bills"),
+                                  },
+                                  {
+                                    label: "Clear coins",
+                                    onClick: () =>
+                                      clearSection(drawer.id, "coins"),
+                                  },
+                                ])
+                              }
+                              sx={{
+                                border: "1px solid",
+                                borderColor: "divider",
+                                borderRadius: 1,
+                              }}
                             >
-                              Clear Register
-                            </Button>
-                            <Button
-                              size="small"
-                              color="error"
-                              startIcon={<ClearIcon />}
-                              onClick={() => clearSection(drawer.id, "bills")}
-                            >
-                              Clear Bills
-                            </Button>
-                            <Button
-                              size="small"
-                              color="error"
-                              startIcon={<ClearIcon />}
-                              onClick={() => clearSection(drawer.id, "coins")}
-                            >
-                              Clear Coins
-                            </Button>
+                              <MoreVertIcon />
+                            </IconButton>
                           </Stack>
 
                           <Stack spacing={0.5}>
@@ -1172,6 +1226,24 @@ export default function CashCalculator() {
               {copyMessage}
             </Alert>
           </Snackbar>
+
+          <Menu
+            anchorEl={clearMenu?.anchorEl ?? null}
+            open={Boolean(clearMenu)}
+            onClose={closeClearMenu}
+          >
+            {clearMenu?.actions.map((action) => (
+              <MenuItem
+                key={action.label}
+                onClick={() => runClearAction(action)}
+              >
+                <ListItemIcon>
+                  <ClearIcon color="error" fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>{action.label}</ListItemText>
+              </MenuItem>
+            ))}
+          </Menu>
         </>
       ) : (
         <SafeBillCounter />
