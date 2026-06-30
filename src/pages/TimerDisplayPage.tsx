@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Box, Chip, Container, Stack, Typography } from "@mui/material";
 import {
   formatTime,
@@ -16,16 +16,21 @@ export default function TimerDisplayPage() {
   );
   const [now, setNow] = useState(() => Date.now());
 
+  const refreshSnapshot = useCallback(() => {
+    setNow(Date.now());
+    setSnapshot(readTimerSnapshot());
+  }, []);
+
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
       if (event.key === TIMER_STORAGE_KEY) {
-        setSnapshot(readTimerSnapshot());
+        refreshSnapshot();
       }
     };
 
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
-  }, []);
+  }, [refreshSnapshot]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -34,6 +39,22 @@ export default function TimerDisplayPage() {
 
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        refreshSnapshot();
+      }
+    };
+
+    window.addEventListener("focus", refreshSnapshot);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", refreshSnapshot);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [refreshSnapshot]);
 
   const displayedTimers = useMemo(
     () =>

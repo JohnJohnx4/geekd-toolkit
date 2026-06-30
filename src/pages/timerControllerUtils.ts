@@ -185,11 +185,22 @@ export const isValidIsoDate = (value: unknown): value is string =>
   typeof value === "string" && Number.isFinite(Date.parse(value));
 
 export const getTimerRemainingSeconds = (timer: TimerItem, now = Date.now()) => {
-  if (!timer.running || !isValidIsoDate(timer.targetEndAt)) {
+  if (!timer.running) {
     return timer.remainingSeconds;
   }
 
-  return Math.ceil((Date.parse(timer.targetEndAt) - now) / 1000);
+  if (isValidIsoDate(timer.targetEndAt)) {
+    return Math.ceil((Date.parse(timer.targetEndAt) - now) / 1000);
+  }
+
+  if (isValidIsoDate(timer.startedAt)) {
+    return (
+      timer.durationSeconds -
+      Math.floor((now - Date.parse(timer.startedAt)) / 1000)
+    );
+  }
+
+  return timer.remainingSeconds;
 };
 
 export const startTimer = (timer: TimerItem, now = Date.now()): TimerItem => {

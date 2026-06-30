@@ -176,6 +176,21 @@ export default function TimerControllerPage() {
     setTimers((prev) => prev.map(resetTimer));
   };
 
+  const reconcileRunningTimers = useCallback(() => {
+    const nextNow = Date.now();
+    setNow(nextNow);
+    setTimers((prev) =>
+      prev.map((timer) =>
+        timer.running
+          ? {
+              ...timer,
+              remainingSeconds: getTimerRemainingSeconds(timer, nextNow),
+            }
+          : timer
+      )
+    );
+  }, []);
+
   useEffect(() => {
     const interval = setInterval(() => {
       setNow(Date.now());
@@ -183,6 +198,25 @@ export default function TimerControllerPage() {
 
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      reconcileRunningTimers();
+    };
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        reconcileRunningTimers();
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [reconcileRunningTimers]);
 
   useEffect(() => {
     window.localStorage.setItem(
