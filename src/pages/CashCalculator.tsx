@@ -88,6 +88,10 @@ const formatMoney = (amount: number) =>
     maximumFractionDigits: 2,
   });
 
+const scrollToPageTop = () => {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
+
 const HOLD_DELAY_MS = 350;
 const HOLD_REPEAT_MS = 90;
 const HOLD_MOVE_CANCEL_PX = 8;
@@ -579,6 +583,7 @@ export default function CashCalculator() {
       );
       setIsResettingCounts(false);
       resetDelayRef.current = null;
+      scrollToPageTop();
     }, 1500);
   };
 
@@ -1036,7 +1041,7 @@ export default function CashCalculator() {
       : currentStep === REVIEW_STEP - 1
       ? "Review"
       : currentStep === REVIEW_STEP
-        ? "Start Over"
+        ? "Finish"
         : "Next";
   const headerGuidance =
     activeTab === 1
@@ -1059,9 +1064,8 @@ export default function CashCalculator() {
       return;
     }
 
-    setCurrentStep((step) =>
-      Math.min(REVIEW_STEP, step + 1)
-    );
+    setCurrentStep((step) => Math.min(REVIEW_STEP, step + 1));
+    scrollToPageTop();
   };
 
   return (
@@ -1780,9 +1784,10 @@ export default function CashCalculator() {
                   <Button
                     variant="outlined"
                     disabled={currentStep === 0}
-                    onClick={() =>
-                      setCurrentStep((step) => Math.max(0, step - 1))
-                    }
+                    onClick={() => {
+                      setCurrentStep((step) => Math.max(0, step - 1));
+                      scrollToPageTop();
+                    }}
                     sx={{ minWidth: 72 }}
                   >
                     Back
