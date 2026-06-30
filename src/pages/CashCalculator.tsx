@@ -260,10 +260,6 @@ const getBillCounts = (drawer: RegisterDrawer) => {
   return counts;
 };
 
-const getTransferTotal = (
-  transfers: Array<{ value: number; count: number }>
-) => transfers.reduce((sum, transfer) => sum + transfer.value * transfer.count, 0);
-
 const getLeaveBillTotal = (leaveCounts: Record<number, number>) =>
   TILL_BILL_VALUES.reduce(
     (sum, value) => sum + value * (leaveCounts[value] ?? 0),
@@ -337,70 +333,8 @@ const getBestTillLeaveCounts = (
   return emptyCounts;
 };
 
-const getRegisterSummaries = (
-  drawers: RegisterDrawer[],
-  allowTransfers: boolean
-) => {
-  const adjustedCounts = drawers.map(getBillCounts);
-  const transferIns = drawers.map(() => [] as Array<{
-    label: string;
-    value: number;
-    count: number;
-    total: number;
-    drawerName: string;
-  }>);
-  const transferOuts = drawers.map(() => [] as Array<{
-    label: string;
-    value: number;
-    count: number;
-    total: number;
-    drawerName: string;
-  }>);
-
-  if (allowTransfers) {
-    TILL_BILL_VALUES.forEach((value) => {
-      drawers.forEach((drawer, receiverIndex) => {
-        let needed =
-          TILL_BILL_MINIMUM_COUNTS[value] -
-          (adjustedCounts[receiverIndex][value] ?? 0);
-
-        if (needed <= 0) return;
-
-        drawers.forEach((donor, donorIndex) => {
-          if (needed <= 0 || donorIndex === receiverIndex) return;
-
-          const donorExtra =
-            (adjustedCounts[donorIndex][value] ?? 0) -
-            TILL_BILL_MINIMUM_COUNTS[value];
-          const countToTransfer = Math.min(needed, Math.max(0, donorExtra));
-
-          if (countToTransfer <= 0) return;
-
-          adjustedCounts[donorIndex][value] -= countToTransfer;
-          adjustedCounts[receiverIndex][value] += countToTransfer;
-          needed -= countToTransfer;
-
-          const transfer = {
-            label: getBillLabel(value),
-            value,
-            count: countToTransfer,
-            total: countToTransfer * value,
-          };
-
-          transferOuts[donorIndex].push({
-            ...transfer,
-            drawerName: drawer.name,
-          });
-          transferIns[receiverIndex].push({
-            ...transfer,
-            drawerName: donor.name,
-          });
-        });
-      });
-    });
-  }
-
-  return drawers.map((drawer, drawerIndex) => {
+const getRegisterSummaries = (drawers: RegisterDrawer[]) =>
+  drawers.map((drawer) => {
     const billTotal = getBillTotal(drawer);
     const coinTotal = getCoinTotal(drawer);
     const target = DEFAULT_DRAWER_TARGET;
@@ -411,22 +345,18 @@ const getRegisterSummaries = (
     );
     const maxBillsToLeave = Math.max(0, Math.floor((30099 - coinCents) / 100));
     const leaveCounts = getBestTillLeaveCounts(
-      adjustedCounts[drawerIndex],
+      getBillCounts(drawer),
       targetBillAmount,
       maxBillsToLeave
     );
     const billsLeft = getLeaveBillTotal(leaveCounts);
-    const transferInTotal = getTransferTotal(transferIns[drawerIndex]);
-    const transferOutTotal = getTransferTotal(transferOuts[drawerIndex]);
-    const adjustedBillTotal = billTotal + transferInTotal - transferOutTotal;
-    const deposit = Math.max(0, adjustedBillTotal - billsLeft);
+    const deposit = Math.max(0, billTotal - billsLeft);
     const leftInDrawer = coinTotal + billsLeft;
 
     return {
       drawer,
       totals: {
         billTotal,
-        adjustedBillTotal,
         coinTotal,
         target,
         countedTotal: billTotal + coinTotal,
@@ -437,16 +367,11 @@ const getRegisterSummaries = (
           count: leaveCounts[value],
           total: leaveCounts[value] * value,
         })).filter((bill) => bill.count > 0),
-        transferIns: transferIns[drawerIndex],
-        transferOuts: transferOuts[drawerIndex],
-        transferInTotal,
-        transferOutTotal,
         leftInDrawer,
         deposit,
       },
     };
   });
-};
 
 export default function CashCalculator() {
   const [activeTab, setActiveTab] = useState(0);
@@ -493,11 +418,9 @@ export default function CashCalculator() {
     }
   }, [completedDrawers, currentStep, drawers]);
 
-  const allowRegisterTransfers =
-    activeTab === 1 || currentStep === REVIEW_STEP;
   const registerSummaries = useMemo(
-    () => getRegisterSummaries(drawers, allowRegisterTransfers),
-    [allowRegisterTransfers, drawers]
+    () => getRegisterSummaries(drawers),
+    [drawers]
   );
 
   const overallTotals = useMemo(
@@ -821,8 +744,7 @@ export default function CashCalculator() {
         (sum, { totals }) =>
           sum +
           174 +
-          Math.max(1, totals.billsLeftPlan.length) * 18 +
-          (totals.transferIns.length + totals.transferOuts.length) * 18,
+          Math.max(1, totals.billsLeftPlan.length) * 18,
         0
       )
     );
@@ -918,38 +840,6 @@ export default function CashCalculator() {
           context.textAlign = "right";
           context.fillStyle = "#1f1f1f";
           context.fillText(`$${formatMoney(bill.total)}`, width - 64, y);
-          y += 18;
-        });
-      }
-
-      if (totals.transferIns.length || totals.transferOuts.length) {
-        y += 6;
-        context.textAlign = "left";
-        context.font = "700 14px Rubik, Arial, sans-serif";
-        context.fillStyle = "#1f1f1f";
-        context.fillText("Move bills between registers", 48, y);
-        y += 20;
-        context.font = "400 13px Rubik, Arial, sans-serif";
-
-        totals.transferIns.forEach((transfer) => {
-          context.textAlign = "left";
-          context.fillStyle = "#555";
-          context.fillText(
-            `Receive ${transfer.label} x ${transfer.count} from ${transfer.drawerName}`,
-            64,
-            y
-          );
-          y += 18;
-        });
-
-        totals.transferOuts.forEach((transfer) => {
-          context.textAlign = "left";
-          context.fillStyle = "#555";
-          context.fillText(
-            `Send ${transfer.label} x ${transfer.count} to ${transfer.drawerName}`,
-            64,
-            y
-          );
           y += 18;
         });
       }
@@ -1485,51 +1375,6 @@ export default function CashCalculator() {
                                     ))
                                   )}
                                 </Stack>
-                                {totals.transferIns.length ||
-                                totals.transferOuts.length ? (
-                                  <>
-                                    <Divider />
-                                    <Stack spacing={0.5}>
-                                      <Typography fontWeight={800}>
-                                        Move bills between registers
-                                      </Typography>
-                                      {totals.transferIns.map((transfer) => (
-                                        <Stack
-                                          key={`in-${transfer.drawerName}-${transfer.value}`}
-                                          direction="row"
-                                          justifyContent="space-between"
-                                          spacing={1}
-                                        >
-                                          <Typography color="text.secondary">
-                                            Get {transfer.label} x{" "}
-                                            {transfer.count} from{" "}
-                                            {transfer.drawerName}
-                                          </Typography>
-                                          <Typography>
-                                            ${formatMoney(transfer.total)}
-                                          </Typography>
-                                        </Stack>
-                                      ))}
-                                      {totals.transferOuts.map((transfer) => (
-                                        <Stack
-                                          key={`out-${transfer.drawerName}-${transfer.value}`}
-                                          direction="row"
-                                          justifyContent="space-between"
-                                          spacing={1}
-                                        >
-                                          <Typography color="text.secondary">
-                                            Send {transfer.label} x{" "}
-                                            {transfer.count} to{" "}
-                                            {transfer.drawerName}
-                                          </Typography>
-                                          <Typography>
-                                            ${formatMoney(transfer.total)}
-                                          </Typography>
-                                        </Stack>
-                                      ))}
-                                    </Stack>
-                                  </>
-                                ) : null}
                                 <Divider />
                                 <Stack
                                   direction="row"
@@ -1815,51 +1660,6 @@ export default function CashCalculator() {
                                   ))
                                 )}
                               </Stack>
-                              {totals.transferIns.length ||
-                              totals.transferOuts.length ? (
-                                <>
-                                  <Divider />
-                                  <Stack spacing={0.5}>
-                                    <Typography fontWeight={800}>
-                                      Move bills between registers
-                                    </Typography>
-                                    {totals.transferIns.map((transfer) => (
-                                      <Stack
-                                        key={`in-${transfer.drawerName}-${transfer.value}`}
-                                        direction="row"
-                                        justifyContent="space-between"
-                                        spacing={1}
-                                      >
-                                        <Typography color="text.secondary">
-                                          Get {transfer.label} x{" "}
-                                          {transfer.count} from{" "}
-                                          {transfer.drawerName}
-                                        </Typography>
-                                        <Typography>
-                                          ${formatMoney(transfer.total)}
-                                        </Typography>
-                                      </Stack>
-                                    ))}
-                                    {totals.transferOuts.map((transfer) => (
-                                      <Stack
-                                        key={`out-${transfer.drawerName}-${transfer.value}`}
-                                        direction="row"
-                                        justifyContent="space-between"
-                                        spacing={1}
-                                      >
-                                        <Typography color="text.secondary">
-                                          Send {transfer.label} x{" "}
-                                          {transfer.count} to{" "}
-                                          {transfer.drawerName}
-                                        </Typography>
-                                        <Typography>
-                                          ${formatMoney(transfer.total)}
-                                        </Typography>
-                                      </Stack>
-                                    ))}
-                                  </Stack>
-                                </>
-                              ) : null}
                               <Divider />
                               <Stack
                                 direction="row"
