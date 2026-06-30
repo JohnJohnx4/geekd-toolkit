@@ -1029,7 +1029,7 @@ export default function CashCalculator() {
     currentStep === REVIEW_STEP || completedDrawers[currentStep] === true;
   const currentDrawerCalculating =
     currentStep !== REVIEW_STEP && calculatingDrawerId === currentStep + 1;
-  const showReceiptActions = activeTab === 1 || currentStep === REVIEW_STEP;
+  const showReceiptActions = activeTab === 1;
   const nextStepLabel =
     currentDrawerCalculating
       ? "Calculating"
@@ -1094,25 +1094,25 @@ export default function CashCalculator() {
 
               {showReceiptActions ? (
                 <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-                    <Button
-                      variant="contained"
-                      fullWidth
-                      startIcon={<DownloadIcon />}
-                      onClick={handleExportReceipt}
-                      sx={{ minWidth: 0 }}
-                    >
-                      Export
-                    </Button>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    startIcon={<DownloadIcon />}
+                    onClick={handleExportReceipt}
+                    sx={{ minWidth: 0 }}
+                  >
+                    Export
+                  </Button>
 
-                    <Button
-                      variant="outlined"
-                      fullWidth
-                      startIcon={<ContentCopyIcon />}
-                      onClick={handleCopyReceipt}
-                      sx={{ minWidth: 0 }}
-                    >
-                      Copy
-                    </Button>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    startIcon={<ContentCopyIcon />}
+                    onClick={handleCopyReceipt}
+                    sx={{ minWidth: 0 }}
+                  >
+                    Copy
+                  </Button>
                 </Stack>
               ) : null}
 
@@ -1725,6 +1725,33 @@ export default function CashCalculator() {
                     </Accordion>
                   );
                 })}
+                {activeTab === 0 && currentStep === REVIEW_STEP ? (
+                  <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={1}
+                    sx={{ pt: 0.5 }}
+                  >
+                    <Button
+                      variant="contained"
+                      fullWidth
+                      startIcon={<DownloadIcon />}
+                      onClick={handleExportReceipt}
+                      sx={{ minWidth: 0 }}
+                    >
+                      Export
+                    </Button>
+
+                    <Button
+                      variant="outlined"
+                      fullWidth
+                      startIcon={<ContentCopyIcon />}
+                      onClick={handleCopyReceipt}
+                      sx={{ minWidth: 0 }}
+                    >
+                      Copy
+                    </Button>
+                  </Stack>
+                ) : null}
               </Stack>
             </CardContent>
           </Card>
