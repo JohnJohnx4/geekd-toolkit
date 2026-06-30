@@ -1054,8 +1054,13 @@ export default function CashCalculator() {
   const handleGuidedStepAction = () => {
     if (currentDrawerCalculating) return;
 
+    if (currentStep === REVIEW_STEP) {
+      clearAll();
+      return;
+    }
+
     setCurrentStep((step) =>
-      step === REVIEW_STEP ? 0 : Math.min(REVIEW_STEP, step + 1)
+      Math.min(REVIEW_STEP, step + 1)
     );
   };
 
