@@ -1077,7 +1077,7 @@ export default function CashCalculator() {
           variant="fullWidth"
         >
           <Tab label="Deposit Counting" />
-          <Tab label="Closing Deposits" />
+          <Tab label="Old Deposit Counter" />
           <Tab label="Safe Counting" />
         </Tabs>
       </Card>
@@ -1089,7 +1089,7 @@ export default function CashCalculator() {
               <Typography variant="h6" textAlign="center" gutterBottom>
                 {activeTab === 0
                   ? "Guided Closing Count"
-                  : "Closing Deposit Count"}
+                  : "Old Deposit Counter"}
               </Typography>
 
               <Typography
