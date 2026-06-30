@@ -28,9 +28,14 @@ import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import TimerIcon from "@mui/icons-material/Timer";
 import {
   formatTime,
+  getTimerRemainingSeconds,
   getTcg,
   getTimerName,
+  isValidIsoDate,
+  pauseTimer,
   readTimerSnapshot,
+  resetTimer,
+  startTimer,
   TCG_OPTIONS,
   TIMER_STORAGE_KEY,
   type TcgKey,
@@ -67,8 +72,9 @@ const normalizeSavedTimers = (
   const snapshotUpdatedAt = Number.isFinite(snapshot.updatedAt)
     ? snapshot.updatedAt
     : Date.now();
+  const now = Date.now();
   const elapsedSeconds = applyElapsedTime
-    ? Math.max(0, Math.floor((Date.now() - snapshotUpdatedAt) / 1000))
+    ? Math.max(0, Math.floor((now - snapshotUpdatedAt) / 1000))
     : 0;
 
   return snapshot.timers.slice(0, MAX_TIMERS).map((timer, index) => {
@@ -81,22 +87,31 @@ const normalizeSavedTimers = (
     const remainingSeconds = Number.isFinite(timer.remainingSeconds)
       ? Math.floor(timer.remainingSeconds)
       : durationSeconds;
+    const targetEndAt = isValidIsoDate(timer.targetEndAt)
+      ? timer.targetEndAt
+      : undefined;
+    const running = Boolean(timer.running);
+    const adjustedRemainingSeconds =
+      running && targetEndAt
+        ? Math.ceil((Date.parse(targetEndAt) - now) / 1000)
+        : running
+          ? remainingSeconds - elapsedSeconds
+          : remainingSeconds;
+    const adjustedTargetEndAt = running
+      ? targetEndAt ??
+        new Date(now + adjustedRemainingSeconds * 1000).toISOString()
+      : undefined;
 
     return {
       id,
       name: getTimerName({ id, name: timer.name }),
       tcg: isTcgKey(timer.tcg) ? timer.tcg : "magic",
       durationSeconds,
-      remainingSeconds: timer.running
-        ? remainingSeconds - elapsedSeconds
-        : remainingSeconds,
-      running: Boolean(timer.running),
+      remainingSeconds: adjustedRemainingSeconds,
+      running,
       overtimeEnabled: timer.overtimeEnabled ?? snapshot.overtimeEnabled ?? true,
-      startedAt:
-        typeof timer.startedAt === "string" &&
-        Number.isFinite(Date.parse(timer.startedAt))
-          ? timer.startedAt
-          : undefined,
+      startedAt: isValidIsoDate(timer.startedAt) ? timer.startedAt : undefined,
+      targetEndAt: adjustedTargetEndAt,
     };
   });
 };
@@ -119,6 +134,7 @@ export default function TimerControllerPage() {
   const [timers, setTimers] = useState<TimerItem[]>(() =>
     normalizeSavedTimers(readTimerSnapshot(), true)
   );
+  const [now, setNow] = useState(() => Date.now());
 
   const timerCount = timers.length;
   const runningCount = timers.filter((timer) => timer.running).length;
@@ -150,39 +166,18 @@ export default function TimerControllerPage() {
   };
 
   const setAllRunning = (running: boolean) => {
-    const startedAt = new Date().toISOString();
     setTimers((prev) =>
-      prev.map((timer) => ({
-        ...timer,
-        running,
-        startedAt:
-          running && !timer.running
-            ? timer.startedAt ?? startedAt
-            : timer.startedAt,
-      }))
+      prev.map((timer) => (running ? startTimer(timer) : pauseTimer(timer)))
     );
   };
 
   const resetAll = () => {
-    setTimers((prev) =>
-      prev.map((timer) => ({
-        ...timer,
-        remainingSeconds: timer.durationSeconds,
-        running: false,
-        startedAt: undefined,
-      }))
-    );
+    setTimers((prev) => prev.map(resetTimer));
   };
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setTimers((prev) =>
-        prev.map((timer) =>
-          timer.running
-            ? { ...timer, remainingSeconds: timer.remainingSeconds - 1 }
-            : timer
-        )
-      );
+      setNow(Date.now());
     }, 1000);
 
     return () => clearInterval(interval);
@@ -297,7 +292,8 @@ export default function TimerControllerPage() {
         >
           {timers.map((timer) => {
             const tcg = getTcg(timer.tcg);
-            const isOvertime = timer.remainingSeconds < 0;
+            const displayedSeconds = getTimerRemainingSeconds(timer, now);
+            const isOvertime = displayedSeconds < 0;
             const showRoundOver = isOvertime && !timer.overtimeEnabled;
             const durationMinutes = Math.round(timer.durationSeconds / 60);
 
@@ -387,7 +383,7 @@ export default function TimerControllerPage() {
                     >
                       {showRoundOver
                         ? "Round Over"
-                        : formatTime(timer.remainingSeconds)}
+                        : formatTime(displayedSeconds)}
                     </Typography>
 
                     {isOvertime ? (
@@ -478,9 +474,9 @@ export default function TimerControllerPage() {
                             updateTimer(timer.id, (current) => ({
                               ...current,
                               durationSeconds,
-                              remainingSeconds: current.running
-                                ? current.remainingSeconds
-                                : durationSeconds,
+                              remainingSeconds: durationSeconds,
+                              running: false,
+                              targetEndAt: undefined,
                             }));
                           }}
                           inputProps={{
@@ -545,14 +541,11 @@ export default function TimerControllerPage() {
                           timer.running ? <PauseIcon /> : <PlayArrowIcon />
                         }
                         onClick={() =>
-                          updateTimer(timer.id, (current) => ({
-                            ...current,
-                            running: !current.running,
-                            startedAt:
-                              current.running || current.startedAt
-                                ? current.startedAt
-                                : new Date().toISOString(),
-                          }))
+                          updateTimer(timer.id, (current) =>
+                            current.running
+                              ? pauseTimer(current)
+                              : startTimer(current)
+                          )
                         }
                       >
                         {timer.running ? "Pause" : "Start"}
@@ -562,12 +555,9 @@ export default function TimerControllerPage() {
                         variant="outlined"
                         startIcon={<RestartAltIcon />}
                         onClick={() =>
-                          updateTimer(timer.id, (current) => ({
-                            ...current,
-                            running: false,
-                            remainingSeconds: current.durationSeconds,
-                            startedAt: undefined,
-                          }))
+                          updateTimer(timer.id, (current) =>
+                            resetTimer(current)
+                          )
                         }
                       >
                         Reset

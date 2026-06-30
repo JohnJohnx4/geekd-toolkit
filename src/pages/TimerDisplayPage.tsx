@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Box, Chip, Container, Stack, Typography } from "@mui/material";
 import {
   formatTime,
+  getTimerRemainingSeconds,
   getTcg,
   getTimerName,
   readTimerSnapshot,
@@ -13,6 +14,7 @@ export default function TimerDisplayPage() {
   const [snapshot, setSnapshot] = useState<TimerSnapshot | null>(() =>
     readTimerSnapshot()
   );
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
@@ -25,13 +27,21 @@ export default function TimerDisplayPage() {
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const displayedTimers = useMemo(
     () =>
       snapshot?.timers.map((timer) => ({
         ...timer,
-        displayedSeconds: timer.remainingSeconds,
+        displayedSeconds: getTimerRemainingSeconds(timer, now),
       })) ?? [],
-    [snapshot]
+    [now, snapshot]
   );
 
   return (

@@ -36,6 +36,7 @@ export type TimerItem = {
   running: boolean;
   overtimeEnabled: boolean;
   startedAt?: string;
+  targetEndAt?: string;
 };
 
 export type TimerSnapshot = {
@@ -179,6 +180,45 @@ export const formatTime = (seconds: number) => {
 
   return isOvertime ? `-${time}` : time;
 };
+
+export const isValidIsoDate = (value: unknown): value is string =>
+  typeof value === "string" && Number.isFinite(Date.parse(value));
+
+export const getTimerRemainingSeconds = (timer: TimerItem, now = Date.now()) => {
+  if (!timer.running || !isValidIsoDate(timer.targetEndAt)) {
+    return timer.remainingSeconds;
+  }
+
+  return Math.ceil((Date.parse(timer.targetEndAt) - now) / 1000);
+};
+
+export const startTimer = (timer: TimerItem, now = Date.now()): TimerItem => {
+  if (timer.running) return timer;
+
+  const startedAt = timer.startedAt ?? new Date(now).toISOString();
+
+  return {
+    ...timer,
+    running: true,
+    startedAt,
+    targetEndAt: new Date(now + timer.remainingSeconds * 1000).toISOString(),
+  };
+};
+
+export const pauseTimer = (timer: TimerItem, now = Date.now()): TimerItem => ({
+  ...timer,
+  running: false,
+  remainingSeconds: getTimerRemainingSeconds(timer, now),
+  targetEndAt: undefined,
+});
+
+export const resetTimer = (timer: TimerItem): TimerItem => ({
+  ...timer,
+  running: false,
+  remainingSeconds: timer.durationSeconds,
+  startedAt: undefined,
+  targetEndAt: undefined,
+});
 
 export const readTimerSnapshot = (): TimerSnapshot | null => {
   if (typeof window === "undefined") return null;
