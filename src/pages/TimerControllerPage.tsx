@@ -127,6 +127,7 @@ const formatStartedAt = (startedAt?: string) => {
   return `Started ${new Date(startedAt).toLocaleTimeString(undefined, {
     hour: "numeric",
     minute: "2-digit",
+    second: "2-digit",
   })}`;
 };
 
