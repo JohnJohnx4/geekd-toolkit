@@ -824,7 +824,7 @@ export default function CashCalculator() {
       context.textAlign = "left";
       context.font = "700 14px Rubik, Arial, sans-serif";
       context.fillStyle = "#1f1f1f";
-      context.fillText("Leave these bills", 48, y);
+      context.fillText(`Leave in Till ${drawer.id}`, 48, y);
       y += 20;
 
       context.font = "400 13px Rubik, Arial, sans-serif";
@@ -1338,7 +1338,7 @@ export default function CashCalculator() {
                                 <Divider />
                                 <Stack spacing={0.5}>
                                   <Typography fontWeight={800}>
-                                    Leave these bills
+                                    Leave in Till {drawer.id}
                                   </Typography>
                                   {totals.leftInDrawer <
                                   DEFAULT_DRAWER_TARGET ? (
@@ -1623,7 +1623,7 @@ export default function CashCalculator() {
                               <Divider />
                               <Stack spacing={0.5}>
                                 <Typography fontWeight={800}>
-                                  Leave these bills
+                                  Leave in Till {drawer.id}
                                 </Typography>
                                 {totals.leftInDrawer <
                                 DEFAULT_DRAWER_TARGET ? (
