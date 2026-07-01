@@ -1631,6 +1631,10 @@ export default function ReservationsPage() {
                   justifyContent: { md: "center" },
                 },
                 ".MuiTab-root": {
+                  flex: { xs: "0 0 33.3333%", md: "0 1 auto" },
+                  maxWidth: { xs: "33.3333%", md: 360 },
+                  minWidth: { xs: 0, md: 90 },
+                  width: { xs: "33.3333%", md: "auto" },
                   minHeight: { xs: 66, md: 48 },
                   px: { xs: 0.5, md: 2 },
                   py: { xs: 0.75, md: 1.25 },
