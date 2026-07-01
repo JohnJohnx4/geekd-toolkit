@@ -462,6 +462,47 @@ export const createReservation = async (reservation: ReservationInput) => {
   return createdReservation;
 };
 
+export const updateReservation = async (
+  id: string,
+  reservation: Omit<ReservationInput, "release_id" | "user_id">
+) => {
+  const rows = await requestJson<ReservationRecord[]>(
+    `reservations?id=eq.${encodeFilter(id)}`,
+    {
+      method: "PATCH",
+      headers: getHeaders("return=representation"),
+      body: JSON.stringify({
+        employee_name: reservation.employee_name,
+        employee_contact: reservation.employee_contact,
+        notes: reservation.notes,
+      }),
+    }
+  );
+
+  await requestJson<void>(
+    `reservation_products?reservation_id=eq.${encodeFilter(id)}`,
+    {
+      method: "DELETE",
+      headers: getHeaders(),
+    }
+  );
+
+  if (reservation.product_ids.length) {
+    await requestJson<ReservationProductRecord[]>("reservation_products", {
+      method: "POST",
+      headers: getHeaders("return=representation"),
+      body: JSON.stringify(
+        reservation.product_ids.map((productId) => ({
+          reservation_id: id,
+          product_id: productId,
+        }))
+      ),
+    });
+  }
+
+  return rows[0];
+};
+
 export const updateReservationStatus = async (
   id: string,
   status: ReservationStatus

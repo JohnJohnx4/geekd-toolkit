@@ -123,6 +123,13 @@ create policy "Admins can update reservation statuses"
   using (public.is_reservation_admin())
   with check (public.is_reservation_admin());
 
+drop policy if exists "Users can update own reservation requests" on public.reservations;
+create policy "Users can update own reservation requests"
+  on public.reservations for update
+  to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
 drop policy if exists "Public can read release products" on public.release_products;
 create policy "Public can read release products"
   on public.release_products for select
@@ -155,6 +162,20 @@ drop policy if exists "Public can read reservation products" on public.reservati
 drop policy if exists "Users can read own reservation products and admins can read all" on public.reservation_products;
 create policy "Users can read own reservation products and admins can read all"
   on public.reservation_products for select
+  to authenticated
+  using (
+    public.is_reservation_admin()
+    or exists (
+      select 1
+      from public.reservations
+      where reservations.id = reservation_products.reservation_id
+        and reservations.user_id = auth.uid()
+    )
+  );
+
+drop policy if exists "Users can delete own reservation products and admins can delete all" on public.reservation_products;
+create policy "Users can delete own reservation products and admins can delete all"
+  on public.reservation_products for delete
   to authenticated
   using (
     public.is_reservation_admin()

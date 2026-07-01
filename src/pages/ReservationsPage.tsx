@@ -63,6 +63,7 @@ import {
   type ReservationStatus,
   updateRelease,
   updateReleaseProduct,
+  updateReservation,
   updateReservationProfileAdmin,
   updateReservationsPassword,
   updateReservationStatus,
@@ -227,6 +228,24 @@ export default function ReservationsPage() {
   }, [products, reservationProducts]);
 
   const isAdmin = Boolean(profile?.is_admin);
+
+  const currentUserReservations = useMemo(() => {
+    if (!authSession) return [];
+
+    return reservations.filter(
+      (reservation) => reservation.user_id === authSession.user.id
+    );
+  }, [authSession, reservations]);
+
+  const currentUserReservationsByRelease = useMemo(() => {
+    return currentUserReservations.reduce<Record<string, ReservationRecord>>(
+      (groups, reservation) => {
+        groups[reservation.release_id] = reservation;
+        return groups;
+      },
+      {}
+    );
+  }, [currentUserReservations]);
 
   const selectedRelease =
     releases.find((release) => release.id === selectedReleaseId) ??
@@ -401,12 +420,8 @@ export default function ReservationsPage() {
         ] = await Promise.all([
           fetchReleases(includeReservations),
           fetchReleaseProducts(),
-          includeReservations
-            ? fetchReservations()
-            : Promise.resolve<ReservationRecord[]>([]),
-          includeReservations
-            ? fetchReservationProducts()
-            : Promise.resolve<ReservationProductRecord[]>([]),
+          fetchReservations(),
+          fetchReservationProducts(),
           includeReservations
             ? fetchReservationProfiles()
             : Promise.resolve<ReservationProfileRecord[]>([]),
@@ -716,6 +731,7 @@ export default function ReservationsPage() {
 
   const submitReservation = async (releaseId: string) => {
     const form = reservationForms[releaseId] ?? blankReservationForm;
+    const existingReservation = currentUserReservationsByRelease[releaseId];
 
     if (!authSession) {
       setError("Log in before submitting a reservation.");
@@ -736,19 +752,37 @@ export default function ReservationsPage() {
     setMessage("");
 
     try {
-      await createReservation({
-        user_id: authSession.user.id,
-        release_id: releaseId,
-        employee_name: profile.display_name,
-        employee_contact: profile.contact,
-        notes: form.notes.trim() || null,
-        product_ids: form.productIds,
-      });
+      if (existingReservation) {
+        await updateReservation(existingReservation.id, {
+          employee_name: profile.display_name,
+          employee_contact: profile.contact,
+          notes: form.notes.trim() || null,
+          product_ids: form.productIds,
+        });
+      } else {
+        await createReservation({
+          user_id: authSession.user.id,
+          release_id: releaseId,
+          employee_name: profile.display_name,
+          employee_contact: profile.contact,
+          notes: form.notes.trim() || null,
+          product_ids: form.productIds,
+        });
+      }
+
       setReservationForms((prev) => ({
         ...prev,
-        [releaseId]: blankReservationForm,
+        [releaseId]: {
+          notes: form.notes,
+          productIds: form.productIds,
+        },
       }));
-      setMessage("Reservation request saved.");
+      setMessage(
+        existingReservation
+          ? "Reservation request updated."
+          : "Reservation request saved."
+      );
+      await loadData();
     } catch (err) {
       const details = err instanceof Error ? err.message : "";
       setError(
@@ -806,7 +840,16 @@ export default function ReservationsPage() {
     productId: string,
     checked: boolean
   ) => {
-    const form = reservationForms[releaseId] ?? blankReservationForm;
+    const existingReservation = currentUserReservationsByRelease[releaseId];
+    const existingProductIds = existingReservation
+      ? (productsByReservation[existingReservation.id] ?? []).map(
+          (product) => product.id
+        )
+      : [];
+    const form = reservationForms[releaseId] ?? {
+      notes: existingReservation?.notes ?? "",
+      productIds: existingProductIds,
+    };
 
     setReservationForms((prev) => ({
       ...prev,
@@ -1225,20 +1268,59 @@ export default function ReservationsPage() {
         </Paper>
 
         {tab === 0 ? (
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                md: "repeat(2, minmax(0, 1fr))",
-                xl: "repeat(3, minmax(0, 1fr))",
-              },
-              gap: { xs: 2, lg: 2.5 },
-              alignItems: "stretch",
-            }}
-          >
+          <Stack spacing={2}>
+            {currentUserReservations.length ? (
+              <Card>
+                <CardContent>
+                  <Stack spacing={1.5}>
+                    <Typography variant="h5">Your Reservations</Typography>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      {currentUserReservations.map((reservation) => {
+                        const release = releases.find(
+                          (item) => item.id === reservation.release_id
+                        );
+
+                        return (
+                          <Chip
+                            key={reservation.id}
+                            label={`${release?.title ?? "Release"} - ${
+                              statusLabels[reservation.status]
+                            }`}
+                            color={getStatusColor(reservation.status)}
+                            variant="outlined"
+                          />
+                        );
+                      })}
+                    </Stack>
+                  </Stack>
+                </CardContent>
+              </Card>
+            ) : null}
+
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  md: "repeat(2, minmax(0, 1fr))",
+                  xl: "repeat(3, minmax(0, 1fr))",
+                },
+                gap: { xs: 2, lg: 2.5 },
+                alignItems: "stretch",
+              }}
+            >
             {activeReleases.map((release) => {
-              const form = reservationForms[release.id] ?? blankReservationForm;
+              const existingReservation =
+                currentUserReservationsByRelease[release.id];
+              const existingProductIds = existingReservation
+                ? (productsByReservation[existingReservation.id] ?? []).map(
+                    (product) => product.id
+                  )
+                : [];
+              const form = reservationForms[release.id] ?? {
+                notes: existingReservation?.notes ?? "",
+                productIds: existingProductIds,
+              };
               const releaseProducts = productsByRelease[release.id] ?? [];
 
               return (
@@ -1266,7 +1348,23 @@ export default function ReservationsPage() {
                           />
                         ) : null}
                         <Box sx={{ minWidth: 0 }}>
-                          <Chip label={release.game} size="small" />
+                          <Stack
+                            direction="row"
+                            spacing={0.75}
+                            flexWrap="wrap"
+                            useFlexGap
+                          >
+                            <Chip label={release.game} size="small" />
+                            {existingReservation ? (
+                              <Chip
+                                label={statusLabels[existingReservation.status]}
+                                size="small"
+                                color={getStatusColor(
+                                  existingReservation.status
+                                )}
+                              />
+                            ) : null}
+                          </Stack>
                           <Typography variant="h5" sx={{ mt: 0.75 }}>
                             {release.title}
                           </Typography>
@@ -1278,6 +1376,13 @@ export default function ReservationsPage() {
 
                       {release.description ? (
                         <Typography>{release.description}</Typography>
+                      ) : null}
+
+                      {existingReservation ? (
+                        <Alert severity="success">
+                          You already requested this release. Update the
+                          products or notes below.
+                        </Alert>
                       ) : null}
 
                       <Divider />
@@ -1372,7 +1477,9 @@ export default function ReservationsPage() {
                         sx={{ mt: "auto" }}
                       >
                         {form.productIds.length
-                          ? "Request Reservation"
+                          ? existingReservation
+                            ? "Update Reservation"
+                            : "Request Reservation"
                           : "Select a Product First"}
                       </Button>
                     </Stack>
@@ -1388,7 +1495,8 @@ export default function ReservationsPage() {
                 </CardContent>
               </Card>
             ) : null}
-          </Box>
+            </Box>
+          </Stack>
         ) : null}
 
         {tab === 1 ? (
