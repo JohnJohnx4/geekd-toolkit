@@ -56,6 +56,7 @@ import {
   ensureOwnerReservationProducts,
   isReservationsConfigured,
   refreshReservationsSession,
+  sendReservationsPasswordReset,
   type ReservationAuthSession,
   setReservationsAccessToken,
   signInReservationsUser,
@@ -111,6 +112,11 @@ type ReleaseEditForm = {
 const blankReservationForm = {
   notes: "",
   productIds: [] as string[],
+};
+
+const blankPasswordForm = {
+  password: "",
+  confirmPassword: "",
 };
 
 const statusLabels: Record<ReservationStatus, string> = {
@@ -266,10 +272,11 @@ export default function ReservationsPage() {
     email: "",
     password: "",
   });
-  const [passwordSetupForm, setPasswordSetupForm] = useState({
-    password: "",
-    confirmPassword: "",
-  });
+  const [passwordSetupForm, setPasswordSetupForm] =
+    useState(blankPasswordForm);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [changePasswordForm, setChangePasswordForm] =
+    useState(blankPasswordForm);
   const [profile, setProfile] = useState<ReservationProfileRecord | null>(null);
   const [profileChecked, setProfileChecked] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
@@ -644,16 +651,51 @@ export default function ReservationsPage() {
     }
   };
 
-  const completePasswordSetup = async () => {
-    if (!passwordSetupSession) return;
-
-    if (passwordSetupForm.password.length < 8) {
+  const validatePasswordForm = (form: typeof blankPasswordForm) => {
+    if (form.password.length < 8) {
       setError("Password must be at least 8 characters.");
+      return false;
+    }
+
+    if (form.password !== form.confirmPassword) {
+      setError("Passwords do not match.");
+      return false;
+    }
+
+    return true;
+  };
+
+  const requestPasswordReset = async () => {
+    const email = loginForm.email.trim();
+
+    if (!email) {
+      setError("Enter your email first, then request a reset link.");
       return;
     }
 
-    if (passwordSetupForm.password !== passwordSetupForm.confirmPassword) {
-      setError("Passwords do not match.");
+    setAuthLoading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      await sendReservationsPasswordReset(
+        email,
+        `${window.location.origin}${window.location.pathname}${window.location.search}`
+      );
+      setMessage("Password reset link sent. Check your email.");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to send password reset link."
+      );
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const completePasswordSetup = async () => {
+    if (!passwordSetupSession || !validatePasswordForm(passwordSetupForm)) {
       return;
     }
 
@@ -673,11 +715,41 @@ export default function ReservationsPage() {
 
       persistAuthSession(session);
       setPasswordSetupSession(null);
-      setPasswordSetupForm({ password: "", confirmPassword: "" });
-      setMessage("Password set. You are logged in.");
+      setPasswordSetupForm(blankPasswordForm);
+      setMessage("Password saved. You are logged in.");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Unable to set password."
+      );
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const changeLoggedInPassword = async () => {
+    if (!authSession || !validatePasswordForm(changePasswordForm)) {
+      return;
+    }
+
+    setAuthLoading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const user = await updateReservationsPassword(
+        authSession.access_token,
+        changePasswordForm.password
+      );
+      persistAuthSession({
+        ...authSession,
+        user,
+      });
+      setChangePasswordForm(blankPasswordForm);
+      setChangePasswordOpen(false);
+      setMessage("Password changed.");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to change password."
       );
     } finally {
       setAuthLoading(false);
@@ -1339,6 +1411,18 @@ export default function ReservationsPage() {
                 >
                   {authLoading ? "Logging In..." : "Log In"}
                 </Button>
+                <Button
+                  variant="text"
+                  startIcon={<LockResetIcon />}
+                  onClick={requestPasswordReset}
+                  disabled={
+                    authLoading ||
+                    !isReservationsConfigured ||
+                    !loginForm.email.trim()
+                  }
+                >
+                  Send Reset Link
+                </Button>
               </Stack>
             </CardContent>
           </Card>
@@ -1499,6 +1583,13 @@ export default function ReservationsPage() {
               {authSession.user.email ? (
                 <Chip label={authSession.user.email} variant="outlined" />
               ) : null}
+              <Button
+                variant="outlined"
+                startIcon={<LockResetIcon />}
+                onClick={() => setChangePasswordOpen(true)}
+              >
+                Change Password
+              </Button>
               <Button
                 variant="outlined"
                 startIcon={<LogoutIcon />}
@@ -2833,6 +2924,72 @@ export default function ReservationsPage() {
           </Box>
         ) : null}
       </Stack>
+
+      <Dialog
+        open={changePasswordOpen}
+        onClose={() => {
+          if (!authLoading) {
+            setChangePasswordOpen(false);
+            setChangePasswordForm(blankPasswordForm);
+          }
+        }}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Change Password</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <TextField
+              label="New password"
+              type="password"
+              value={changePasswordForm.password}
+              onChange={(event) =>
+                setChangePasswordForm((prev) => ({
+                  ...prev,
+                  password: event.target.value,
+                }))
+              }
+              fullWidth
+            />
+            <TextField
+              label="Confirm password"
+              type="password"
+              value={changePasswordForm.confirmPassword}
+              onChange={(event) =>
+                setChangePasswordForm((prev) => ({
+                  ...prev,
+                  confirmPassword: event.target.value,
+                }))
+              }
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  changeLoggedInPassword();
+                }
+              }}
+              fullWidth
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setChangePasswordOpen(false);
+              setChangePasswordForm(blankPasswordForm);
+            }}
+            disabled={authLoading}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<LockResetIcon />}
+            onClick={changeLoggedInPassword}
+            disabled={authLoading}
+          >
+            {authLoading ? "Saving..." : "Change Password"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog
         open={Boolean(editingReservation)}
