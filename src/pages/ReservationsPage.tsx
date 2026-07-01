@@ -342,15 +342,20 @@ export default function ReservationsPage() {
       .map((group) => ({
         ...group,
         releases: group.releases.sort((left, right) => {
-          const titleSort = left.title.localeCompare(right.title, undefined, {
+          if (left.release_date && !right.release_date) return -1;
+          if (!left.release_date && right.release_date) return 1;
+
+          if (left.release_date && right.release_date) {
+            const dateSort = right.release_date.localeCompare(
+              left.release_date
+            );
+
+            if (dateSort !== 0) return dateSort;
+          }
+
+          return left.title.localeCompare(right.title, undefined, {
             sensitivity: "base",
           });
-
-          if (titleSort !== 0) return titleSort;
-
-          return (left.release_date ?? "").localeCompare(
-            right.release_date ?? ""
-          );
         }),
       }))
       .sort((left, right) =>
