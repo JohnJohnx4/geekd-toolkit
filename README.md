@@ -5,6 +5,7 @@
 The Reservations tool uses Supabase so employees can submit release requests from their own devices.
 
 1. Run `supabase/reservation-schema.sql` in the Supabase SQL editor.
+   - If the original reservation schema is already installed, run `supabase/reservation-products-migration.sql` instead to add release products.
 2. Set these app environment variables:
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_PUBLISHABLE_KEY`

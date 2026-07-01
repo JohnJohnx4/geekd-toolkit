@@ -9,6 +9,16 @@ export type ReleaseRecord = {
   created_at: string;
 };
 
+export type ReleaseProductRecord = {
+  id: string;
+  release_id: string;
+  name: string;
+  description: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+};
+
 export type ReservationStatus =
   | "pending"
   | "set_aside"
@@ -26,6 +36,12 @@ export type ReservationRecord = {
   created_at: string;
 };
 
+export type ReservationProductRecord = {
+  reservation_id: string;
+  product_id: string;
+  created_at: string;
+};
+
 type ReleaseInput = {
   title: string;
   game: string;
@@ -40,6 +56,7 @@ type ReservationInput = {
   employee_name: string;
   employee_contact: string | null;
   notes: string | null;
+  product_ids: string[];
 };
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
@@ -103,6 +120,32 @@ export const createRelease = async (release: ReleaseInput) => {
   return rows[0];
 };
 
+export const createReleaseWithProducts = async (
+  release: ReleaseInput,
+  productNames: string[]
+) => {
+  const createdRelease = await createRelease(release);
+  const products = productNames
+    .map((name) => name.trim())
+    .filter(Boolean)
+    .map((name, index) => ({
+      release_id: createdRelease.id,
+      name,
+      sort_order: index,
+      is_active: true,
+    }));
+
+  if (products.length) {
+    await requestJson<ReleaseProductRecord[]>("release_products", {
+      method: "POST",
+      headers: getHeaders("return=representation"),
+      body: JSON.stringify(products),
+    });
+  }
+
+  return createdRelease;
+};
+
 export const updateRelease = async (
   id: string,
   release: Partial<ReleaseInput>
@@ -119,19 +162,47 @@ export const updateRelease = async (
   return rows[0];
 };
 
+export const fetchReleaseProducts = () =>
+  requestJson<ReleaseProductRecord[]>(
+    "release_products?select=*&order=sort_order.asc,created_at.asc"
+  );
+
 export const fetchReservations = () =>
   requestJson<ReservationRecord[]>(
     "reservations?select=*&order=created_at.asc"
+  );
+
+export const fetchReservationProducts = () =>
+  requestJson<ReservationProductRecord[]>(
+    "reservation_products?select=*&order=created_at.asc"
   );
 
 export const createReservation = async (reservation: ReservationInput) => {
   const rows = await requestJson<ReservationRecord[]>("reservations", {
     method: "POST",
     headers: getHeaders("return=representation"),
-    body: JSON.stringify(reservation),
+    body: JSON.stringify({
+      release_id: reservation.release_id,
+      employee_name: reservation.employee_name,
+      employee_contact: reservation.employee_contact,
+      notes: reservation.notes,
+    }),
   });
 
-  return rows[0];
+  const createdReservation = rows[0];
+
+  await requestJson<ReservationProductRecord[]>("reservation_products", {
+    method: "POST",
+    headers: getHeaders("return=representation"),
+    body: JSON.stringify(
+      reservation.product_ids.map((productId) => ({
+        reservation_id: createdReservation.id,
+        product_id: productId,
+      }))
+    ),
+  });
+
+  return createdReservation;
 };
 
 export const updateReservationStatus = async (

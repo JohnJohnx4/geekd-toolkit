@@ -5,10 +5,13 @@ import {
   Button,
   Card,
   CardContent,
+  Checkbox,
   Chip,
   Container,
   Divider,
   FormControl,
+  FormControlLabel,
+  FormGroup,
   InputLabel,
   MenuItem,
   Paper,
@@ -28,13 +31,17 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import SaveIcon from "@mui/icons-material/Save";
 
 import {
-  createRelease,
+  createReleaseWithProducts,
   createReservation,
+  fetchReleaseProducts,
   fetchReleases,
+  fetchReservationProducts,
   fetchReservations,
   isReservationsConfigured,
   reservationsAdminPin,
+  type ReleaseProductRecord,
   type ReleaseRecord,
+  type ReservationProductRecord,
   type ReservationRecord,
   type ReservationStatus,
   updateRelease,
@@ -49,12 +56,14 @@ const blankReleaseForm = {
   release_date: "",
   description: "",
   image_url: "",
+  products: [""] as string[],
 };
 
 const blankReservationForm = {
   employee_name: "",
   employee_contact: "",
   notes: "",
+  productIds: [] as string[],
 };
 
 const statusLabels: Record<ReservationStatus, string> = {
@@ -94,7 +103,11 @@ const getStatusColor = (status: ReservationStatus) => {
 export default function ReservationsPage() {
   const [tab, setTab] = useState(0);
   const [releases, setReleases] = useState<ReleaseRecord[]>([]);
+  const [products, setProducts] = useState<ReleaseProductRecord[]>([]);
   const [reservations, setReservations] = useState<ReservationRecord[]>([]);
+  const [reservationProducts, setReservationProducts] = useState<
+    ReservationProductRecord[]
+  >([]);
   const [selectedReleaseId, setSelectedReleaseId] = useState("");
   const [releaseForm, setReleaseForm] = useState(blankReleaseForm);
   const [reservationForms, setReservationForms] = useState<
@@ -127,6 +140,37 @@ export default function ReservationsPage() {
     );
   }, [reservations]);
 
+  const productsByRelease = useMemo(() => {
+    return products.reduce<Record<string, ReleaseProductRecord[]>>(
+      (groups, product) => {
+        if (!product.is_active) return groups;
+
+        groups[product.release_id] = [...(groups[product.release_id] ?? []), product];
+        return groups;
+      },
+      {}
+    );
+  }, [products]);
+
+  const productsByReservation = useMemo(() => {
+    return reservationProducts.reduce<Record<string, ReleaseProductRecord[]>>(
+      (groups, reservationProduct) => {
+        const product = products.find(
+          (item) => item.id === reservationProduct.product_id
+        );
+
+        if (!product) return groups;
+
+        groups[reservationProduct.reservation_id] = [
+          ...(groups[reservationProduct.reservation_id] ?? []),
+          product,
+        ];
+        return groups;
+      },
+      {}
+    );
+  }, [products, reservationProducts]);
+
   const selectedRelease =
     releases.find((release) => release.id === selectedReleaseId) ??
     releases[0];
@@ -139,15 +183,26 @@ export default function ReservationsPage() {
       setError("");
 
       try {
-        const [releaseRows, reservationRows] = await Promise.all([
+        const [
+          releaseRows,
+          productRows,
+          reservationRows,
+          reservationProductRows,
+        ] = await Promise.all([
           fetchReleases(includeReservations),
+          fetchReleaseProducts(),
           includeReservations
             ? fetchReservations()
             : Promise.resolve<ReservationRecord[]>([]),
+          includeReservations
+            ? fetchReservationProducts()
+            : Promise.resolve<ReservationProductRecord[]>([]),
         ]);
 
         setReleases(releaseRows);
+        setProducts(productRows);
         setReservations(reservationRows);
+        setReservationProducts(reservationProductRows);
         setSelectedReleaseId((current) => current || releaseRows[0]?.id || "");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unable to load data.");
@@ -181,8 +236,17 @@ export default function ReservationsPage() {
   };
 
   const saveRelease = async () => {
+    const productNames = releaseForm.products
+      .map((product) => product.trim())
+      .filter(Boolean);
+
     if (!releaseForm.title.trim() || !releaseForm.game.trim()) {
       setError("Release name and game are required.");
+      return;
+    }
+
+    if (!productNames.length) {
+      setError("Add at least one product for this release.");
       return;
     }
 
@@ -191,14 +255,17 @@ export default function ReservationsPage() {
     setMessage("");
 
     try {
-      await createRelease({
-        title: releaseForm.title.trim(),
-        game: releaseForm.game.trim(),
-        release_date: releaseForm.release_date || null,
-        description: releaseForm.description.trim() || null,
-        image_url: releaseForm.image_url.trim() || null,
-        is_active: true,
-      });
+      await createReleaseWithProducts(
+        {
+          title: releaseForm.title.trim(),
+          game: releaseForm.game.trim(),
+          release_date: releaseForm.release_date || null,
+          description: releaseForm.description.trim() || null,
+          image_url: releaseForm.image_url.trim() || null,
+          is_active: true,
+        },
+        productNames
+      );
       setReleaseForm(blankReleaseForm);
       setMessage("Release added.");
       await loadData(true);
@@ -217,6 +284,11 @@ export default function ReservationsPage() {
       return;
     }
 
+    if (!form.productIds.length) {
+      setError("Select at least one product to request.");
+      return;
+    }
+
     setError("");
     setMessage("");
 
@@ -226,6 +298,7 @@ export default function ReservationsPage() {
         employee_name: form.employee_name.trim(),
         employee_contact: form.employee_contact.trim() || null,
         notes: form.notes.trim() || null,
+        product_ids: form.productIds,
       });
       setReservationForms((prev) => ({
         ...prev,
@@ -272,6 +345,24 @@ export default function ReservationsPage() {
         err instanceof Error ? err.message : "Unable to update reservation."
       );
     }
+  };
+
+  const updateReservationProduct = (
+    releaseId: string,
+    productId: string,
+    checked: boolean
+  ) => {
+    const form = reservationForms[releaseId] ?? blankReservationForm;
+
+    setReservationForms((prev) => ({
+      ...prev,
+      [releaseId]: {
+        ...form,
+        productIds: checked
+          ? [...form.productIds, productId]
+          : form.productIds.filter((id) => id !== productId),
+      },
+    }));
   };
 
   return (
@@ -335,6 +426,7 @@ export default function ReservationsPage() {
           >
             {activeReleases.map((release) => {
               const form = reservationForms[release.id] ?? blankReservationForm;
+              const releaseProducts = productsByRelease[release.id] ?? [];
 
               return (
                 <Card key={release.id}>
@@ -371,6 +463,40 @@ export default function ReservationsPage() {
                       ) : null}
 
                       <Divider />
+
+                      <Box>
+                        <Typography sx={{ fontWeight: 900, mb: 1 }}>
+                          Products
+                        </Typography>
+                        {releaseProducts.length ? (
+                          <FormGroup>
+                            {releaseProducts.map((product) => (
+                              <FormControlLabel
+                                key={product.id}
+                                control={
+                                  <Checkbox
+                                    checked={form.productIds.includes(
+                                      product.id
+                                    )}
+                                    onChange={(event) =>
+                                      updateReservationProduct(
+                                        release.id,
+                                        product.id,
+                                        event.target.checked
+                                      )
+                                    }
+                                  />
+                                }
+                                label={product.name}
+                              />
+                            ))}
+                          </FormGroup>
+                        ) : (
+                          <Alert severity="info">
+                            Products have not been added for this release yet.
+                          </Alert>
+                        )}
+                      </Box>
 
                       <TextField
                         label="Employee name"
@@ -420,7 +546,9 @@ export default function ReservationsPage() {
                         variant="contained"
                         startIcon={<CheckCircleIcon />}
                         onClick={() => submitReservation(release.id)}
-                        disabled={!isReservationsConfigured}
+                        disabled={
+                          !isReservationsConfigured || !releaseProducts.length
+                        }
                       >
                         Request Reservation
                       </Button>
@@ -553,6 +681,26 @@ export default function ReservationsPage() {
                                         ? ` • ${reservation.employee_contact}`
                                         : ""}
                                     </Typography>
+                                    <Stack
+                                      direction="row"
+                                      spacing={0.75}
+                                      flexWrap="wrap"
+                                      useFlexGap
+                                      sx={{ mt: 0.75 }}
+                                    >
+                                      {(
+                                        productsByReservation[reservation.id] ??
+                                        []
+                                      ).map((product) => (
+                                        <Chip
+                                          key={product.id}
+                                          label={product.name}
+                                          size="small"
+                                          color="primary"
+                                          variant="outlined"
+                                        />
+                                      ))}
+                                    </Stack>
                                     {reservation.notes ? (
                                       <Typography sx={{ mt: 0.5 }}>
                                         {reservation.notes}
@@ -696,6 +844,66 @@ export default function ReservationsPage() {
                         multiline
                         minRows={2}
                       />
+                      <Box>
+                        <Typography sx={{ fontWeight: 900, mb: 1 }}>
+                          Products Releasing
+                        </Typography>
+                        <Stack spacing={1}>
+                          {releaseForm.products.map((product, index) => (
+                            <Stack
+                              key={index}
+                              direction={{ xs: "column", sm: "row" }}
+                              spacing={1}
+                            >
+                              <TextField
+                                label={`Product ${index + 1}`}
+                                value={product}
+                                onChange={(event) =>
+                                  setReleaseForm((prev) => ({
+                                    ...prev,
+                                    products: prev.products.map(
+                                      (currentProduct, productIndex) =>
+                                        productIndex === index
+                                          ? event.target.value
+                                          : currentProduct
+                                    ),
+                                  }))
+                                }
+                                fullWidth
+                              />
+                              <Button
+                                variant="outlined"
+                                color="warning"
+                                onClick={() =>
+                                  setReleaseForm((prev) => ({
+                                    ...prev,
+                                    products:
+                                      prev.products.length <= 1
+                                        ? [""]
+                                        : prev.products.filter(
+                                            (_, productIndex) =>
+                                              productIndex !== index
+                                          ),
+                                  }))
+                                }
+                              >
+                                Remove
+                              </Button>
+                            </Stack>
+                          ))}
+                          <Button
+                            variant="outlined"
+                            onClick={() =>
+                              setReleaseForm((prev) => ({
+                                ...prev,
+                                products: [...prev.products, ""],
+                              }))
+                            }
+                          >
+                            Add Product
+                          </Button>
+                        </Stack>
+                      </Box>
                       <Button
                         variant="contained"
                         startIcon={<AddIcon />}
@@ -767,6 +975,24 @@ export default function ReservationsPage() {
                                     0}{" "}
                                   requests
                                 </Typography>
+                                <Stack
+                                  direction="row"
+                                  spacing={0.75}
+                                  flexWrap="wrap"
+                                  useFlexGap
+                                  sx={{ mt: 1 }}
+                                >
+                                  {(productsByRelease[release.id] ?? []).map(
+                                    (product) => (
+                                      <Chip
+                                        key={product.id}
+                                        label={product.name}
+                                        size="small"
+                                        variant="outlined"
+                                      />
+                                    )
+                                  )}
+                                </Stack>
                               </Box>
 
                               <Button
