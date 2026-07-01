@@ -84,7 +84,6 @@ const blankReleaseForm = {
   gameIsOther: false,
   release_date: "",
   description: "",
-  image_url: "",
   products: [""] as string[],
 };
 
@@ -99,7 +98,6 @@ type ReleaseEditForm = {
   gameIsOther: boolean;
   release_date: string;
   description: string;
-  image_url: string;
   products: ReleaseProductFormItem[];
 };
 
@@ -687,7 +685,7 @@ export default function ReservationsPage() {
           game: releaseForm.game.trim(),
           release_date: releaseForm.release_date || null,
           description: releaseForm.description.trim() || null,
-          image_url: releaseForm.image_url.trim() || null,
+          image_url: null,
           is_active: true,
         },
         productNames
@@ -712,7 +710,6 @@ export default function ReservationsPage() {
       gameIsOther: !getReleaseGameOption(release.game),
       release_date: release.release_date ?? "",
       description: release.description ?? "",
-      image_url: release.image_url ?? "",
       products: releaseProducts.length
         ? releaseProducts.map((product) => ({
             id: product.id,
@@ -762,7 +759,7 @@ export default function ReservationsPage() {
         game: editReleaseForm.game.trim(),
         release_date: editReleaseForm.release_date || null,
         description: editReleaseForm.description.trim() || null,
-        image_url: editReleaseForm.image_url.trim() || null,
+        image_url: release.image_url,
       });
 
       const existingProducts = productsByRelease[release.id] ?? [];
@@ -1566,20 +1563,6 @@ export default function ReservationsPage() {
                   >
                     <Stack spacing={2} sx={{ height: "100%" }}>
                       <Stack direction="row" spacing={2} alignItems="center">
-                        {release.image_url ? (
-                          <Box
-                            component="img"
-                            src={release.image_url}
-                            alt=""
-                            sx={{
-                              width: 86,
-                              height: 86,
-                              objectFit: "cover",
-                              borderRadius: 1,
-                              bgcolor: "grey.100",
-                            }}
-                          />
-                        ) : null}
                         <Box sx={{ minWidth: 0 }}>
                           <Stack
                             direction="row"
@@ -2029,16 +2012,6 @@ export default function ReservationsPage() {
                           }
                           InputLabelProps={{ shrink: true }}
                         />
-                        <TextField
-                          label="Image URL"
-                          value={releaseForm.image_url}
-                          onChange={(event) =>
-                            setReleaseForm((prev) => ({
-                              ...prev,
-                              image_url: event.target.value,
-                            }))
-                          }
-                        />
                       </Box>
                       <TextField
                         label="Notes"
@@ -2371,20 +2344,6 @@ export default function ReservationsPage() {
                                       )
                                     }
                                     InputLabelProps={{ shrink: true }}
-                                  />
-                                  <TextField
-                                    label="Image URL"
-                                    value={editReleaseForm.image_url}
-                                    onChange={(event) =>
-                                      setEditReleaseForm((prev) =>
-                                        prev
-                                          ? {
-                                              ...prev,
-                                              image_url: event.target.value,
-                                            }
-                                          : prev
-                                      )
-                                    }
                                   />
                                 </Box>
 
