@@ -1564,25 +1564,12 @@ export default function ReservationsPage() {
               useFlexGap
               sx={{ justifyContent: { xs: "flex-start", md: "flex-end" } }}
             >
-              <Chip label={`${activeReleases.length} active releases`} />
-              {isAdmin ? (
-                <Chip
-                  label={`${reservations.length} reservations`}
-                  color="primary"
-                  variant="outlined"
-                />
-              ) : null}
               <Chip label={profile.display_name} color="success" />
-              {isAdmin ? (
-                <Chip
-                  label="Admin"
-                  color="secondary"
-                  icon={<AdminPanelSettingsIcon />}
-                />
-              ) : null}
-              {authSession.user.email ? (
-                <Chip label={authSession.user.email} variant="outlined" />
-              ) : null}
+              <Chip
+                label={isAdmin ? "Admin" : "Employee"}
+                color={isAdmin ? "secondary" : "default"}
+                icon={isAdmin ? <AdminPanelSettingsIcon /> : undefined}
+              />
               <Button
                 variant="outlined"
                 startIcon={<LockResetIcon />}
