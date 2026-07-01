@@ -94,8 +94,15 @@ type ReleaseProductInput = {
   is_active?: boolean;
 };
 
-const OWNER_RESERVATION_NAME = "Owner";
-const OWNER_RESERVATION_NOTE = "Automatically set aside for the owner.";
+const OWNER_RESERVATION_NAME = "Linda";
+const OWNER_RESERVATION_NOTE = "Automatically reserved for the owner.";
+
+const isOwnerReservationGame = (game: string) =>
+  game
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") === "pokemon";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
 const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -390,6 +397,7 @@ export const createReleaseWithProducts = async (
   );
   await ensureOwnerReservationProducts(
     createdRelease.id,
+    createdRelease.game,
     createdProducts.map((product) => product.id)
   );
 
@@ -445,8 +453,11 @@ export const fetchReservationProducts = () =>
 
 export const ensureOwnerReservationProducts = async (
   releaseId: string,
+  releaseGame: string,
   productIds: string[]
 ) => {
+  if (!isOwnerReservationGame(releaseGame)) return null;
+
   const uniqueProductIds = [...new Set(productIds)].filter(Boolean);
 
   if (!uniqueProductIds.length) return null;
@@ -469,7 +480,7 @@ export const ensureOwnerReservationProducts = async (
         employee_name: OWNER_RESERVATION_NAME,
         employee_contact: null,
         notes: OWNER_RESERVATION_NOTE,
-        status: "set_aside",
+        status: "pending",
       }),
     });
 

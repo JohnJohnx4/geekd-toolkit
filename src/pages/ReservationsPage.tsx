@@ -798,7 +798,13 @@ export default function ReservationsPage() {
       );
       await ensureOwnerReservationProducts(
         release.id,
-        createdProducts.map((product) => product.id)
+        editReleaseForm.game.trim(),
+        [
+          ...productItems
+            .map((product) => product.id)
+            .filter((id): id is string => Boolean(id)),
+          ...createdProducts.map((product) => product.id),
+        ]
       );
 
       cancelEditingRelease();
