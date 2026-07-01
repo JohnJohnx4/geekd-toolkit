@@ -1661,15 +1661,7 @@ export default function ReservationsPage() {
                             <Stack spacing={2} sx={{ height: "100%" }}>
                               <Stack direction="row" spacing={2} alignItems="center">
                                 <Box sx={{ minWidth: 0 }}>
-                                  <Stack
-                                    direction="row"
-                                    spacing={0.75}
-                                    flexWrap="wrap"
-                                    useFlexGap
-                                  >
-                                    <GameBadge game={release.game} size="small" />
-                                  </Stack>
-                                  <Typography variant="h5" sx={{ mt: 0.75 }}>
+                                  <Typography variant="h5">
                                     {release.title}
                                   </Typography>
                                   <Typography color="text.secondary">
