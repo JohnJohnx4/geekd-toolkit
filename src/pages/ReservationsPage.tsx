@@ -76,6 +76,7 @@ import {
   updateReservationsPassword,
   updateReservationStatus,
   upsertReservationProfile,
+  verifyReservationsPassword,
 } from "./reservationSupabase";
 import { TCG_OPTIONS } from "./timerControllerUtils";
 
@@ -117,6 +118,11 @@ const blankReservationForm = {
 const blankPasswordForm = {
   password: "",
   confirmPassword: "",
+};
+
+const blankChangePasswordForm = {
+  currentPassword: "",
+  ...blankPasswordForm,
 };
 
 const statusLabels: Record<ReservationStatus, string> = {
@@ -276,7 +282,8 @@ export default function ReservationsPage() {
     useState(blankPasswordForm);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [changePasswordForm, setChangePasswordForm] =
-    useState(blankPasswordForm);
+    useState(blankChangePasswordForm);
+  const [changePasswordError, setChangePasswordError] = useState("");
   const [profile, setProfile] = useState<ReservationProfileRecord | null>(null);
   const [profileChecked, setProfileChecked] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
@@ -651,14 +658,17 @@ export default function ReservationsPage() {
     }
   };
 
-  const validatePasswordForm = (form: typeof blankPasswordForm) => {
+  const validatePasswordForm = (
+    form: typeof blankPasswordForm,
+    reportError = setError
+  ) => {
     if (form.password.length < 8) {
-      setError("Password must be at least 8 characters.");
+      reportError("Password must be at least 8 characters.");
       return false;
     }
 
     if (form.password !== form.confirmPassword) {
-      setError("Passwords do not match.");
+      reportError("Passwords do not match.");
       return false;
     }
 
@@ -727,15 +737,35 @@ export default function ReservationsPage() {
   };
 
   const changeLoggedInPassword = async () => {
-    if (!authSession || !validatePasswordForm(changePasswordForm)) {
+    if (!authSession) {
+      return;
+    }
+
+    const accountEmail = authSession.user.email;
+
+    if (!accountEmail) {
+      setChangePasswordError("Your account email is required to change your password.");
+      return;
+    }
+
+    if (!changePasswordForm.currentPassword) {
+      setChangePasswordError("Enter your current password first.");
+      return;
+    }
+
+    if (!validatePasswordForm(changePasswordForm, setChangePasswordError)) {
       return;
     }
 
     setAuthLoading(true);
-    setError("");
+    setChangePasswordError("");
     setMessage("");
 
     try {
+      await verifyReservationsPassword(
+        accountEmail,
+        changePasswordForm.currentPassword
+      );
       const user = await updateReservationsPassword(
         authSession.access_token,
         changePasswordForm.password
@@ -744,11 +774,11 @@ export default function ReservationsPage() {
         ...authSession,
         user,
       });
-      setChangePasswordForm(blankPasswordForm);
+      setChangePasswordForm(blankChangePasswordForm);
       setChangePasswordOpen(false);
       setMessage("Password changed.");
     } catch (err) {
-      setError(
+      setChangePasswordError(
         err instanceof Error ? err.message : "Unable to change password."
       );
     } finally {
@@ -1579,7 +1609,11 @@ export default function ReservationsPage() {
               <Button
                 variant="outlined"
                 startIcon={<LockResetIcon />}
-                onClick={() => setChangePasswordOpen(true)}
+                onClick={() => {
+                  setChangePasswordForm(blankChangePasswordForm);
+                  setChangePasswordError("");
+                  setChangePasswordOpen(true);
+                }}
               >
                 Change Password
               </Button>
@@ -3017,7 +3051,8 @@ export default function ReservationsPage() {
         onClose={() => {
           if (!authLoading) {
             setChangePasswordOpen(false);
-            setChangePasswordForm(blankPasswordForm);
+            setChangePasswordForm(blankChangePasswordForm);
+            setChangePasswordError("");
           }
         }}
         fullWidth
@@ -3026,6 +3061,21 @@ export default function ReservationsPage() {
         <DialogTitle>Change Password</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2}>
+            {changePasswordError ? (
+              <Alert severity="error">{changePasswordError}</Alert>
+            ) : null}
+            <TextField
+              label="Current password"
+              type="password"
+              value={changePasswordForm.currentPassword}
+              onChange={(event) =>
+                setChangePasswordForm((prev) => ({
+                  ...prev,
+                  currentPassword: event.target.value,
+                }))
+              }
+              fullWidth
+            />
             <TextField
               label="New password"
               type="password"
@@ -3061,7 +3111,8 @@ export default function ReservationsPage() {
           <Button
             onClick={() => {
               setChangePasswordOpen(false);
-              setChangePasswordForm(blankPasswordForm);
+              setChangePasswordForm(blankChangePasswordForm);
+              setChangePasswordError("");
             }}
             disabled={authLoading}
           >

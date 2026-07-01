@@ -256,6 +256,16 @@ export const signInReservationsUser = async (
   return session;
 };
 
+export const verifyReservationsPassword = async (
+  email: string,
+  password: string
+) => {
+  await requestAuthJson<SupabaseAuthResponse>("token?grant_type=password", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+};
+
 export const sendReservationsPasswordReset = async (
   email: string,
   redirectTo: string
