@@ -26,6 +26,8 @@ export type ReservationStatus =
   | "skipped"
   | "canceled";
 
+export type ReservationProductStatus = ReservationStatus | "denied";
+
 export type ReservationRecord = {
   id: string;
   user_id: string | null;
@@ -40,6 +42,7 @@ export type ReservationRecord = {
 export type ReservationProductRecord = {
   reservation_id: string;
   product_id: string;
+  status: ReservationProductStatus;
   created_at: string;
 };
 
@@ -93,6 +96,16 @@ type ReleaseProductInput = {
   sort_order?: number;
   is_active?: boolean;
 };
+
+const OWNER_RESERVATION_NAME = "Linda";
+const OWNER_RESERVATION_NOTE = "Automatically reserved for the owner.";
+
+const isOwnerReservationGame = (game: string) =>
+  game
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") === "pokemon";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
 const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -381,7 +394,15 @@ export const createReleaseWithProducts = async (
   productNames: string[]
 ) => {
   const createdRelease = await createRelease(release);
-  await createReleaseProducts(createdRelease.id, productNames);
+  const createdProducts = await createReleaseProducts(
+    createdRelease.id,
+    productNames
+  );
+  await ensureOwnerReservationProducts(
+    createdRelease.id,
+    createdRelease.game,
+    createdProducts.map((product) => product.id)
+  );
 
   return createdRelease;
 };
@@ -433,6 +454,71 @@ export const fetchReservationProducts = () =>
     "reservation_products?select=*&order=created_at.asc"
   );
 
+export const ensureOwnerReservationProducts = async (
+  releaseId: string,
+  releaseGame: string,
+  productIds: string[]
+) => {
+  if (!isOwnerReservationGame(releaseGame)) return null;
+
+  const uniqueProductIds = [...new Set(productIds)].filter(Boolean);
+
+  if (!uniqueProductIds.length) return null;
+
+  const ownerRows = await requestJson<ReservationRecord[]>(
+    `reservations?release_id=eq.${encodeFilter(
+      releaseId
+    )}&employee_name=eq.${encodeFilter(OWNER_RESERVATION_NAME)}&select=*`
+  );
+
+  let ownerReservation = ownerRows[0];
+
+  if (!ownerReservation) {
+    const createdRows = await requestJson<ReservationRecord[]>("reservations", {
+      method: "POST",
+      headers: getHeaders("return=representation"),
+      body: JSON.stringify({
+        user_id: null,
+        release_id: releaseId,
+        employee_name: OWNER_RESERVATION_NAME,
+        employee_contact: null,
+        notes: OWNER_RESERVATION_NOTE,
+        status: "pending",
+      }),
+    });
+
+    ownerReservation = createdRows[0];
+  }
+
+  const existingProducts = await requestJson<ReservationProductRecord[]>(
+    `reservation_products?reservation_id=eq.${encodeFilter(
+      ownerReservation.id
+    )}&select=*`
+  );
+  const existingProductIds = new Set(
+    existingProducts.map((product) => product.product_id)
+  );
+  const productsToAdd = uniqueProductIds.filter(
+    (productId) => !existingProductIds.has(productId)
+  );
+
+  if (productsToAdd.length) {
+    await requestJson<ReservationProductRecord[]>("reservation_products", {
+      method: "POST",
+      headers: getHeaders("return=representation"),
+      body: JSON.stringify(
+        productsToAdd.map((productId) => ({
+          reservation_id: ownerReservation.id,
+          product_id: productId,
+          status: "pending",
+        }))
+      ),
+    });
+  }
+
+  return ownerReservation;
+};
+
 export const createReservation = async (reservation: ReservationInput) => {
   const rows = await requestJson<ReservationRecord[]>("reservations", {
     method: "POST",
@@ -455,6 +541,7 @@ export const createReservation = async (reservation: ReservationInput) => {
       reservation.product_ids.map((productId) => ({
         reservation_id: createdReservation.id,
         product_id: productId,
+        status: "pending",
       }))
     ),
   });
@@ -479,6 +566,13 @@ export const updateReservation = async (
     }
   );
 
+  const existingProducts = await requestJson<ReservationProductRecord[]>(
+    `reservation_products?reservation_id=eq.${encodeFilter(id)}&select=*`
+  );
+  const existingStatusByProductId = new Map(
+    existingProducts.map((product) => [product.product_id, product.status])
+  );
+
   await requestJson<void>(
     `reservation_products?reservation_id=eq.${encodeFilter(id)}`,
     {
@@ -495,10 +589,30 @@ export const updateReservation = async (
         reservation.product_ids.map((productId) => ({
           reservation_id: id,
           product_id: productId,
+          status: existingStatusByProductId.get(productId) ?? "pending",
         }))
       ),
     });
   }
+
+  return rows[0];
+};
+
+export const updateReservationProductStatus = async (
+  reservationId: string,
+  productId: string,
+  status: ReservationProductStatus
+) => {
+  const rows = await requestJson<ReservationProductRecord[]>(
+    `reservation_products?reservation_id=eq.${encodeFilter(
+      reservationId
+    )}&product_id=eq.${encodeFilter(productId)}`,
+    {
+      method: "PATCH",
+      headers: getHeaders("return=representation"),
+      body: JSON.stringify({ status }),
+    }
+  );
 
   return rows[0];
 };
