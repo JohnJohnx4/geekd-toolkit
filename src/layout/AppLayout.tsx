@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Outlet, useNavigate } from "@tanstack/react-router";
+import { Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   AppBar,
   Box,
@@ -20,9 +20,14 @@ import MoneyIcon from "@mui/icons-material/Money";
 import CatchingPokemonIcon from "@mui/icons-material/CatchingPokemon";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 import TimerIcon from "@mui/icons-material/Timer";
+import EventAvailableIcon from "@mui/icons-material/EventAvailable";
+
+const RESERVATION_PROFILE_REQUIRED_KEY =
+  "geekd.reservations.profileRequired";
 
 export default function AppLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
@@ -36,6 +41,15 @@ export default function AppLayout() {
   };
 
   const handleNavigation = (link: string) => {
+    const profileRequired =
+      window.localStorage.getItem(RESERVATION_PROFILE_REQUIRED_KEY) === "true";
+
+    if (location.pathname === "/reservations" && profileRequired) {
+      window.alert("Finish your reservation profile before leaving this page.");
+      handleClose();
+      return;
+    }
+
     handleClose();
     navigate({ to: link });
   };
@@ -115,6 +129,12 @@ export default function AppLayout() {
                   <TimerIcon fontSize="small" />
                 </ListItemIcon>
                 <ListItemText>Timer Controller</ListItemText>
+              </MenuItem>
+              <MenuItem onClick={() => handleNavigation("/reservations")}>
+                <ListItemIcon>
+                  <EventAvailableIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Reservations</ListItemText>
               </MenuItem>
             </Menu>
           </Stack>

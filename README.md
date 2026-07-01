@@ -1,5 +1,38 @@
 # React + TypeScript + Vite
 
+## Employee Reservations
+
+The Reservations tool uses Supabase so employees can submit release requests from their own devices.
+
+1. Run `supabase/reservation-schema.sql` in the Supabase SQL editor.
+   - If the original reservation schema is already installed, run `supabase/reservation-products-migration.sql` instead to add release products.
+   - Run `supabase/reservation-auth-migration.sql` to require Supabase Auth login for reservation data.
+   - Run `supabase/reservation-profiles-migration.sql` to require each logged-in employee to create a reservation profile.
+   - Run `supabase/reservation-admin-migration.sql` to add admin profiles and lock manager actions to admins.
+2. Set these app environment variables:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_PUBLISHABLE_KEY`
+3. Do not put the Supabase secret key in frontend code or committed env files.
+
+Create employee users in Supabase under Authentication. The app currently expects email/password sign-in. After login, employees must save a profile name before they can submit reservation requests.
+Set the Supabase Authentication Site URL and redirect URLs to the deployed app or local dev URL, including `/reservations`, so invitation links open the app. Invite links are handled by the Reservations page and prompt users to set their password.
+
+After the first manager creates their profile, bootstrap their admin access in the Supabase SQL editor:
+
+```sql
+update public.reservation_profiles
+set is_admin = true
+where id = (
+  select id
+  from auth.users
+  where email = 'manager@example.com'
+);
+
+notify pgrst, 'reload schema';
+```
+
+After that, admins can promote or demote other profiles inside the Reservations manager screen.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
