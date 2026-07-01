@@ -26,6 +26,8 @@ export type ReservationStatus =
   | "skipped"
   | "canceled";
 
+export type ReservationProductStatus = ReservationStatus | "denied";
+
 export type ReservationRecord = {
   id: string;
   user_id: string | null;
@@ -40,6 +42,7 @@ export type ReservationRecord = {
 export type ReservationProductRecord = {
   reservation_id: string;
   product_id: string;
+  status: ReservationProductStatus;
   created_at: string;
 };
 
@@ -507,6 +510,7 @@ export const ensureOwnerReservationProducts = async (
         productsToAdd.map((productId) => ({
           reservation_id: ownerReservation.id,
           product_id: productId,
+          status: "pending",
         }))
       ),
     });
@@ -537,6 +541,7 @@ export const createReservation = async (reservation: ReservationInput) => {
       reservation.product_ids.map((productId) => ({
         reservation_id: createdReservation.id,
         product_id: productId,
+        status: "pending",
       }))
     ),
   });
@@ -561,6 +566,13 @@ export const updateReservation = async (
     }
   );
 
+  const existingProducts = await requestJson<ReservationProductRecord[]>(
+    `reservation_products?reservation_id=eq.${encodeFilter(id)}&select=*`
+  );
+  const existingStatusByProductId = new Map(
+    existingProducts.map((product) => [product.product_id, product.status])
+  );
+
   await requestJson<void>(
     `reservation_products?reservation_id=eq.${encodeFilter(id)}`,
     {
@@ -577,10 +589,30 @@ export const updateReservation = async (
         reservation.product_ids.map((productId) => ({
           reservation_id: id,
           product_id: productId,
+          status: existingStatusByProductId.get(productId) ?? "pending",
         }))
       ),
     });
   }
+
+  return rows[0];
+};
+
+export const updateReservationProductStatus = async (
+  reservationId: string,
+  productId: string,
+  status: ReservationProductStatus
+) => {
+  const rows = await requestJson<ReservationProductRecord[]>(
+    `reservation_products?reservation_id=eq.${encodeFilter(
+      reservationId
+    )}&product_id=eq.${encodeFilter(productId)}`,
+    {
+      method: "PATCH",
+      headers: getHeaders("return=representation"),
+      body: JSON.stringify({ status }),
+    }
+  );
 
   return rows[0];
 };

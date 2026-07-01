@@ -109,6 +109,13 @@ create policy "Users can delete own reservation products and admins can delete a
     )
   );
 
+drop policy if exists "Admins can update reservation products" on public.reservation_products;
+create policy "Admins can update reservation products"
+  on public.reservation_products for update
+  to authenticated
+  using (public.is_reservation_admin())
+  with check (public.is_reservation_admin());
+
 drop policy if exists "Users can read own reservation profile" on public.reservation_profiles;
 create policy "Users can read own reservation profile"
   on public.reservation_profiles for select

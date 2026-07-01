@@ -39,6 +39,8 @@ create table if not exists public.release_products (
 create table if not exists public.reservation_products (
   reservation_id uuid not null references public.reservations(id) on delete cascade,
   product_id uuid not null references public.release_products(id) on delete cascade,
+  status text not null default 'pending'
+    check (status in ('pending', 'set_aside', 'picked_up', 'skipped', 'canceled', 'denied')),
   created_at timestamptz not null default now(),
   primary key (reservation_id, product_id)
 );
@@ -186,6 +188,13 @@ create policy "Users can delete own reservation products and admins can delete a
         and reservations.user_id = auth.uid()
     )
   );
+
+drop policy if exists "Admins can update reservation products" on public.reservation_products;
+create policy "Admins can update reservation products"
+  on public.reservation_products for update
+  to authenticated
+  using (public.is_reservation_admin())
+  with check (public.is_reservation_admin());
 
 drop policy if exists "Users can read own reservation profile" on public.reservation_profiles;
 create policy "Users can read own reservation profile"

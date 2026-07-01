@@ -61,10 +61,11 @@ where lower(trim(owner_reservation.employee_name)) = 'owner'
       and trim(coalesce(linda_reservation.employee_contact, '')) = ''
   );
 
-insert into public.reservation_products (reservation_id, product_id)
+insert into public.reservation_products (reservation_id, product_id, status)
 select
   reservations.id,
-  release_products.id
+  release_products.id,
+  'pending'
 from public.reservations
 join public.release_products
   on release_products.release_id = reservations.release_id

@@ -63,12 +63,14 @@ import {
   type ReleaseProductRecord,
   type ReleaseRecord,
   type ReservationProductRecord,
+  type ReservationProductStatus,
   type ReservationProfileRecord,
   type ReservationRecord,
   type ReservationStatus,
   updateRelease,
   updateReleaseProduct,
   updateReservation,
+  updateReservationProductStatus,
   updateReservationProfileAdmin,
   updateReservationsPassword,
   updateReservationStatus,
@@ -78,6 +80,10 @@ import { TCG_OPTIONS } from "./timerControllerUtils";
 
 const AUTH_SESSION_KEY = "geekd.reservations.authSession";
 const PROFILE_REQUIRED_KEY = "geekd.reservations.profileRequired";
+
+type ReservationProductDetail = ReleaseProductRecord & {
+  reservationProductStatus: ReservationProductStatus;
+};
 
 const blankReleaseForm = {
   title: "",
@@ -113,6 +119,11 @@ const statusLabels: Record<ReservationStatus, string> = {
   picked_up: "Picked Up",
   skipped: "Skipped",
   canceled: "Canceled",
+};
+
+const productStatusLabels: Record<ReservationProductStatus, string> = {
+  ...statusLabels,
+  denied: "Denied",
 };
 
 const formatReleaseDate = (value: string | null) => {
@@ -173,10 +184,11 @@ const formatRequestTime = (value: string) =>
     minute: "2-digit",
   });
 
-const getStatusColor = (status: ReservationStatus) => {
+const getStatusColor = (status: ReservationProductStatus) => {
   if (status === "pending") return "default";
   if (status === "set_aside") return "primary";
   if (status === "picked_up") return "success";
+  if (status === "denied") return "error";
   if (status === "skipped" || status === "canceled") return "warning";
   return "default";
 };
@@ -332,7 +344,7 @@ export default function ReservationsPage() {
   }, [products]);
 
   const productsByReservation = useMemo(() => {
-    return reservationProducts.reduce<Record<string, ReleaseProductRecord[]>>(
+    return reservationProducts.reduce<Record<string, ReservationProductDetail[]>>(
       (groups, reservationProduct) => {
         const product = products.find(
           (item) => item.id === reservationProduct.product_id
@@ -342,7 +354,10 @@ export default function ReservationsPage() {
 
         groups[reservationProduct.reservation_id] = [
           ...(groups[reservationProduct.reservation_id] ?? []),
-          product,
+          {
+            ...product,
+            reservationProductStatus: reservationProduct.status,
+          },
         ];
         return groups;
       },
@@ -996,6 +1011,41 @@ export default function ReservationsPage() {
     }
   };
 
+  const changeReservationProductStatus = async (
+    reservationId: string,
+    productId: string,
+    status: ReservationProductStatus
+  ) => {
+    if (!isAdmin) {
+      setError("Admin access is required to update product requests.");
+      return;
+    }
+
+    try {
+      const updated = await updateReservationProductStatus(
+        reservationId,
+        productId,
+        status
+      );
+      setReservationProducts((prev) =>
+        prev.map((product) =>
+          product.reservation_id === updated.reservation_id &&
+          product.product_id === updated.product_id
+            ? updated
+            : product
+        )
+      );
+      setMessage("Product request status updated.");
+      setError("");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to update product request status."
+      );
+    }
+  };
+
   const openReservationEditor = (reservation: ReservationRecord) => {
     const selectedProducts = (productsByReservation[reservation.id] ?? []).map(
       (product) => product.id
@@ -1577,11 +1627,37 @@ export default function ReservationsPage() {
                                     release?.release_date ?? null
                                   )}
                                 </Typography>
-                                <Typography color="text.secondary">
-                                  {(productsByReservation[reservation.id] ?? [])
-                                    .map((product) => product.name)
-                                    .join(", ") || "No products selected"}
-                                </Typography>
+                                <Stack
+                                  direction="row"
+                                  spacing={0.75}
+                                  flexWrap="wrap"
+                                  useFlexGap
+                                  sx={{ mt: 0.75 }}
+                                >
+                                  {(
+                                    productsByReservation[reservation.id] ?? []
+                                  ).map((product) => (
+                                    <Chip
+                                      key={product.id}
+                                      label={`${product.name}: ${
+                                        productStatusLabels[
+                                          product.reservationProductStatus
+                                        ]
+                                      }`}
+                                      color={getStatusColor(
+                                        product.reservationProductStatus
+                                      )}
+                                      size="small"
+                                      variant="outlined"
+                                    />
+                                  ))}
+                                  {!productsByReservation[reservation.id]
+                                    ?.length ? (
+                                    <Typography color="text.secondary">
+                                      No products selected
+                                    </Typography>
+                                  ) : null}
+                                </Stack>
                               </Box>
                               <Stack
                                 direction="row"
@@ -1978,10 +2054,7 @@ export default function ReservationsPage() {
                                                   : ""}
                                               </Typography>
                                               <Stack
-                                                direction="row"
                                                 spacing={0.75}
-                                                flexWrap="wrap"
-                                                useFlexGap
                                                 sx={{ mt: 0.75 }}
                                               >
                                                 {(
@@ -1989,13 +2062,65 @@ export default function ReservationsPage() {
                                                     reservation.id
                                                   ] ?? []
                                                 ).map((product) => (
-                                                  <Chip
+                                                  <Paper
                                                     key={product.id}
-                                                    label={product.name}
-                                                    size="small"
-                                                    color="primary"
                                                     variant="outlined"
-                                                  />
+                                                    sx={{ p: 1 }}
+                                                  >
+                                                    <Stack
+                                                      direction={{
+                                                        xs: "column",
+                                                        sm: "row",
+                                                      }}
+                                                      spacing={1}
+                                                      alignItems={{
+                                                        xs: "stretch",
+                                                        sm: "center",
+                                                      }}
+                                                      justifyContent="space-between"
+                                                    >
+                                                      <Typography
+                                                        sx={{ fontWeight: 800 }}
+                                                      >
+                                                        {product.name}
+                                                      </Typography>
+                                                      <FormControl
+                                                        size="small"
+                                                        sx={{ minWidth: 160 }}
+                                                      >
+                                                        <InputLabel>
+                                                          Product Status
+                                                        </InputLabel>
+                                                        <Select
+                                                          label="Product Status"
+                                                          value={
+                                                            product.reservationProductStatus
+                                                          }
+                                                          onChange={(event) =>
+                                                            changeReservationProductStatus(
+                                                              reservation.id,
+                                                              product.id,
+                                                              event.target
+                                                                .value as ReservationProductStatus
+                                                            )
+                                                          }
+                                                        >
+                                                          {Object.entries(
+                                                            productStatusLabels
+                                                          ).map(
+                                                            ([value, label]) => (
+                                                              <MenuItem
+                                                                key={value}
+                                                                value={value}
+                                                              >
+                                                                {label}
+                                                              </MenuItem>
+                                                            )
+                                                          )}
+                                                        </Select>
+                                                      </FormControl>
+                                                    </Stack>
+                                                  </Paper>
                                                 ))}
                                               </Stack>
                                               {reservation.notes ? (

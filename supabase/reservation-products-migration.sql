@@ -11,6 +11,8 @@ create table if not exists public.release_products (
 create table if not exists public.reservation_products (
   reservation_id uuid not null references public.reservations(id) on delete cascade,
   product_id uuid not null references public.release_products(id) on delete cascade,
+  status text not null default 'pending'
+    check (status in ('pending', 'set_aside', 'picked_up', 'skipped', 'canceled', 'denied')),
   created_at timestamptz not null default now(),
   primary key (reservation_id, product_id)
 );
