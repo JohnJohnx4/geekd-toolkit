@@ -5,21 +5,32 @@ import {
   useRef,
   useState,
 } from "react";
-import type { PointerEvent } from "react";
+import type { MouseEvent as ReactMouseEvent, PointerEvent } from "react";
 import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
   Alert,
+  Backdrop,
   Box,
   Button,
   Card,
   CardContent,
-  Checkbox,
   Chip,
+  CircularProgress,
+  Collapse,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Divider,
-  FormControlLabel,
   IconButton,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
+  Paper,
   Snackbar,
   Stack,
   Tab,
@@ -36,6 +47,8 @@ import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
 import DownloadIcon from "@mui/icons-material/Download";
 import ClearIcon from "@mui/icons-material/Clear";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import EditIcon from "@mui/icons-material/Edit";
 import SafeBillCounter from "./SafeBillCounter";
 
 type CountValue = number | "";
@@ -50,10 +63,19 @@ type RegisterDrawer = {
   id: number;
   name: string;
   enabled: boolean;
-  target: CountValue;
   bills: CashDenomination[];
   coins: CashDenomination[];
 };
+
+type ClearMenuAction = {
+  label: string;
+  onClick: () => void;
+};
+
+type ClearMenuState = {
+  anchorEl: HTMLElement;
+  actions: ClearMenuAction[];
+} | null;
 
 const parseCount = (count: CountValue) => {
   if (count === "") return 0;
@@ -66,15 +88,34 @@ const formatMoney = (amount: number) =>
     maximumFractionDigits: 2,
   });
 
+const scrollToPageTop = () => {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
+
 const HOLD_DELAY_MS = 350;
 const HOLD_REPEAT_MS = 90;
 const HOLD_MOVE_CANCEL_PX = 8;
 const HOLD_TIP_STORAGE_KEY = "cashCounterHoldTipShows";
 const HOLD_TIP_DISMISSED_STORAGE_KEY = "cashCounterHoldTipDismissed";
+const DEPOSIT_PROGRESS_STORAGE_KEY = "cashCounterDepositProgress";
 const HOLD_TIP_MAX_SHOWS = 3;
 const HOLD_TIP_HIDE_MS = 1800;
 const DEFAULT_DRAWER_TARGET = 300;
-const MAX_BILLS_PER_DENOM = 25;
+const DRAWER_COUNT = 3;
+const REVIEW_STEP = DRAWER_COUNT;
+const TILL_BILL_TARGET_COUNTS: Record<number, number> = {
+  20: 5,
+  10: 6,
+  5: 8,
+  1: 25,
+};
+const TILL_BILL_MINIMUM_COUNTS: Record<number, number> = {
+  20: 2,
+  10: 4,
+  5: 4,
+  1: 9,
+};
+const TILL_BILL_VALUES = [20, 10, 5, 1];
 
 const BILL_DENOMS = [
   { label: "$100", value: 100 },
@@ -95,11 +136,110 @@ const COIN_DENOMS = [
 const createRegister = (index: number): RegisterDrawer => ({
   id: index + 1,
   name: `Register ${index + 1}`,
-  enabled: index === 0,
-  target: DEFAULT_DRAWER_TARGET,
+  enabled: true,
   bills: BILL_DENOMS.map((d) => ({ ...d, count: 0 })),
   coins: COIN_DENOMS.map((d) => ({ ...d, count: 0 })),
 });
+
+const isCountValue = (value: unknown): value is CountValue =>
+  value === "" || (typeof value === "number" && Number.isFinite(value));
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === "object";
+
+const hydrateDenoms = (
+  savedDenoms: unknown,
+  baseDenoms: CashDenomination[]
+): CashDenomination[] => {
+  if (!Array.isArray(savedDenoms)) return baseDenoms;
+
+  return baseDenoms.map((baseDenom) => {
+    const savedDenom = savedDenoms.find(
+      (denom) => isRecord(denom) && denom.value === baseDenom.value
+    );
+
+    if (isRecord(savedDenom) && isCountValue(savedDenom.count)) {
+      return { ...baseDenom, count: savedDenom.count };
+    }
+
+    return baseDenom;
+  });
+};
+
+const readSavedDepositDrawers = (): RegisterDrawer[] | null => {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const storedValue = window.localStorage.getItem(DEPOSIT_PROGRESS_STORAGE_KEY);
+    if (!storedValue) return null;
+
+    const parsedValue = JSON.parse(storedValue);
+    if (!isRecord(parsedValue)) return null;
+
+    const savedDrawers = parsedValue.drawers ?? parsedValue;
+    if (!Array.isArray(savedDrawers)) return null;
+
+    return Array.from({ length: DRAWER_COUNT }, (_, index) => {
+      const baseDrawer = createRegister(index);
+      const savedDrawer = savedDrawers.find(
+        (drawer) => isRecord(drawer) && drawer.id === baseDrawer.id
+      );
+
+      if (!isRecord(savedDrawer)) return baseDrawer;
+
+      return {
+        ...baseDrawer,
+        enabled: true,
+        bills: hydrateDenoms(savedDrawer.bills, baseDrawer.bills),
+        coins: hydrateDenoms(savedDrawer.coins, baseDrawer.coins),
+      };
+    });
+  } catch {
+    return null;
+  }
+};
+
+const readSavedDepositStep = () => {
+  if (typeof window === "undefined") return 0;
+
+  try {
+    const storedValue = window.localStorage.getItem(DEPOSIT_PROGRESS_STORAGE_KEY);
+    if (!storedValue) return 0;
+
+    const parsedValue = JSON.parse(storedValue);
+    if (!isRecord(parsedValue) || typeof parsedValue.currentStep !== "number") {
+      return 0;
+    }
+
+    return Math.min(REVIEW_STEP, Math.max(0, Math.floor(parsedValue.currentStep)));
+  } catch {
+    return 0;
+  }
+};
+
+const readSavedCompletedDrawers = () => {
+  if (typeof window === "undefined") {
+    return Array.from({ length: DRAWER_COUNT }, () => false);
+  }
+
+  try {
+    const storedValue = window.localStorage.getItem(DEPOSIT_PROGRESS_STORAGE_KEY);
+    if (!storedValue) return Array.from({ length: DRAWER_COUNT }, () => false);
+
+    const parsedValue = JSON.parse(storedValue);
+    if (!isRecord(parsedValue) || !Array.isArray(parsedValue.completedDrawers)) {
+      return Array.from({ length: DRAWER_COUNT }, () => false);
+    }
+    const savedCompletedDrawers = parsedValue.completedDrawers;
+
+    return Array.from(
+      { length: DRAWER_COUNT },
+      (_, index) => savedCompletedDrawers[index] === true
+    );
+  } catch {
+    return Array.from({ length: DRAWER_COUNT }, () => false);
+  }
+};
 
 const getBillTotal = (drawer: RegisterDrawer) =>
   drawer.bills.reduce((sum, d) => sum + parseCount(d.count) * d.value, 0);
@@ -107,124 +247,151 @@ const getBillTotal = (drawer: RegisterDrawer) =>
 const getCoinTotal = (drawer: RegisterDrawer) =>
   drawer.coins.reduce((sum, d) => sum + parseCount(d.count) * d.value, 0);
 
-const isBetterLowerBillPlan = (next: number[], current: number[]) => {
-  for (let index = next.length - 1; index >= 0; index -= 1) {
-    if (next[index] !== current[index]) {
-      return next[index] > current[index];
-    }
-  }
+const getBillLabel = (value: number) =>
+  BILL_DENOMS.find((bill) => bill.value === value)?.label ?? `$${value}`;
 
-  return false;
+const getBillCounts = (drawer: RegisterDrawer) => {
+  const counts: Record<number, number> = {};
+
+  BILL_DENOMS.forEach((bill) => {
+    counts[bill.value] = 0;
+  });
+
+  drawer.bills.forEach((bill) => {
+    counts[bill.value] = parseCount(bill.count);
+  });
+
+  return counts;
 };
 
-const getBillsLeftPlan = (bills: CashDenomination[], required: number) => {
-  const emptyCounts = bills.map(() => 0);
-
-  if (required <= 0) {
-    return { amount: 0, counts: emptyCounts };
-  }
-
-  const billOptions = bills.map((bill, index) => ({
-    index,
-    value: bill.value,
-    count:
-      bill.value >= 50
-        ? 0
-        : Math.min(parseCount(bill.count), MAX_BILLS_PER_DENOM),
-  }));
-  const maxPossible = billOptions.reduce(
-    (sum, bill) => sum + bill.value * bill.count,
+const getLeaveBillTotal = (leaveCounts: Record<number, number>) =>
+  TILL_BILL_VALUES.reduce(
+    (sum, value) => sum + value * (leaveCounts[value] ?? 0),
     0
   );
 
-  if (maxPossible <= required) {
-    return {
-      amount: maxPossible,
-      counts: billOptions.reduce((counts, bill) => {
-        counts[bill.index] = bill.count;
-        return counts;
-      }, [...emptyCounts]),
-    };
-  }
+const getTillPlanScore = (counts: Record<number, number>) => {
+  const minimumDeficit = TILL_BILL_VALUES.reduce(
+    (sum, value) =>
+      sum + Math.max(0, TILL_BILL_MINIMUM_COUNTS[value] - (counts[value] ?? 0)),
+    0
+  );
+  const targetDistance = TILL_BILL_VALUES.reduce(
+    (sum, value) =>
+      sum + Math.abs((counts[value] ?? 0) - TILL_BILL_TARGET_COUNTS[value]),
+    0
+  );
+  const lowerBillPreference = [...TILL_BILL_VALUES]
+    .reverse()
+    .reduce((sum, value, index) => sum + (counts[value] ?? 0) * (index + 1), 0);
 
-  const possible = new Map<number, number[]>();
+  return minimumDeficit * 100000 + targetDistance * 100 - lowerBillPreference;
+};
+
+const getBestTillLeaveCounts = (
+  availableCounts: Record<number, number>,
+  targetBillAmount: number,
+  maxBillAmount: number
+) => {
+  const emptyCounts = TILL_BILL_VALUES.reduce<Record<number, number>>(
+    (counts, value) => {
+      counts[value] = 0;
+      return counts;
+    },
+    {}
+  );
+  const possible = new Map<number, Record<number, number>>();
   possible.set(0, emptyCounts);
 
-  billOptions.forEach((bill) => {
-    const current = Array.from(possible.entries());
+  TILL_BILL_VALUES.forEach((value) => {
+    const currentPlans = Array.from(possible.entries());
+    const availableCount = availableCounts[value] ?? 0;
 
-    for (let count = 1; count <= bill.count; count += 1) {
-      current.forEach(([amount, counts]) => {
-        const nextAmount = amount + bill.value * count;
+    currentPlans.forEach(([amount, counts]) => {
+      for (let count = 1; count <= availableCount; count += 1) {
+        const nextAmount = amount + value * count;
+        if (nextAmount > maxBillAmount) break;
 
-        if (nextAmount <= maxPossible) {
-          const nextCounts = [...counts];
-          nextCounts[bill.index] += count;
-          const existingCounts = possible.get(nextAmount);
+        const nextCounts = { ...counts, [value]: (counts[value] ?? 0) + count };
+        const existingCounts = possible.get(nextAmount);
 
-          if (
-            !existingCounts ||
-            isBetterLowerBillPlan(nextCounts, existingCounts)
-          ) {
-            possible.set(nextAmount, nextCounts);
-          }
+        if (
+          !existingCounts ||
+          getTillPlanScore(nextCounts) < getTillPlanScore(existingCounts)
+        ) {
+          possible.set(nextAmount, nextCounts);
         }
-      });
-    }
+      }
+    });
   });
 
-  for (let amount = required; amount <= maxPossible; amount += 1) {
-    const counts = possible.get(amount);
-
-    if (counts) {
-      return { amount, counts };
-    }
+  if (possible.has(targetBillAmount)) {
+    return possible.get(targetBillAmount) ?? emptyCounts;
   }
 
-  return {
-    amount: maxPossible,
-    counts: billOptions.reduce((counts, bill) => {
-      counts[bill.index] = bill.count;
-      return counts;
-    }, [...emptyCounts]),
-  };
+  for (let amount = Math.min(targetBillAmount, maxBillAmount); amount >= 0; amount -= 1) {
+    const counts = possible.get(amount);
+    if (counts) return counts;
+  }
+
+  return emptyCounts;
 };
 
-const getDrawerTotals = (drawer: RegisterDrawer) => {
-  const billTotal = getBillTotal(drawer);
-  const coinTotal = getCoinTotal(drawer);
-  const target = parseCount(drawer.target);
-  const billsNeededToLeave = Math.ceil(Math.max(0, target - coinTotal));
-  const billsLeftPlan = getBillsLeftPlan(drawer.bills, billsNeededToLeave);
-  const billsLeft = billsLeftPlan.amount;
-  const deposit = Math.max(0, billTotal - billsLeft);
-  const leftInDrawer = coinTotal + billsLeft;
+const getRegisterSummaries = (drawers: RegisterDrawer[]) =>
+  drawers.map((drawer) => {
+    const billTotal = getBillTotal(drawer);
+    const coinTotal = getCoinTotal(drawer);
+    const target = DEFAULT_DRAWER_TARGET;
+    const coinCents = Math.round(coinTotal * 100);
+    const targetBillAmount = Math.max(
+      0,
+      Math.ceil((DEFAULT_DRAWER_TARGET * 100 - coinCents) / 100)
+    );
+    const maxBillsToLeave = Math.max(0, Math.floor((30099 - coinCents) / 100));
+    const leaveCounts = getBestTillLeaveCounts(
+      getBillCounts(drawer),
+      targetBillAmount,
+      maxBillsToLeave
+    );
+    const billsLeft = getLeaveBillTotal(leaveCounts);
+    const deposit = Math.max(0, billTotal - billsLeft);
+    const leftInDrawer = coinTotal + billsLeft;
 
-  return {
-    billTotal,
-    coinTotal,
-    target,
-    countedTotal: billTotal + coinTotal,
-    billsLeft,
-    billsLeftPlan: drawer.bills
-      .map((bill, index) => ({
-        label: bill.label,
-        value: bill.value,
-        count: billsLeftPlan.counts[index],
-        total: billsLeftPlan.counts[index] * bill.value,
-      }))
-      .filter((bill) => bill.count > 0),
-    leftInDrawer,
-    deposit,
-  };
-};
+    return {
+      drawer,
+      totals: {
+        billTotal,
+        coinTotal,
+        target,
+        countedTotal: billTotal + coinTotal,
+        billsLeft,
+        billsLeftPlan: TILL_BILL_VALUES.map((value) => ({
+          label: getBillLabel(value),
+          value,
+          count: leaveCounts[value],
+          total: leaveCounts[value] * value,
+        })).filter((bill) => bill.count > 0),
+        leftInDrawer,
+        deposit,
+      },
+    };
+  });
 
 export default function CashCalculator() {
   const [activeTab, setActiveTab] = useState(0);
   const [drawers, setDrawers] = useState<RegisterDrawer[]>(() =>
-    Array.from({ length: 3 }, (_, index) => createRegister(index))
+    readSavedDepositDrawers() ??
+    Array.from({ length: DRAWER_COUNT }, (_, index) => createRegister(index))
+  );
+  const [currentStep, setCurrentStep] = useState(readSavedDepositStep);
+  const [completedDrawers, setCompletedDrawers] = useState(
+    readSavedCompletedDrawers
+  );
+  const [calculatingDrawerId, setCalculatingDrawerId] = useState<number | null>(
+    null
   );
   const [copyMessage, setCopyMessage] = useState("");
+  const [totalsExpanded, setTotalsExpanded] = useState(false);
 
   const repeatDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const repeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -232,20 +399,32 @@ export default function CashCalculator() {
   const tipHideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressClickRef = useRef(false);
   const showedHoldTipThisLoadRef = useRef(false);
+  const calculateDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resetDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [openHoldTipId, setOpenHoldTipId] = useState<string | null>(null);
+  const [clearMenu, setClearMenu] = useState<ClearMenuState>(null);
+  const [isResettingCounts, setIsResettingCounts] = useState(false);
+  const [isClearAllConfirmOpen, setIsClearAllConfirmOpen] = useState(false);
 
-  const activeDrawers = useMemo(
-    () => drawers.filter((drawer) => drawer.enabled),
-    [drawers]
-  );
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        DEPOSIT_PROGRESS_STORAGE_KEY,
+        JSON.stringify({
+          drawers,
+          currentStep,
+          completedDrawers,
+          updatedAt: Date.now(),
+        })
+      );
+    } catch {
+      // Keep counting usable if storage is full or unavailable.
+    }
+  }, [completedDrawers, currentStep, drawers]);
 
   const registerSummaries = useMemo(
-    () =>
-      activeDrawers.map((drawer) => ({
-        drawer,
-        totals: getDrawerTotals(drawer),
-      })),
-    [activeDrawers]
+    () => getRegisterSummaries(drawers),
+    [drawers]
   );
 
   const overallTotals = useMemo(
@@ -268,6 +447,14 @@ export default function CashCalculator() {
       ),
     [registerSummaries]
   );
+  const activeDrawerTotals = registerSummaries[currentStep]?.totals;
+  const showGuidedDrawerTotal = activeTab === 0 && currentStep !== REVIEW_STEP;
+  const footerTotalLabel = showGuidedDrawerTotal
+    ? "Current drawer"
+    : "Deposit";
+  const footerTotalValue = showGuidedDrawerTotal
+    ? activeDrawerTotals?.countedTotal ?? 0
+    : overallTotals.deposit;
 
   const updateDrawer = (
     drawerId: number,
@@ -278,11 +465,38 @@ export default function CashCalculator() {
     );
   };
 
-  const updateTarget = (drawerId: number, target: CountValue) => {
-    updateDrawer(drawerId, (drawer) => ({
-      ...drawer,
-      target: target === "" ? "" : Math.max(0, target),
-    }));
+  const markDrawerIncomplete = (drawerId: number) => {
+    if (calculateDelayRef.current) {
+      clearTimeout(calculateDelayRef.current);
+      calculateDelayRef.current = null;
+    }
+    setCalculatingDrawerId(null);
+    setCompletedDrawers((prev) =>
+      prev.map((completed, index) =>
+        index === drawerId - 1 ? false : completed
+      )
+    );
+  };
+
+  const completeCurrentDrawer = () => {
+    if (currentStep >= REVIEW_STEP) return;
+
+    if (calculateDelayRef.current) {
+      clearTimeout(calculateDelayRef.current);
+    }
+
+    const drawerIndex = currentStep;
+    const drawerId = drawerIndex + 1;
+    setCalculatingDrawerId(drawerId);
+    calculateDelayRef.current = setTimeout(() => {
+      setCompletedDrawers((prev) =>
+        prev.map((completed, index) =>
+          index === drawerIndex ? true : completed
+        )
+      );
+      setCalculatingDrawerId(null);
+      calculateDelayRef.current = null;
+    }, 1000);
   };
 
   const updateDenom = (
@@ -291,6 +505,7 @@ export default function CashCalculator() {
     index: number,
     count: CountValue
   ) => {
+    markDrawerIncomplete(drawerId);
     updateDrawer(drawerId, (drawer) => ({
       ...drawer,
       [type]: drawer[type].map((denom, i) => {
@@ -310,6 +525,7 @@ export default function CashCalculator() {
     index: number,
     delta: number
   ) => {
+    markDrawerIncomplete(drawerId);
     updateDrawer(drawerId, (drawer) => ({
       ...drawer,
       [type]: drawer[type].map((denom, i) => {
@@ -323,13 +539,8 @@ export default function CashCalculator() {
     }));
   };
 
-  const clearDenom = (
-    drawerId: number,
-    type: "bills" | "coins",
-    index: number
-  ) => updateDenom(drawerId, type, index, 0);
-
   const clearSection = (drawerId: number, type: "bills" | "coins") => {
+    markDrawerIncomplete(drawerId);
     updateDrawer(drawerId, (drawer) => ({
       ...drawer,
       [type]: drawer[type].map((denom) => ({ ...denom, count: 0 })),
@@ -337,6 +548,7 @@ export default function CashCalculator() {
   };
 
   const clearDrawer = (drawerId: number) => {
+    markDrawerIncomplete(drawerId);
     updateDrawer(drawerId, (drawer) => ({
       ...drawer,
       bills: drawer.bills.map((denom) => ({ ...denom, count: 0 })),
@@ -345,13 +557,59 @@ export default function CashCalculator() {
   };
 
   const clearAll = () => {
-    setDrawers((prev) =>
-      prev.map((drawer) => ({
-        ...drawer,
-        bills: drawer.bills.map((denom) => ({ ...denom, count: 0 })),
-        coins: drawer.coins.map((denom) => ({ ...denom, count: 0 })),
-      }))
-    );
+    if (resetDelayRef.current) {
+      clearTimeout(resetDelayRef.current);
+    }
+
+    if (calculateDelayRef.current) {
+      clearTimeout(calculateDelayRef.current);
+      calculateDelayRef.current = null;
+    }
+
+    setIsResettingCounts(true);
+    setCalculatingDrawerId(null);
+    setOpenHoldTipId(null);
+    setCopyMessage("");
+
+    resetDelayRef.current = setTimeout(() => {
+      setActiveTab(0);
+      setCurrentStep(0);
+      setTotalsExpanded(false);
+      setCompletedDrawers(Array.from({ length: DRAWER_COUNT }, () => false));
+      setDrawers(
+        Array.from({ length: DRAWER_COUNT }, (_, index) =>
+          createRegister(index)
+        )
+      );
+      setIsResettingCounts(false);
+      resetDelayRef.current = null;
+      scrollToPageTop();
+    }, 1500);
+  };
+
+  const requestClearAll = () => {
+    setIsClearAllConfirmOpen(true);
+  };
+
+  const confirmClearAll = () => {
+    setIsClearAllConfirmOpen(false);
+    clearAll();
+  };
+
+  const openClearMenu = (
+    event: ReactMouseEvent<HTMLElement>,
+    actions: ClearMenuAction[]
+  ) => {
+    setClearMenu({ anchorEl: event.currentTarget, actions });
+  };
+
+  const closeClearMenu = () => {
+    setClearMenu(null);
+  };
+
+  const runClearAction = (action: ClearMenuAction) => {
+    closeClearMenu();
+    action.onClick();
   };
 
   const hideHoldTip = useCallback(() => {
@@ -470,6 +728,14 @@ export default function CashCalculator() {
       if (tipHideRef.current) {
         clearTimeout(tipHideRef.current);
       }
+
+      if (calculateDelayRef.current) {
+        clearTimeout(calculateDelayRef.current);
+      }
+
+      if (resetDelayRef.current) {
+        clearTimeout(resetDelayRef.current);
+      }
     },
     [stopHoldRepeat]
   );
@@ -481,7 +747,9 @@ export default function CashCalculator() {
       1,
       registerSummaries.reduce(
         (sum, { totals }) =>
-          sum + 174 + Math.max(1, totals.billsLeftPlan.length) * 18,
+          sum +
+          174 +
+          Math.max(1, totals.billsLeftPlan.length) * 18,
         0
       )
     );
@@ -543,7 +811,6 @@ export default function CashCalculator() {
       const rows = [
         ["Counted", totals.countedTotal],
         ["Coins staying", totals.coinTotal],
-        ["Drawer target", totals.target],
         ["Left in drawer", totals.leftInDrawer],
       ] as const;
 
@@ -562,7 +829,7 @@ export default function CashCalculator() {
       context.textAlign = "left";
       context.font = "700 14px Rubik, Arial, sans-serif";
       context.fillStyle = "#1f1f1f";
-      context.fillText("Leave these bills", 48, y);
+      context.fillText(`Leave in Till ${drawer.id}`, 48, y);
       y += 20;
 
       context.font = "400 13px Rubik, Arial, sans-serif";
@@ -660,26 +927,18 @@ export default function CashCalculator() {
     const prefix = `${drawer.id}-${type}-${index}`;
 
     return (
-      <Card key={denom.value} variant="outlined" sx={{ borderRadius: 2, p: 1.5 }}>
-        <Stack spacing={1}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Stack spacing={0.25}>
-              <Typography fontWeight={700}>{denom.label}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                ${formatMoney(total)}
-              </Typography>
-            </Stack>
-            <Button
-              size="small"
-              color="error"
-              startIcon={<ClearIcon />}
-              onClick={() => clearDenom(drawer.id, type, index)}
-            >
-              Clear
-            </Button>
+      <Card key={denom.value} variant="outlined" sx={{ borderRadius: 1.5, p: 1 }}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Stack sx={{ flex: 1, minWidth: 0 }}>
+            <Typography fontWeight={800} noWrap>
+              {denom.label}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              ${formatMoney(total)}
+            </Typography>
           </Stack>
 
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <Stack direction="row" alignItems="center" spacing={0.5}>
             <Tooltip
               title="Hold to count faster"
               open={openHoldTipId === `${prefix}-decrement`}
@@ -690,7 +949,7 @@ export default function CashCalculator() {
               disableTouchListener
             >
               <IconButton
-                size="large"
+                size="small"
                 onPointerDown={(e) =>
                   startHoldRepeat(
                     () => adjustDenom(drawer.id, type, index, -1),
@@ -705,13 +964,15 @@ export default function CashCalculator() {
                 onClick={() =>
                   handleRepeatClick(() => adjustDenom(drawer.id, type, index, -1))
                 }
+                sx={{ width: 34, height: 34 }}
               >
                 <RemoveIcon />
               </IconButton>
             </Tooltip>
 
             <TextField
-              label={type === "bills" ? "Bills" : "Qty"}
+              aria-label={`${denom.label} ${type === "bills" ? "bills" : "coins"}`}
+              size="small"
               type="number"
               value={denom.count}
               onChange={(event) =>
@@ -724,9 +985,9 @@ export default function CashCalculator() {
               }
               inputProps={{
                 inputMode: "numeric",
-                style: { textAlign: "center", fontSize: 18 },
+                style: { textAlign: "center", fontSize: 16, padding: "8px 6px" },
               }}
-              sx={{ width: 120 }}
+              sx={{ width: 76 }}
             />
 
             <Tooltip
@@ -739,7 +1000,7 @@ export default function CashCalculator() {
               disableTouchListener
             >
               <IconButton
-                size="large"
+                size="small"
                 onPointerDown={(e) =>
                   startHoldRepeat(
                     () => adjustDenom(drawer.id, type, index, 1),
@@ -754,6 +1015,7 @@ export default function CashCalculator() {
                 onClick={() =>
                   handleRepeatClick(() => adjustDenom(drawer.id, type, index, 1))
                 }
+                sx={{ width: 34, height: 34 }}
               >
                 <AddIcon />
               </IconButton>
@@ -762,6 +1024,48 @@ export default function CashCalculator() {
         </Stack>
       </Card>
     );
+  };
+
+  const stepLabel =
+    currentStep === REVIEW_STEP
+      ? "Review"
+      : `Register ${currentStep + 1} of ${DRAWER_COUNT}`;
+  const currentDrawerCompleted =
+    currentStep === REVIEW_STEP || completedDrawers[currentStep] === true;
+  const currentDrawerCalculating =
+    currentStep !== REVIEW_STEP && calculatingDrawerId === currentStep + 1;
+  const showReceiptActions = activeTab === 1;
+  const nextStepLabel =
+    currentDrawerCalculating
+      ? "Calculating"
+      : currentStep === REVIEW_STEP - 1
+      ? "Review"
+      : currentStep === REVIEW_STEP
+        ? "Finish"
+        : "Next";
+  const headerGuidance =
+    activeTab === 1
+      ? "Count all three drawers from one screen. Coins stay in each drawer, then leave enough bills to land at $300.xx."
+      : currentStep === REVIEW_STEP
+        ? "Review the completed drawer counts and total deposit before exporting."
+        : currentDrawerCalculating
+          ? `Calculating what should stay in drawer ${currentStep + 1}.`
+          : currentDrawerCompleted
+            ? `Count complete. Total left in drawer should be $${formatMoney(
+                activeDrawerTotals?.leftInDrawer ?? 0
+              )}. Press Next to continue.`
+            : `Calculate bills and coins in drawer ${currentStep + 1}.`;
+
+  const handleGuidedStepAction = () => {
+    if (currentDrawerCalculating) return;
+
+    if (currentStep === REVIEW_STEP) {
+      clearAll();
+      return;
+    }
+
+    setCurrentStep((step) => Math.min(REVIEW_STEP, step + 1));
+    scrollToPageTop();
   };
 
   return (
@@ -773,59 +1077,432 @@ export default function CashCalculator() {
           variant="fullWidth"
         >
           <Tab label="Deposit Counting" />
+          <Tab label="Old Deposit Counter" />
           <Tab label="Safe Counting" />
         </Tabs>
       </Card>
 
-      {activeTab === 0 ? (
+      {activeTab === 0 || activeTab === 1 ? (
         <>
           <Card sx={{ maxWidth: 620, mx: "auto", borderRadius: 3 }}>
             <CardContent>
               <Typography variant="h6" textAlign="center" gutterBottom>
-                Register Checkout
+                {activeTab === 0
+                  ? "Guided Closing Count"
+                  : "Old Deposit Counter"}
               </Typography>
 
-              <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-                <Button
-                  variant="contained"
-                  fullWidth
-                  startIcon={<DownloadIcon />}
-                  onClick={handleExportReceipt}
-                  sx={{ minWidth: 0 }}
-                >
-                  Export
-                </Button>
-
-                <Button
-                  variant="outlined"
-                  fullWidth
-                  startIcon={<ContentCopyIcon />}
-                  onClick={handleCopyReceipt}
-                  sx={{ minWidth: 0 }}
-                >
-                  Copy
-                </Button>
-              </Stack>
-
-              <Button
-                variant="outlined"
-                color="error"
-                fullWidth
-                startIcon={<ClearIcon />}
-                onClick={clearAll}
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                textAlign="center"
                 sx={{ mb: 2 }}
               >
-                Clear All Counts
-              </Button>
+                {headerGuidance}
+              </Typography>
+
+              {showReceiptActions ? (
+                <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    startIcon={<DownloadIcon />}
+                    onClick={handleExportReceipt}
+                    sx={{ minWidth: 0 }}
+                  >
+                    Export
+                  </Button>
+
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    startIcon={<ContentCopyIcon />}
+                    onClick={handleCopyReceipt}
+                    sx={{ minWidth: 0 }}
+                  >
+                    Copy
+                  </Button>
+                </Stack>
+              ) : null}
+
+              {activeTab === 1 ? (
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  textAlign="center"
+                  sx={{ mb: 2 }}
+                >
+                  Count every drawer from one screen.
+                </Typography>
+              ) : null}
 
               <Stack spacing={1.5}>
-                {drawers.map((drawer) => {
-                  const totals = getDrawerTotals(drawer);
+                {registerSummaries
+                  .filter((_, index) =>
+                    activeTab === 1 || currentStep === REVIEW_STEP
+                      ? true
+                      : index === currentStep
+                  )
+                  .map(({ drawer, totals }) => {
+                  const drawerIndex = drawer.id - 1;
+                  const showDrawerPlan =
+                    activeTab === 1 ||
+                    currentStep === REVIEW_STEP ||
+                    completedDrawers[drawerIndex] === true;
+                  const isDrawerCalculating =
+                    activeTab === 0 && calculatingDrawerId === drawer.id;
+                  const showEditableCounters =
+                    activeTab === 1 || (!showDrawerPlan && !isDrawerCalculating);
+                  const billCounterSection = (
+                    <>
+                      <Stack spacing={0.5}>
+                        <Typography fontWeight={800}>Bills</Typography>
+                      </Stack>
+
+                      <Stack spacing={0.75}>
+                        {drawer.bills.map((denom, index) =>
+                          renderCounterRow(drawer, "bills", denom, index)
+                        )}
+                      </Stack>
+                    </>
+                  );
+                  const coinCounterRows = (
+                    <Stack spacing={0.75}>
+                      {drawer.coins.map((denom, index) =>
+                        renderCounterRow(drawer, "coins", denom, index)
+                      )}
+                    </Stack>
+                  );
+                  const coinCounterSection =
+                    activeTab === 0 ? (
+                      <Stack spacing={0.75}>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <MonetizationOnIcon fontSize="small" />
+                          <Typography fontWeight={800}>Coins</Typography>
+                        </Stack>
+                        {coinCounterRows}
+                      </Stack>
+                    ) : (
+                      <Accordion
+                        variant="outlined"
+                        sx={{
+                          borderRadius: 2,
+                          mt: 1.5,
+                          "&:before": { display: "none" },
+                        }}
+                      >
+                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <MonetizationOnIcon fontSize="small" />
+                            <Typography fontWeight={800}>Coins</Typography>
+                          </Stack>
+                        </AccordionSummary>
+                        <AccordionDetails>{coinCounterRows}</AccordionDetails>
+                      </Accordion>
+                    );
+
+                  if (activeTab === 0) {
+                    return (
+                      <Paper
+                        key={drawer.id}
+                        variant="outlined"
+                        sx={{ borderRadius: 2, p: 2 }}
+                      >
+                        <Stack spacing={2}>
+                          <Stack spacing={1}>
+                            <Stack
+                              direction="row"
+                              alignItems="center"
+                              justifyContent="space-between"
+                              spacing={1}
+                            >
+                              <Stack spacing={0.25}>
+                                <Typography fontWeight={800}>
+                                  {drawer.name}
+                                </Typography>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  {currentStep === REVIEW_STEP
+                                    ? "Completed drawer"
+                                    : `Step ${drawerIndex + 1} of ${DRAWER_COUNT}`}
+                                </Typography>
+                              </Stack>
+                              <Chip
+                                size="small"
+                                color="primary"
+                                label={
+                                  showDrawerPlan
+                                    ? `Deposit $${formatMoney(totals.deposit)}`
+                                    : `Counted $${formatMoney(
+                                        totals.countedTotal
+                                      )}`
+                                }
+                              />
+                            </Stack>
+                            <Stack
+                              direction="row"
+                              spacing={0.75}
+                              alignItems="center"
+                            >
+                              <IconButton
+                                size="small"
+                                color="error"
+                                aria-label={`${drawer.name} clear actions`}
+                                onClick={(event) => {
+                                  openClearMenu(event, [
+                                    {
+                                      label: "Clear register",
+                                      onClick: () => clearDrawer(drawer.id),
+                                    },
+                                    {
+                                      label: "Clear bills",
+                                      onClick: () =>
+                                        clearSection(drawer.id, "bills"),
+                                    },
+                                    {
+                                      label: "Clear coins",
+                                      onClick: () =>
+                                        clearSection(drawer.id, "coins"),
+                                    },
+                                  ]);
+                                }}
+                                sx={{
+                                  border: "1px solid",
+                                  borderColor: "divider",
+                                  borderRadius: 1,
+                                }}
+                              >
+                                <MoreVertIcon fontSize="small" />
+                              </IconButton>
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                              >
+                                Counted ${formatMoney(totals.countedTotal)}
+                                {showDrawerPlan
+                                  ? ` | Left $${formatMoney(
+                                      totals.leftInDrawer
+                                    )}`
+                                  : ""}
+                              </Typography>
+                            </Stack>
+                          </Stack>
+
+                          {showEditableCounters ? (
+                            <>
+                              {coinCounterSection}
+                              {billCounterSection}
+                            </>
+                          ) : null}
+
+                          {isDrawerCalculating ? (
+                            <Card
+                              variant="outlined"
+                              sx={{ borderRadius: 2, p: 2.5 }}
+                            >
+                              <Stack
+                                spacing={1.25}
+                                alignItems="center"
+                                textAlign="center"
+                              >
+                                <CircularProgress size={28} />
+                                <Typography fontWeight={800}>
+                                  Calculating drawer plan
+                                </Typography>
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                >
+                                  Checking the counted cash and choosing what
+                                  should stay in this register.
+                                </Typography>
+                              </Stack>
+                            </Card>
+                          ) : showDrawerPlan ? (
+                            <Card
+                              variant="outlined"
+                              sx={{ borderRadius: 2, p: 2 }}
+                            >
+                              <Stack spacing={0.75}>
+                                {currentStep !== REVIEW_STEP ? (
+                                  <Stack spacing={0.5}>
+                                    <Typography fontWeight={800}>
+                                      Drawer overview
+                                    </Typography>
+                                  </Stack>
+                                ) : null}
+                                <Stack
+                                  direction="row"
+                                  justifyContent="space-between"
+                                >
+                                  <Typography color="text.secondary">
+                                    Counted
+                                  </Typography>
+                                  <Typography fontWeight={700}>
+                                    ${formatMoney(totals.countedTotal)}
+                                  </Typography>
+                                </Stack>
+                                <Divider />
+                                <Stack spacing={0.5}>
+                                  <Typography fontWeight={800}>
+                                    Leave in Till {drawer.id}
+                                  </Typography>
+                                  {totals.leftInDrawer <
+                                  DEFAULT_DRAWER_TARGET ? (
+                                    <Typography
+                                      variant="body2"
+                                      color="error"
+                                      fontWeight={700}
+                                    >
+                                      Minimum drawer amount not reached.
+                                    </Typography>
+                                  ) : null}
+                                  {totals.billsLeftPlan.length === 0 ? (
+                                    <Typography
+                                      variant="body2"
+                                      color="text.secondary"
+                                    >
+                                      No bills needed; coins already cover the
+                                      drawer target.
+                                    </Typography>
+                                  ) : (
+                                    totals.billsLeftPlan.map((bill) => (
+                                      <Stack
+                                        key={bill.label}
+                                        direction="row"
+                                        justifyContent="space-between"
+                                      >
+                                        <Typography color="text.secondary">
+                                          {bill.label} x {bill.count}
+                                        </Typography>
+                                        <Typography>
+                                          ${formatMoney(bill.total)}
+                                        </Typography>
+                                      </Stack>
+                                    ))
+                                  )}
+                                </Stack>
+                                <Divider />
+                                <Stack
+                                  direction="row"
+                                  justifyContent="space-between"
+                                >
+                                  <Typography color="text.secondary">
+                                    Coins staying
+                                  </Typography>
+                                  <Typography>
+                                    ${formatMoney(totals.coinTotal)}
+                                  </Typography>
+                                </Stack>
+                                <Stack
+                                  direction="row"
+                                  justifyContent="space-between"
+                                >
+                                  <Typography color="text.secondary">
+                                    Left in drawer
+                                  </Typography>
+                                  <Typography>
+                                    ${formatMoney(totals.leftInDrawer)}
+                                  </Typography>
+                                </Stack>
+                                <Divider />
+                                <Stack
+                                  direction="row"
+                                  justifyContent="space-between"
+                                >
+                                  <Typography fontWeight={900}>
+                                    Deposit
+                                  </Typography>
+                                  <Typography fontWeight={900}>
+                                    ${formatMoney(totals.deposit)}
+                                  </Typography>
+                                </Stack>
+                                {currentStep !== REVIEW_STEP ? (
+                                  <>
+                                    <Divider />
+                                    <Button
+                                      fullWidth
+                                      variant="outlined"
+                                      startIcon={<EditIcon />}
+                                      onClick={() =>
+                                        markDrawerIncomplete(drawer.id)
+                                      }
+                                    >
+                                      Edit Register Count
+                                    </Button>
+                                  </>
+                                ) : null}
+                              </Stack>
+                            </Card>
+                          ) : (
+                            <Card
+                              variant="outlined"
+                              sx={{ borderRadius: 2, p: 2 }}
+                            >
+                              <Stack spacing={0.75}>
+                                <Typography fontWeight={800}>
+                                  Drawer count in progress
+                                </Typography>
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                >
+                                  Complete this drawer count to calculate what
+                                  should stay in the register.
+                                </Typography>
+                                <Divider />
+                                <Stack
+                                  direction="row"
+                                  justifyContent="space-between"
+                                >
+                                  <Typography color="text.secondary">
+                                    Counted so far
+                                  </Typography>
+                                  <Typography fontWeight={700}>
+                                    ${formatMoney(totals.countedTotal)}
+                                  </Typography>
+                                </Stack>
+                              </Stack>
+                            </Card>
+                          )}
+
+                          {currentStep !== REVIEW_STEP &&
+                          showEditableCounters ? (
+                            <Button
+                              fullWidth
+                              variant="contained"
+                              onClick={completeCurrentDrawer}
+                              sx={{ py: 1.15 }}
+                            >
+                              Finish Till {drawer.id}
+                            </Button>
+                          ) : null}
+                          {currentStep !== REVIEW_STEP ? (
+                            <Button
+                              fullWidth
+                              color="error"
+                              variant="outlined"
+                              startIcon={<ClearIcon />}
+                              onClick={requestClearAll}
+                            >
+                              Clear All Counts
+                            </Button>
+                          ) : null}
+                        </Stack>
+                      </Paper>
+                    );
+                  }
 
                   return (
                     <Accordion
                       key={drawer.id}
-                      defaultExpanded={drawer.id === 1}
+                      defaultExpanded={
+                        activeTab === 1
+                          ? drawerIndex === 0
+                          : currentStep !== REVIEW_STEP
+                      }
                       disableGutters
                       sx={{ borderRadius: 2, overflow: "hidden" }}
                     >
@@ -837,143 +1514,108 @@ export default function CashCalculator() {
                             justifyContent="space-between"
                             spacing={1}
                           >
-                            <FormControlLabel
-                              control={
-                                <Checkbox
-                                  checked={drawer.enabled}
-                                  onClick={(event) => event.stopPropagation()}
-                                  onChange={(event) =>
-                                    updateDrawer(drawer.id, (current) => ({
-                                      ...current,
-                                      enabled: event.target.checked,
-                                    }))
-                                  }
-                                />
-                              }
-                              label={
-                                <Typography fontWeight={800}>
-                                  {drawer.name}
-                                </Typography>
-                              }
-                            />
+                            <Stack spacing={0.25}>
+                              <Typography fontWeight={800}>
+                                {drawer.name}
+                              </Typography>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
+                                Closing drawer
+                              </Typography>
+                            </Stack>
                             <Chip
                               size="small"
-                              color={drawer.enabled ? "primary" : "default"}
-                              label={`Deposit $${formatMoney(
-                                drawer.enabled ? totals.deposit : 0
-                              )}`}
+                              color="primary"
+                              label={
+                                showDrawerPlan
+                                  ? `Deposit $${formatMoney(totals.deposit)}`
+                                  : `Counted $${formatMoney(
+                                      totals.countedTotal
+                                    )}`
+                              }
                             />
                           </Stack>
-                          <Typography variant="body2" color="text.secondary">
-                            Counted ${formatMoney(totals.countedTotal)} | Left $
-                            {formatMoney(totals.leftInDrawer)}
-                          </Typography>
+                          <Stack
+                            direction="row"
+                            spacing={0.75}
+                            alignItems="center"
+                          >
+                            <IconButton
+                              size="small"
+                              color="error"
+                              aria-label={`${drawer.name} clear actions`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openClearMenu(event, [
+                                  {
+                                    label: "Clear register",
+                                    onClick: () => clearDrawer(drawer.id),
+                                  },
+                                  {
+                                    label: "Clear bills",
+                                    onClick: () =>
+                                      clearSection(drawer.id, "bills"),
+                                  },
+                                  {
+                                    label: "Clear coins",
+                                    onClick: () =>
+                                      clearSection(drawer.id, "coins"),
+                                  },
+                                ]);
+                              }}
+                              sx={{
+                                border: "1px solid",
+                                borderColor: "divider",
+                                borderRadius: 1,
+                              }}
+                            >
+                              <MoreVertIcon fontSize="small" />
+                            </IconButton>
+                            <Typography variant="body2" color="text.secondary">
+                              Counted ${formatMoney(totals.countedTotal)}
+                              {showDrawerPlan
+                                ? ` | Left $${formatMoney(totals.leftInDrawer)}`
+                                : ""}
+                            </Typography>
+                          </Stack>
                         </Stack>
                       </AccordionSummary>
 
                       <AccordionDetails>
                         <Stack spacing={2}>
-                          <TextField
-                            label="Leave in drawer"
-                            type="number"
-                            value={drawer.target}
-                            onChange={(event) =>
-                              updateTarget(
-                                drawer.id,
-                                event.target.value === ""
-                                  ? ""
-                                  : Number(event.target.value)
-                              )
-                            }
-                            InputProps={{
-                              startAdornment: (
-                                <Typography
-                                  color="text.secondary"
-                                  sx={{ mr: 0.5 }}
-                                >
-                                  $
-                                </Typography>
-                              ),
-                            }}
-                            inputProps={{ inputMode: "decimal" }}
-                            fullWidth
-                          />
+                          {showEditableCounters ? (
+                            <>
+                              {billCounterSection}
+                              {coinCounterSection}
+                            </>
+                          ) : null}
 
-                          <Stack direction="row" spacing={1}>
-                            <Button
-                              size="small"
-                              color="error"
-                              startIcon={<ClearIcon />}
-                              onClick={() => clearDrawer(drawer.id)}
+                          {isDrawerCalculating ? (
+                            <Card
+                              variant="outlined"
+                              sx={{ borderRadius: 2, p: 2.5 }}
                             >
-                              Clear Register
-                            </Button>
-                            <Button
-                              size="small"
-                              color="error"
-                              startIcon={<ClearIcon />}
-                              onClick={() => clearSection(drawer.id, "bills")}
-                            >
-                              Clear Bills
-                            </Button>
-                            <Button
-                              size="small"
-                              color="error"
-                              startIcon={<ClearIcon />}
-                              onClick={() => clearSection(drawer.id, "coins")}
-                            >
-                              Clear Coins
-                            </Button>
-                          </Stack>
-
-                          <Stack spacing={0.5}>
-                            <Typography fontWeight={800}>Bills</Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              Leave-behind never keeps $50s or $100s, and keeps
-                              up to {MAX_BILLS_PER_DENOM} of each lower bill
-                              first.
-                            </Typography>
-                          </Stack>
-
-                          <Stack spacing={1.25}>
-                            {drawer.bills.map((denom, index) =>
-                              renderCounterRow(drawer, "bills", denom, index)
-                            )}
-                          </Stack>
-
-                          <Accordion
-                            variant="outlined"
-                            sx={{
-                              borderRadius: 2,
-                              mt: 1.5,
-                              "&:before": { display: "none" },
-                            }}
-                          >
-                            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                               <Stack
-                                direction="row"
-                                spacing={1}
+                                spacing={1.25}
                                 alignItems="center"
+                                textAlign="center"
                               >
-                                <MonetizationOnIcon fontSize="small" />
-                                <Typography fontWeight={800}>Coins</Typography>
+                                <CircularProgress size={28} />
+                                <Typography fontWeight={800}>
+                                  Calculating drawer plan
+                                </Typography>
                                 <Typography
                                   variant="body2"
                                   color="text.secondary"
                                 >
-                                  ${formatMoney(totals.coinTotal)} stays
+                                  Checking the counted cash and choosing what
+                                  should stay in this register.
                                 </Typography>
                               </Stack>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                              <Stack spacing={1.25}>
-                                {drawer.coins.map((denom, index) =>
-                                  renderCounterRow(drawer, "coins", denom, index)
-                                )}
-                              </Stack>
-                            </AccordionDetails>
-                          </Accordion>
-
+                            </Card>
+                          ) : showDrawerPlan ? (
                           <Card variant="outlined" sx={{ borderRadius: 2, p: 2 }}>
                             <Stack spacing={0.75}>
                               <Stack
@@ -990,8 +1632,18 @@ export default function CashCalculator() {
                               <Divider />
                               <Stack spacing={0.5}>
                                 <Typography fontWeight={800}>
-                                  Leave these bills
+                                  Leave in Till {drawer.id}
                                 </Typography>
+                                {totals.leftInDrawer <
+                                DEFAULT_DRAWER_TARGET ? (
+                                  <Typography
+                                    variant="body2"
+                                    color="error"
+                                    fontWeight={700}
+                                  >
+                                    Minimum drawer amount not reached.
+                                  </Typography>
+                                ) : null}
                                 {totals.billsLeftPlan.length === 0 ? (
                                   <Typography
                                     variant="body2"
@@ -1052,11 +1704,63 @@ export default function CashCalculator() {
                               </Stack>
                             </Stack>
                           </Card>
+                          ) : (
+                            <Card variant="outlined" sx={{ borderRadius: 2, p: 2 }}>
+                              <Stack spacing={0.75}>
+                                <Typography fontWeight={800}>
+                                  Drawer count in progress
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  Complete this drawer count to calculate what
+                                  should stay in the register.
+                                </Typography>
+                                <Divider />
+                                <Stack
+                                  direction="row"
+                                  justifyContent="space-between"
+                                >
+                                  <Typography color="text.secondary">
+                                    Counted so far
+                                  </Typography>
+                                  <Typography fontWeight={700}>
+                                    ${formatMoney(totals.countedTotal)}
+                                  </Typography>
+                                </Stack>
+                              </Stack>
+                            </Card>
+                          )}
                         </Stack>
                       </AccordionDetails>
                     </Accordion>
                   );
                 })}
+                {activeTab === 0 && currentStep === REVIEW_STEP ? (
+                  <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={1}
+                    sx={{ pt: 0.5 }}
+                  >
+                    <Button
+                      variant="contained"
+                      fullWidth
+                      startIcon={<DownloadIcon />}
+                      onClick={handleExportReceipt}
+                      sx={{ minWidth: 0 }}
+                    >
+                      Export
+                    </Button>
+
+                    <Button
+                      variant="outlined"
+                      fullWidth
+                      startIcon={<ContentCopyIcon />}
+                      onClick={handleCopyReceipt}
+                      sx={{ minWidth: 0 }}
+                    >
+                      Copy
+                    </Button>
+                  </Stack>
+                ) : null}
               </Stack>
             </CardContent>
           </Card>
@@ -1066,35 +1770,184 @@ export default function CashCalculator() {
             bottom={0}
             bgcolor="background.paper"
             zIndex={99}
-            py={2}
-            my={4}
+            py={1}
+            mt={4}
+            sx={{
+              borderTop: "1px solid",
+              borderColor: "divider",
+              boxShadow: "0 -8px 24px rgba(15, 23, 42, 0.08)",
+            }}
           >
-            <Divider />
-            <Stack spacing={0.75} my={2} px={2} maxWidth={620} mx="auto">
-              <Stack direction="row" justifyContent="space-between">
-                <Typography color="text.secondary">
-                  All drawers counted
-                </Typography>
-                <Typography fontWeight={700}>
-                  ${formatMoney(overallTotals.countedTotal)}
-                </Typography>
+            <Stack spacing={1} px={2} maxWidth={620} mx="auto">
+              {activeTab === 0 ? (
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Button
+                    variant="outlined"
+                    disabled={currentStep === 0}
+                    onClick={() => {
+                      setCurrentStep((step) => Math.max(0, step - 1));
+                      scrollToPageTop();
+                    }}
+                    sx={{ minWidth: 72 }}
+                  >
+                    Back
+                  </Button>
+                  <Stack
+                    alignItems="center"
+                    justifyContent="center"
+                    sx={{ flex: 1, minWidth: 0 }}
+                  >
+                    <Typography fontWeight={900} noWrap>
+                      {stepLabel}
+                    </Typography>
+                    <Stack direction="row" spacing={0.5}>
+                      {[0, 1, 2, 3].map((step) => (
+                        <Box
+                          key={step}
+                          sx={{
+                            width: 7,
+                            height: 7,
+                            borderRadius: "50%",
+                            bgcolor:
+                              step === currentStep
+                                ? "primary.main"
+                                : "divider",
+                          }}
+                        />
+                      ))}
+                    </Stack>
+                  </Stack>
+                  <Button
+                    variant="contained"
+                    onClick={handleGuidedStepAction}
+                    disabled={
+                      currentDrawerCalculating || !currentDrawerCompleted
+                    }
+                    sx={{ minWidth: 124 }}
+                  >
+                    {nextStepLabel}
+                  </Button>
+                </Stack>
+              ) : null}
+
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                justifyContent="space-between"
+              >
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={() => setTotalsExpanded((expanded) => !expanded)}
+                  endIcon={
+                    <ExpandMoreIcon
+                      sx={{
+                        transform: totalsExpanded
+                          ? "rotate(180deg)"
+                          : "rotate(0deg)",
+                        transition: "transform 160ms ease",
+                      }}
+                    />
+                  }
+                  sx={{
+                    color: "text.secondary",
+                    fontWeight: 800,
+                    minWidth: 0,
+                    px: 0,
+                  }}
+                >
+                  Totals
+                </Button>
+                <Stack direction="row" spacing={1} alignItems="baseline">
+                  <Typography color="text.secondary">
+                    {footerTotalLabel}
+                  </Typography>
+                  <Typography fontSize={18} fontWeight={900}>
+                    ${formatMoney(footerTotalValue)}
+                  </Typography>
+                </Stack>
               </Stack>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography color="text.secondary">
-                  Amount left in drawers
-                </Typography>
-                <Typography fontWeight={700}>
-                  ${formatMoney(overallTotals.leftInDrawer)}
-                </Typography>
-              </Stack>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography fontSize={18} fontWeight={900}>
-                  Deposit
-                </Typography>
-                <Typography fontSize={18} fontWeight={900}>
-                  ${formatMoney(overallTotals.deposit)}
-                </Typography>
-              </Stack>
+
+              <Collapse in={totalsExpanded} timeout="auto" unmountOnExit>
+                <Stack spacing={0.75}>
+                  <Divider />
+                  {showGuidedDrawerTotal ? (
+                    <>
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography color="text.secondary">
+                          Drawer counted
+                        </Typography>
+                        <Typography fontWeight={700}>
+                          ${formatMoney(activeDrawerTotals?.countedTotal ?? 0)}
+                        </Typography>
+                      </Stack>
+                      {currentDrawerCompleted ? (
+                        <>
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography color="text.secondary">
+                              Drawer left
+                            </Typography>
+                            <Typography fontWeight={700}>
+                              $
+                              {formatMoney(
+                                activeDrawerTotals?.leftInDrawer ?? 0
+                              )}
+                            </Typography>
+                          </Stack>
+                          <Divider />
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography color="text.secondary">
+                              Total cash counted
+                            </Typography>
+                            <Typography fontWeight={700}>
+                              ${formatMoney(overallTotals.countedTotal)}
+                            </Typography>
+                          </Stack>
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography fontWeight={900}>
+                              Total deposit
+                            </Typography>
+                            <Typography fontWeight={900}>
+                              ${formatMoney(overallTotals.deposit)}
+                            </Typography>
+                          </Stack>
+                        </>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          Complete this drawer to calculate what stays in the
+                          register.
+                        </Typography>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography color="text.secondary">
+                          All drawers counted
+                        </Typography>
+                        <Typography fontWeight={700}>
+                          ${formatMoney(overallTotals.countedTotal)}
+                        </Typography>
+                      </Stack>
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography color="text.secondary">
+                          Amount left in drawers
+                        </Typography>
+                        <Typography fontWeight={700}>
+                          ${formatMoney(overallTotals.leftInDrawer)}
+                        </Typography>
+                      </Stack>
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography fontWeight={900}>Deposit</Typography>
+                        <Typography fontWeight={900}>
+                          ${formatMoney(overallTotals.deposit)}
+                        </Typography>
+                      </Stack>
+                    </>
+                  )}
+                </Stack>
+              </Collapse>
             </Stack>
           </Box>
 
@@ -1117,10 +1970,72 @@ export default function CashCalculator() {
               {copyMessage}
             </Alert>
           </Snackbar>
+
+          <Menu
+            anchorEl={clearMenu?.anchorEl ?? null}
+            open={Boolean(clearMenu)}
+            onClose={closeClearMenu}
+          >
+            {clearMenu?.actions.map((action) => (
+              <MenuItem
+                key={action.label}
+                onClick={() => runClearAction(action)}
+              >
+                <ListItemIcon>
+                  <ClearIcon color="error" fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>{action.label}</ListItemText>
+              </MenuItem>
+            ))}
+          </Menu>
+
+          <Dialog
+            open={isClearAllConfirmOpen}
+            onClose={() => setIsClearAllConfirmOpen(false)}
+            fullWidth
+            maxWidth="xs"
+          >
+            <DialogTitle>Clear all counts?</DialogTitle>
+            <DialogContent>
+              <DialogContentText>
+                This will reset every till, clear completed drawer progress, and
+                return the guided count to till 1.
+              </DialogContentText>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setIsClearAllConfirmOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                color="error"
+                variant="contained"
+                onClick={confirmClearAll}
+              >
+                Clear All Counts
+              </Button>
+            </DialogActions>
+          </Dialog>
         </>
       ) : (
         <SafeBillCounter />
       )}
+      <Backdrop
+        open={isResettingCounts}
+        sx={{
+          color: "common.white",
+          zIndex: (theme) => theme.zIndex.modal + 1,
+        }}
+      >
+        <Stack spacing={2} alignItems="center" textAlign="center">
+          <CircularProgress color="inherit" />
+          <Stack spacing={0.5}>
+            <Typography fontWeight={900}>Resetting counts</Typography>
+            <Typography variant="body2">
+              Clearing the registers and returning to till 1.
+            </Typography>
+          </Stack>
+        </Stack>
+      </Backdrop>
     </>
   );
 }

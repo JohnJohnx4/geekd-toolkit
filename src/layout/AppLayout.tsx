@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Outlet, useLocation, useNavigate } from "@tanstack/react-router";
+import { Outlet, useNavigate } from "@tanstack/react-router";
 import {
   AppBar,
   Box,
@@ -23,14 +23,9 @@ import TimerIcon from "@mui/icons-material/Timer";
 
 export default function AppLayout() {
   const navigate = useNavigate();
-  const location = useLocation();
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
-
-  if (location.pathname === "/timer-display") {
-    return <Outlet />;
-  }
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);

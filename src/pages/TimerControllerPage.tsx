@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -20,17 +20,23 @@ import {
 } from "@mui/material";
 import AddAlarmIcon from "@mui/icons-material/AddAlarm";
 import AddIcon from "@mui/icons-material/Add";
+import CloseFullscreenIcon from "@mui/icons-material/CloseFullscreen";
 import DeleteIcon from "@mui/icons-material/Delete";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import PauseIcon from "@mui/icons-material/Pause";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import TimerIcon from "@mui/icons-material/Timer";
 import {
   formatTime,
+  getTimerRemainingSeconds,
   getTcg,
   getTimerName,
+  isValidIsoDate,
+  pauseTimer,
   readTimerSnapshot,
+  resetTimer,
+  startTimer,
   TCG_OPTIONS,
   TIMER_STORAGE_KEY,
   type TcgKey,
@@ -67,8 +73,9 @@ const normalizeSavedTimers = (
   const snapshotUpdatedAt = Number.isFinite(snapshot.updatedAt)
     ? snapshot.updatedAt
     : Date.now();
+  const now = Date.now();
   const elapsedSeconds = applyElapsedTime
-    ? Math.max(0, Math.floor((Date.now() - snapshotUpdatedAt) / 1000))
+    ? Math.max(0, Math.floor((now - snapshotUpdatedAt) / 1000))
     : 0;
 
   return snapshot.timers.slice(0, MAX_TIMERS).map((timer, index) => {
@@ -81,17 +88,31 @@ const normalizeSavedTimers = (
     const remainingSeconds = Number.isFinite(timer.remainingSeconds)
       ? Math.floor(timer.remainingSeconds)
       : durationSeconds;
+    const targetEndAt = isValidIsoDate(timer.targetEndAt)
+      ? timer.targetEndAt
+      : undefined;
+    const running = Boolean(timer.running);
+    const adjustedRemainingSeconds =
+      running && targetEndAt
+        ? Math.ceil((Date.parse(targetEndAt) - now) / 1000)
+        : running
+          ? remainingSeconds - elapsedSeconds
+          : remainingSeconds;
+    const adjustedTargetEndAt = running
+      ? targetEndAt ??
+        new Date(now + adjustedRemainingSeconds * 1000).toISOString()
+      : undefined;
 
     return {
       id,
       name: getTimerName({ id, name: timer.name }),
       tcg: isTcgKey(timer.tcg) ? timer.tcg : "magic",
       durationSeconds,
-      remainingSeconds: timer.running
-        ? remainingSeconds - elapsedSeconds
-        : remainingSeconds,
-      running: Boolean(timer.running),
+      remainingSeconds: adjustedRemainingSeconds,
+      running,
       overtimeEnabled: timer.overtimeEnabled ?? snapshot.overtimeEnabled ?? true,
+      startedAt: isValidIsoDate(timer.startedAt) ? timer.startedAt : undefined,
+      targetEndAt: adjustedTargetEndAt,
     };
   });
 };
@@ -101,13 +122,88 @@ const parseDurationInput = (value: string) => {
   return String(Number(value));
 };
 
+const formatStartedAt = (startedAt?: string) => {
+  if (!startedAt) return "Not started yet";
+
+  return `Started ${new Date(startedAt).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  })}`;
+};
+
+const getFullscreenGridColumns = (count: number) => ({
+  xs: "1fr",
+  md: count <= 1 ? "1fr" : "repeat(2, minmax(0, 1fr))",
+  xl:
+    count <= 1
+      ? "1fr"
+      : count === 2
+        ? "repeat(2, minmax(0, 1fr))"
+        : "repeat(3, minmax(0, 1fr))",
+});
+
+const getFullscreenTimeFontSize = (
+  count: number,
+  showRoundOver: boolean
+) => {
+  if (showRoundOver) return { xs: 48, sm: 72, md: 92, xl: 112 };
+  if (count <= 1) return { xs: 86, sm: 150, md: 210, xl: 250 };
+  if (count === 2) return { xs: 78, sm: 128, md: 156, xl: 188 };
+  return { xs: 64, sm: 86, md: 104, xl: 124 };
+};
+
+const getFullscreenLogoSize = (count: number) => {
+  if (count <= 1) {
+    return {
+      width: { xs: 190, sm: 320, md: 440, xl: 540 },
+      height: { xs: 116, sm: 190, md: 260, xl: 320 },
+    };
+  }
+
+  if (count === 2) {
+    return {
+      width: { xs: 160, sm: 240, md: 300, xl: 360 },
+      height: { xs: 98, sm: 146, md: 180, xl: 216 },
+    };
+  }
+
+  return {
+    width: { xs: 132, sm: 176, md: 220, xl: 260 },
+    height: { xs: 82, sm: 108, md: 134, xl: 158 },
+  };
+};
+
+const getFullscreenTitleFontSize = (count: number) => {
+  if (count <= 1) return { xs: 54, sm: 96, md: 136, xl: 164 };
+  if (count === 2) return { xs: 48, sm: 74, md: 94, xl: 116 };
+  return { xs: 38, sm: 52, md: 64, xl: 76 };
+};
+
+const getFullscreenGameFontSize = (count: number) => {
+  if (count <= 1) return { xs: 28, sm: 48, md: 64, xl: 78 };
+  if (count === 2) return { xs: 24, sm: 36, md: 46, xl: 56 };
+  return { xs: 20, sm: 28, md: 34, xl: 40 };
+};
+
 export default function TimerControllerPage() {
   const [timers, setTimers] = useState<TimerItem[]>(() =>
     normalizeSavedTimers(readTimerSnapshot(), true)
   );
+  const [now, setNow] = useState(() => Date.now());
+  const [fullscreenDisplayOpen, setFullscreenDisplayOpen] = useState(false);
+  const fullscreenDisplayRef = useRef<HTMLDivElement | null>(null);
 
   const timerCount = timers.length;
   const runningCount = timers.filter((timer) => timer.running).length;
+  const displayedTimers = useMemo(
+    () =>
+      timers.map((timer) => ({
+        ...timer,
+        displayedSeconds: getTimerRemainingSeconds(timer, now),
+      })),
+    [now, timers]
+  );
   const nextTimerId = useMemo(
     () => Math.max(0, ...timers.map((timer) => timer.id)) + 1,
     [timers]
@@ -136,32 +232,56 @@ export default function TimerControllerPage() {
   };
 
   const setAllRunning = (running: boolean) => {
-    setTimers((prev) => prev.map((timer) => ({ ...timer, running })));
-  };
-
-  const resetAll = () => {
     setTimers((prev) =>
-      prev.map((timer) => ({
-        ...timer,
-        remainingSeconds: timer.durationSeconds,
-        running: false,
-      }))
+      prev.map((timer) => (running ? startTimer(timer) : pauseTimer(timer)))
     );
   };
 
+  const resetAll = () => {
+    setTimers((prev) => prev.map(resetTimer));
+  };
+
+  const reconcileRunningTimers = useCallback(() => {
+    const nextNow = Date.now();
+    setNow(nextNow);
+    setTimers((prev) =>
+      prev.map((timer) =>
+        timer.running
+          ? {
+              ...timer,
+              remainingSeconds: getTimerRemainingSeconds(timer, nextNow),
+            }
+          : timer
+      )
+    );
+  }, []);
+
   useEffect(() => {
     const interval = setInterval(() => {
-      setTimers((prev) =>
-        prev.map((timer) =>
-          timer.running
-            ? { ...timer, remainingSeconds: timer.remainingSeconds - 1 }
-            : timer
-        )
-      );
+      setNow(Date.now());
     }, 1000);
 
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      reconcileRunningTimers();
+    };
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        reconcileRunningTimers();
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [reconcileRunningTimers]);
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -173,12 +293,34 @@ export default function TimerControllerPage() {
     );
   }, [timers]);
 
-  const openDisplayWindow = () => {
-    window.open(
-      `${window.location.origin}/timer-display`,
-      "geekd-timer-display",
-      "popup=yes,width=1200,height=760"
-    );
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) {
+        setFullscreenDisplayOpen(false);
+      }
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
+
+  const openFullscreenDisplay = () => {
+    setFullscreenDisplayOpen(true);
+
+    window.setTimeout(() => {
+      fullscreenDisplayRef.current?.requestFullscreen?.().catch(() => {});
+    }, 0);
+  };
+
+  const closeFullscreenDisplay = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    }
+
+    setFullscreenDisplayOpen(false);
   };
 
   return (
@@ -249,10 +391,11 @@ export default function TimerControllerPage() {
                 </Button>
                 <Button
                   variant="outlined"
-                  startIcon={<OpenInNewIcon />}
-                  onClick={openDisplayWindow}
+                  startIcon={<FullscreenIcon />}
+                  onClick={openFullscreenDisplay}
+                  disabled={!timers.length}
                 >
-                  Pop Out Display
+                  Fullscreen Display
                 </Button>
               </Stack>
             </Stack>
@@ -270,9 +413,10 @@ export default function TimerControllerPage() {
             gap: { xs: 2, md: 2.5 },
           }}
         >
-          {timers.map((timer) => {
+          {displayedTimers.map((timer) => {
             const tcg = getTcg(timer.tcg);
-            const isOvertime = timer.remainingSeconds < 0;
+            const displayedSeconds = timer.displayedSeconds;
+            const isOvertime = timer.displayedSeconds < 0;
             const showRoundOver = isOvertime && !timer.overtimeEnabled;
             const durationMinutes = Math.round(timer.durationSeconds / 60);
 
@@ -362,7 +506,7 @@ export default function TimerControllerPage() {
                     >
                       {showRoundOver
                         ? "Round Over"
-                        : formatTime(timer.remainingSeconds)}
+                        : formatTime(displayedSeconds)}
                     </Typography>
 
                     {isOvertime ? (
@@ -378,6 +522,15 @@ export default function TimerControllerPage() {
                         sx={{ alignSelf: "center" }}
                       />
                     )}
+
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      textAlign="center"
+                      sx={{ fontWeight: 700 }}
+                    >
+                      {formatStartedAt(timer.startedAt)}
+                    </Typography>
 
                     <Stack spacing={1.25}>
                       <Stack
@@ -444,9 +597,9 @@ export default function TimerControllerPage() {
                             updateTimer(timer.id, (current) => ({
                               ...current,
                               durationSeconds,
-                              remainingSeconds: current.running
-                                ? current.remainingSeconds
-                                : durationSeconds,
+                              remainingSeconds: durationSeconds,
+                              running: false,
+                              targetEndAt: undefined,
                             }));
                           }}
                           inputProps={{
@@ -511,10 +664,11 @@ export default function TimerControllerPage() {
                           timer.running ? <PauseIcon /> : <PlayArrowIcon />
                         }
                         onClick={() =>
-                          updateTimer(timer.id, (current) => ({
-                            ...current,
-                            running: !current.running,
-                          }))
+                          updateTimer(timer.id, (current) =>
+                            current.running
+                              ? pauseTimer(current)
+                              : startTimer(current)
+                          )
                         }
                       >
                         {timer.running ? "Pause" : "Start"}
@@ -524,11 +678,9 @@ export default function TimerControllerPage() {
                         variant="outlined"
                         startIcon={<RestartAltIcon />}
                         onClick={() =>
-                          updateTimer(timer.id, (current) => ({
-                            ...current,
-                            running: false,
-                            remainingSeconds: current.durationSeconds,
-                          }))
+                          updateTimer(timer.id, (current) =>
+                            resetTimer(current)
+                          )
                         }
                       >
                         Reset
@@ -557,6 +709,191 @@ export default function TimerControllerPage() {
             </Card>
           ) : null}
         </Box>
+
+        {fullscreenDisplayOpen ? (
+          <Box
+            ref={fullscreenDisplayRef}
+            sx={{
+              position: "fixed",
+              inset: 0,
+              zIndex: (theme) => theme.zIndex.modal + 4,
+              minHeight: "100dvh",
+              bgcolor: "#020617",
+              color: "#f8fafc",
+              p: { xs: 1.25, sm: 2 },
+              display: "flex",
+              flexDirection: "column",
+              gap: { xs: 1.25, sm: 2 },
+            }}
+          >
+            <Stack
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+              spacing={1}
+              sx={{ flexShrink: 0 }}
+            >
+              <Typography
+                sx={{
+                  fontSize: { xs: 22, sm: 28 },
+                  fontWeight: 900,
+                  lineHeight: 1,
+                }}
+              >
+                Timer Display
+              </Typography>
+              <Button
+                variant="contained"
+                color="secondary"
+                startIcon={<CloseFullscreenIcon />}
+                onClick={closeFullscreenDisplay}
+                sx={{ fontWeight: 900 }}
+              >
+                Exit
+              </Button>
+            </Stack>
+
+            <Box
+              sx={{
+                flex: 1,
+                minHeight: 0,
+                display: "grid",
+                gridTemplateColumns: getFullscreenGridColumns(
+                  displayedTimers.length
+                ),
+                gap: { xs: 1.25, sm: 2 },
+              }}
+            >
+              {displayedTimers.map((timer) => {
+                const tcg = getTcg(timer.tcg);
+                const isOvertime = timer.displayedSeconds < 0;
+                const showRoundOver =
+                  isOvertime && !(timer.overtimeEnabled ?? true);
+
+                return (
+                  <Box
+                    key={timer.id}
+                    sx={{
+                      minHeight: 0,
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
+                      borderRadius: 2,
+                      p: { xs: 1.5, sm: 2.5, md: 3 },
+                      bgcolor: isOvertime ? "#7f1d1d" : "#111827",
+                      border: "3px solid",
+                      borderColor: isOvertime ? "#fca5a5" : "#334155",
+                      boxShadow: "0 24px 70px rgba(0, 0, 0, 0.35)",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <Stack
+                      spacing={{ xs: 1, sm: 1.5 }}
+                      alignItems="center"
+                      sx={{ minWidth: 0 }}
+                    >
+                      <Box
+                        sx={{
+                          ...getFullscreenLogoSize(displayedTimers.length),
+                          display: "grid",
+                          placeItems: "center",
+                          borderRadius: 2,
+                          bgcolor: tcg.background,
+                          overflow: "hidden",
+                          p: 0.75,
+                        }}
+                      >
+                        <Box
+                          component="img"
+                          src={tcg.logoImage}
+                          alt={`${tcg.name} logo`}
+                          sx={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "contain",
+                          }}
+                        />
+                      </Box>
+                      <Box sx={{ minWidth: 0, textAlign: "center" }}>
+                        <Typography
+                          sx={{
+                            fontSize: getFullscreenTitleFontSize(
+                              displayedTimers.length
+                            ),
+                            fontWeight: 900,
+                            lineHeight: 1.05,
+                            overflowWrap: "anywhere",
+                          }}
+                        >
+                          {getTimerName(timer)}
+                        </Typography>
+                        <Typography
+                          sx={{
+                            color: "#cbd5e1",
+                            mt: 0.5,
+                            fontSize: getFullscreenGameFontSize(
+                              displayedTimers.length
+                            ),
+                            fontWeight: 800,
+                            lineHeight: 1.05,
+                          }}
+                        >
+                          {tcg.name}
+                        </Typography>
+                      </Box>
+                    </Stack>
+
+                    <Typography
+                      textAlign="center"
+                      sx={{
+                        color: isOvertime ? "#fecaca" : "#f8fafc",
+                        fontSize: getFullscreenTimeFontSize(
+                          displayedTimers.length,
+                          showRoundOver
+                        ),
+                        fontWeight: 900,
+                        lineHeight: 0.95,
+                        fontVariantNumeric: "tabular-nums",
+                      }}
+                    >
+                      {showRoundOver
+                        ? "Round Over"
+                        : formatTime(timer.displayedSeconds)}
+                    </Typography>
+
+                    <Chip
+                      label={
+                        showRoundOver
+                          ? "Round Over"
+                          : isOvertime
+                            ? "Overtime"
+                            : timer.running
+                              ? "Running"
+                              : "Paused"
+                      }
+                      sx={{
+                        alignSelf: "center",
+                        px: 1.5,
+                        bgcolor: isOvertime
+                          ? "#fee2e2"
+                          : timer.running
+                            ? "#bbf7d0"
+                            : "#e2e8f0",
+                        color: isOvertime
+                          ? "#7f1d1d"
+                          : timer.running
+                            ? "#14532d"
+                            : "#0f172a",
+                        fontSize: { xs: 16, sm: 20 },
+                        fontWeight: 900,
+                      }}
+                    />
+                  </Box>
+                );
+              })}
+            </Box>
+          </Box>
+        ) : null}
       </Stack>
     </Container>
   );
