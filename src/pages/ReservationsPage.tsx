@@ -380,6 +380,7 @@ export default function ReservationsPage() {
   }, [products, reservationProducts]);
 
   const isAdmin = Boolean(profile?.is_admin);
+  const accountEmail = authSession?.user.email ?? profile?.contact ?? "";
 
   const currentUserReservations = useMemo(() => {
     if (!authSession) return [];
@@ -807,10 +808,14 @@ export default function ReservationsPage() {
     if (!authSession) return;
 
     const displayName = profileForm.display_name.trim();
-    const contact = profileForm.contact.trim();
 
     if (!displayName) {
       setError("Your name is required before using reservations.");
+      return;
+    }
+
+    if (!authSession.user.email) {
+      setError("Your account email is required before using reservations.");
       return;
     }
 
@@ -822,7 +827,7 @@ export default function ReservationsPage() {
       const savedProfile = await upsertReservationProfile({
         id: authSession.user.id,
         display_name: displayName,
-        contact: contact || null,
+        contact: authSession.user.email,
       });
 
       setProfile(savedProfile);
@@ -1031,7 +1036,7 @@ export default function ReservationsPage() {
       if (existingReservation) {
         await updateReservation(existingReservation.id, {
           employee_name: profile.display_name,
-          employee_contact: profile.contact,
+          employee_contact: accountEmail || null,
           notes: form.notes.trim() || null,
           product_ids: form.productIds,
         });
@@ -1040,7 +1045,7 @@ export default function ReservationsPage() {
           user_id: authSession.user.id,
           release_id: releaseId,
           employee_name: profile.display_name,
-          employee_contact: profile.contact,
+          employee_contact: accountEmail || null,
           notes: form.notes.trim() || null,
           product_ids: form.productIds,
         });
@@ -1197,7 +1202,7 @@ export default function ReservationsPage() {
     try {
       await updateReservation(reservation.id, {
         employee_name: profile.display_name,
-        employee_contact: profile.contact,
+        employee_contact: accountEmail || null,
         notes: editingReservationForm.notes.trim() || null,
         product_ids: editingReservationForm.productIds,
       });
@@ -1519,19 +1524,11 @@ export default function ReservationsPage() {
                   fullWidth
                 />
                 <TextField
-                  label="Contact or initials"
-                  value={profileForm.contact}
-                  onChange={(event) =>
-                    setProfileForm((prev) => ({
-                      ...prev,
-                      contact: event.target.value,
-                    }))
-                  }
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      saveProfile();
-                    }
-                  }}
+                  label="Email"
+                  type="email"
+                  value={authSession.user.email ?? ""}
+                  helperText="This is pulled from your login."
+                  InputProps={{ readOnly: true }}
                   fullWidth
                 />
                 <Button
@@ -1957,9 +1954,9 @@ export default function ReservationsPage() {
                                   <Typography sx={{ fontWeight: 900 }}>
                                     Requesting as {profile.display_name}
                                   </Typography>
-                                  {profile.contact ? (
+                                  {accountEmail ? (
                                     <Typography color="text.secondary">
-                                      {profile.contact}
+                                      {accountEmail}
                                     </Typography>
                                   ) : null}
                                 </Stack>
@@ -2629,7 +2626,7 @@ export default function ReservationsPage() {
                                     {item.display_name}
                                   </Typography>
                                   <Typography color="text.secondary">
-                                    {item.contact || "No contact saved"}
+                                    {item.contact || "No email saved"}
                                   </Typography>
                                 </Box>
                                 <FormControlLabel

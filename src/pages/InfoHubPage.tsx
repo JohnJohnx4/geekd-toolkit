@@ -47,7 +47,6 @@ const blankLoginForm = {
 const blankProfileForm = {
   profileId: "",
   displayName: "",
-  contact: "",
 };
 
 const blankArticleForm = {
@@ -99,7 +98,6 @@ export default function InfoHubPage() {
       : {
           profileId: profile?.id ?? "",
           displayName: profile?.display_name ?? "",
-          contact: profile?.contact ?? "",
         };
 
   const loadArticles = useCallback(async () => {
@@ -148,10 +146,7 @@ export default function InfoHubPage() {
     }
 
     try {
-      await saveProfile(
-        visibleProfileForm.displayName,
-        visibleProfileForm.contact
-      );
+      await saveProfile(visibleProfileForm.displayName);
     } catch {
       // The auth hook places the message in the page alert.
     }
@@ -371,15 +366,11 @@ export default function InfoHubPage() {
               fullWidth
             />
             <TextField
-              label="Contact"
-              value={visibleProfileForm.contact}
-              onChange={(event) =>
-                setProfileForm((prev) => ({
-                  ...prev,
-                  profileId: authSession.user.id,
-                  contact: event.target.value,
-                }))
-              }
+              label="Email"
+              type="email"
+              value={authSession.user.email ?? ""}
+              helperText="This is pulled from your login."
+              InputProps={{ readOnly: true }}
               fullWidth
             />
             <Button

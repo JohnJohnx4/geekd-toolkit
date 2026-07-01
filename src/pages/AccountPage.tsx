@@ -26,7 +26,6 @@ const blankLoginForm = {
 const blankProfileForm = {
   profileId: "",
   displayName: "",
-  contact: "",
 };
 
 const blankPasswordForm = {
@@ -62,7 +61,6 @@ export default function AccountPage() {
       : {
           profileId: profile?.id ?? "",
           displayName: profile?.display_name ?? "",
-          contact: profile?.contact ?? "",
         };
 
   const handleLogin = async () => {
@@ -86,10 +84,7 @@ export default function AccountPage() {
     }
 
     try {
-      await saveProfile(
-        visibleProfileForm.displayName,
-        visibleProfileForm.contact
-      );
+      await saveProfile(visibleProfileForm.displayName);
     } catch {
       // The hook owns the page-level error.
     }
@@ -219,7 +214,7 @@ export default function AccountPage() {
               <Box>
                 <Typography variant="h1">Employee Account</Typography>
                 <Typography color="text.secondary">
-                  Manage your name, contact info, and password.
+                  Manage your name, account email, and password.
                 </Typography>
               </Box>
             </Stack>
@@ -250,7 +245,7 @@ export default function AccountPage() {
               <Box>
                 <Typography variant="h5">Profile</Typography>
                 <Typography color="text.secondary">
-                  This name is used across employee tools.
+                  Your account email comes from your Supabase login.
                 </Typography>
               </Box>
               <TextField
@@ -266,15 +261,11 @@ export default function AccountPage() {
                 fullWidth
               />
               <TextField
-                label="Contact"
-                value={visibleProfileForm.contact}
-                onChange={(event) =>
-                  setProfileForm((prev) => ({
-                    ...prev,
-                    profileId: profile?.id ?? "",
-                    contact: event.target.value,
-                  }))
-                }
+                label="Email"
+                type="email"
+                value={authSession.user.email ?? profile?.contact ?? ""}
+                helperText="This must match your login email."
+                InputProps={{ readOnly: true }}
                 fullWidth
               />
               <Button

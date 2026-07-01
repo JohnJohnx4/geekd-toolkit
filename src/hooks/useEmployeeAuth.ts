@@ -145,9 +145,13 @@ export const useEmployeeAuth = () => {
     }
   };
 
-  const saveProfile = async (displayName: string, contact: string) => {
+  const saveProfile = async (displayName: string) => {
     if (!authSession) {
       throw new Error("Log in before saving your profile.");
+    }
+
+    if (!authSession.user.email) {
+      throw new Error("Your account email is required before saving your profile.");
     }
 
     setAuthLoading(true);
@@ -158,7 +162,7 @@ export const useEmployeeAuth = () => {
       const savedProfile = await upsertReservationProfile({
         id: authSession.user.id,
         display_name: displayName.trim(),
-        contact: contact.trim() || null,
+        contact: authSession.user.email,
       });
       setProfile(savedProfile);
       setMessage("Profile saved.");
