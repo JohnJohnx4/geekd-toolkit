@@ -1538,7 +1538,13 @@ export default function ReservationsPage() {
     : [];
 
   return (
-    <Container maxWidth="xl" sx={{ py: { xs: 2, md: 4 } }}>
+    <Container
+      maxWidth="xl"
+      sx={{
+        pt: { xs: 2, md: 4 },
+        pb: { xs: isAdmin ? 11 : 2, md: 4 },
+      }}
+    >
       <Stack spacing={2.5}>
         <Paper sx={{ p: { xs: 2, sm: 3 } }}>
           <Stack
@@ -1599,16 +1605,44 @@ export default function ReservationsPage() {
         </Paper>
 
         {isAdmin ? (
-          <Paper sx={{ overflow: "hidden" }}>
+          <Paper
+            sx={(theme) => ({
+              overflow: "hidden",
+              position: { xs: "fixed", md: "static" },
+              right: { xs: 0, md: "auto" },
+              bottom: { xs: 0, md: "auto" },
+              left: { xs: 0, md: "auto" },
+              zIndex: { xs: theme.zIndex.appBar, md: "auto" },
+              borderRadius: { xs: "12px 12px 0 0", md: 1 },
+              borderTop: { xs: `1px solid ${theme.palette.divider}`, md: 0 },
+              boxShadow: {
+                xs: "0 -10px 28px rgba(15, 23, 42, 0.16)",
+                md: theme.shadows[1],
+              },
+            })}
+          >
             <Tabs
               value={tab}
               onChange={(_, nextTab) => setTab(nextTab)}
-              variant="scrollable"
-              scrollButtons="auto"
+              variant="fullWidth"
               sx={{
                 px: { md: 1 },
                 ".MuiTabs-flexContainer": {
                   justifyContent: { md: "center" },
+                },
+                ".MuiTab-root": {
+                  minHeight: { xs: 66, md: 48 },
+                  px: { xs: 0.5, md: 2 },
+                  py: { xs: 0.75, md: 1.25 },
+                  fontSize: { xs: "0.68rem", sm: "0.75rem", md: "0.875rem" },
+                  lineHeight: 1.1,
+                  flexDirection: { xs: "column", md: "row" },
+                  gap: { xs: 0.35, md: 0 },
+                },
+                ".MuiTab-iconWrapper": {
+                  mr: { xs: 0, md: 0.75 },
+                  mb: { xs: 0.25, md: 0 },
+                  fontSize: { xs: 23, md: 24 },
                 },
               }}
             >
