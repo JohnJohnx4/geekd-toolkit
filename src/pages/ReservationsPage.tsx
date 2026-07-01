@@ -10,6 +10,10 @@ import {
   CircularProgress,
   Container,
   Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControl,
   FormControlLabel,
   FormGroup,
@@ -173,6 +177,9 @@ export default function ReservationsPage() {
   const [reservationForms, setReservationForms] = useState<
     Record<string, typeof blankReservationForm>
   >({});
+  const [editingReservationId, setEditingReservationId] = useState("");
+  const [editingReservationForm, setEditingReservationForm] =
+    useState(blankReservationForm);
   const [loading, setLoading] = useState(false);
   const [savingRelease, setSavingRelease] = useState(false);
   const [message, setMessage] = useState("");
@@ -246,6 +253,14 @@ export default function ReservationsPage() {
       {}
     );
   }, [currentUserReservations]);
+
+  const unrequestedActiveReleases = useMemo(
+    () =>
+      activeReleases.filter(
+        (release) => !currentUserReservationsByRelease[release.id]
+      ),
+    [activeReleases, currentUserReservationsByRelease]
+  );
 
   const selectedRelease =
     releases.find((release) => release.id === selectedReleaseId) ??
@@ -835,6 +850,69 @@ export default function ReservationsPage() {
     }
   };
 
+  const openReservationEditor = (reservation: ReservationRecord) => {
+    const selectedProducts = (productsByReservation[reservation.id] ?? []).map(
+      (product) => product.id
+    );
+
+    setEditingReservationId(reservation.id);
+    setEditingReservationForm({
+      notes: reservation.notes ?? "",
+      productIds: selectedProducts,
+    });
+    setError("");
+    setMessage("");
+  };
+
+  const closeReservationEditor = () => {
+    setEditingReservationId("");
+    setEditingReservationForm(blankReservationForm);
+  };
+
+  const updateEditingReservationProduct = (
+    productId: string,
+    checked: boolean
+  ) => {
+    setEditingReservationForm((prev) => ({
+      ...prev,
+      productIds: checked
+        ? [...prev.productIds, productId]
+        : prev.productIds.filter((id) => id !== productId),
+    }));
+  };
+
+  const saveEditingReservation = async () => {
+    const reservation = currentUserReservations.find(
+      (item) => item.id === editingReservationId
+    );
+
+    if (!profile || !reservation) return;
+
+    if (!editingReservationForm.productIds.length) {
+      setError("Select at least one product to request.");
+      return;
+    }
+
+    setError("");
+    setMessage("");
+
+    try {
+      await updateReservation(reservation.id, {
+        employee_name: profile.display_name,
+        employee_contact: profile.contact,
+        notes: editingReservationForm.notes.trim() || null,
+        product_ids: editingReservationForm.productIds,
+      });
+      closeReservationEditor();
+      setMessage("Reservation request updated.");
+      await loadData();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to update reservation."
+      );
+    }
+  };
+
   const updateReservationProduct = (
     releaseId: string,
     productId: string,
@@ -1169,6 +1247,16 @@ export default function ReservationsPage() {
     );
   }
 
+  const editingReservation = currentUserReservations.find(
+    (reservation) => reservation.id === editingReservationId
+  );
+  const editingRelease = editingReservation
+    ? releases.find((release) => release.id === editingReservation.release_id)
+    : undefined;
+  const editingReleaseProducts = editingReservation
+    ? productsByRelease[editingReservation.release_id] ?? []
+    : [];
+
   return (
     <Container maxWidth="xl" sx={{ py: { xs: 2, md: 4 } }}>
       <Stack spacing={2.5}>
@@ -1274,21 +1362,59 @@ export default function ReservationsPage() {
                 <CardContent>
                   <Stack spacing={1.5}>
                     <Typography variant="h5">Your Reservations</Typography>
-                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    <Stack spacing={1}>
                       {currentUserReservations.map((reservation) => {
                         const release = releases.find(
                           (item) => item.id === reservation.release_id
                         );
 
                         return (
-                          <Chip
+                          <Paper
                             key={reservation.id}
-                            label={`${release?.title ?? "Release"} - ${
-                              statusLabels[reservation.status]
-                            }`}
-                            color={getStatusColor(reservation.status)}
                             variant="outlined"
-                          />
+                            component="button"
+                            type="button"
+                            onClick={() => openReservationEditor(reservation)}
+                            sx={{
+                              width: "100%",
+                              p: 1.5,
+                              textAlign: "left",
+                              borderColor: "divider",
+                              cursor: "pointer",
+                              bgcolor: "background.paper",
+                            }}
+                          >
+                            <Stack
+                              direction={{ xs: "column", sm: "row" }}
+                              spacing={1}
+                              justifyContent="space-between"
+                              alignItems={{ xs: "stretch", sm: "center" }}
+                            >
+                              <Box>
+                                <Typography sx={{ fontWeight: 900 }}>
+                                  {release?.title ?? "Release"}
+                                </Typography>
+                                <Typography color="text.secondary">
+                                  {(productsByReservation[reservation.id] ?? [])
+                                    .map((product) => product.name)
+                                    .join(", ") || "No products selected"}
+                                </Typography>
+                              </Box>
+                              <Stack direction="row" spacing={1}>
+                                <Chip
+                                  label={statusLabels[reservation.status]}
+                                  color={getStatusColor(reservation.status)}
+                                  size="small"
+                                />
+                                <Chip
+                                  label="Edit"
+                                  icon={<EditIcon />}
+                                  size="small"
+                                  variant="outlined"
+                                />
+                              </Stack>
+                            </Stack>
+                          </Paper>
                         );
                       })}
                     </Stack>
@@ -1309,18 +1435,8 @@ export default function ReservationsPage() {
                 alignItems: "stretch",
               }}
             >
-            {activeReleases.map((release) => {
-              const existingReservation =
-                currentUserReservationsByRelease[release.id];
-              const existingProductIds = existingReservation
-                ? (productsByReservation[existingReservation.id] ?? []).map(
-                    (product) => product.id
-                  )
-                : [];
-              const form = reservationForms[release.id] ?? {
-                notes: existingReservation?.notes ?? "",
-                productIds: existingProductIds,
-              };
+            {unrequestedActiveReleases.map((release) => {
+              const form = reservationForms[release.id] ?? blankReservationForm;
               const releaseProducts = productsByRelease[release.id] ?? [];
 
               return (
@@ -1355,15 +1471,6 @@ export default function ReservationsPage() {
                             useFlexGap
                           >
                             <Chip label={release.game} size="small" />
-                            {existingReservation ? (
-                              <Chip
-                                label={statusLabels[existingReservation.status]}
-                                size="small"
-                                color={getStatusColor(
-                                  existingReservation.status
-                                )}
-                              />
-                            ) : null}
                           </Stack>
                           <Typography variant="h5" sx={{ mt: 0.75 }}>
                             {release.title}
@@ -1376,13 +1483,6 @@ export default function ReservationsPage() {
 
                       {release.description ? (
                         <Typography>{release.description}</Typography>
-                      ) : null}
-
-                      {existingReservation ? (
-                        <Alert severity="success">
-                          You already requested this release. Update the
-                          products or notes below.
-                        </Alert>
                       ) : null}
 
                       <Divider />
@@ -1477,9 +1577,7 @@ export default function ReservationsPage() {
                         sx={{ mt: "auto" }}
                       >
                         {form.productIds.length
-                          ? existingReservation
-                            ? "Update Reservation"
-                            : "Request Reservation"
+                          ? "Request Reservation"
                           : "Select a Product First"}
                       </Button>
                     </Stack>
@@ -1492,6 +1590,15 @@ export default function ReservationsPage() {
               <Card>
                 <CardContent>
                   <Typography>No active releases are open right now.</Typography>
+                </CardContent>
+              </Card>
+            ) : null}
+            {activeReleases.length && !unrequestedActiveReleases.length ? (
+              <Card>
+                <CardContent>
+                  <Typography>
+                    You have already requested every active release.
+                  </Typography>
                 </CardContent>
               </Card>
             ) : null}
@@ -2226,9 +2333,86 @@ export default function ReservationsPage() {
                     </Stack>
                   </CardContent>
                 </Card>
-              </Box>
+          </Box>
         ) : null}
       </Stack>
+
+      <Dialog
+        open={Boolean(editingReservation)}
+        onClose={closeReservationEditor}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Edit Reservation</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <Box>
+              <Typography variant="h5">
+                {editingRelease?.title ?? "Release"}
+              </Typography>
+              <Typography color="text.secondary">
+                {editingRelease
+                  ? `${editingRelease.game} - ${formatReleaseDate(
+                      editingRelease.release_date
+                    )}`
+                  : ""}
+              </Typography>
+            </Box>
+
+            <Box>
+              <Typography sx={{ fontWeight: 900, mb: 1 }}>
+                Products
+              </Typography>
+              <FormGroup>
+                {editingReleaseProducts.map((product) => (
+                  <FormControlLabel
+                    key={product.id}
+                    control={
+                      <Checkbox
+                        checked={editingReservationForm.productIds.includes(
+                          product.id
+                        )}
+                        onChange={(event) =>
+                          updateEditingReservationProduct(
+                            product.id,
+                            event.target.checked
+                          )
+                        }
+                      />
+                    }
+                    label={product.name}
+                  />
+                ))}
+              </FormGroup>
+            </Box>
+
+            <TextField
+              label="Notes"
+              value={editingReservationForm.notes}
+              onChange={(event) =>
+                setEditingReservationForm((prev) => ({
+                  ...prev,
+                  notes: event.target.value,
+                }))
+              }
+              fullWidth
+              multiline
+              minRows={3}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeReservationEditor}>Cancel</Button>
+          <Button
+            variant="contained"
+            startIcon={<SaveIcon />}
+            onClick={saveEditingReservation}
+            disabled={!editingReservationForm.productIds.length}
+          >
+            Save Reservation
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }
