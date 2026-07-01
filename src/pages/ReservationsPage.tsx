@@ -17,6 +17,7 @@ import {
   MenuItem,
   Paper,
   Select,
+  Switch,
   Stack,
   Tab,
   Tabs,
@@ -45,12 +46,12 @@ import {
   fetchReleaseProducts,
   fetchReleases,
   fetchReservationProfile,
+  fetchReservationProfiles,
   fetchReservationProducts,
   fetchReservations,
   isReservationsConfigured,
   refreshReservationsSession,
   type ReservationAuthSession,
-  reservationsAdminPin,
   setReservationsAccessToken,
   signInReservationsUser,
   signOutReservationsUser,
@@ -62,12 +63,12 @@ import {
   type ReservationStatus,
   updateRelease,
   updateReleaseProduct,
+  updateReservationProfileAdmin,
   updateReservationsPassword,
   updateReservationStatus,
   upsertReservationProfile,
 } from "./reservationSupabase";
 
-const ADMIN_SESSION_KEY = "geekd.reservations.adminUnlocked";
 const AUTH_SESSION_KEY = "geekd.reservations.authSession";
 const PROFILE_REQUIRED_KEY = "geekd.reservations.profileRequired";
 
@@ -162,6 +163,7 @@ export default function ReservationsPage() {
   const [reservationProducts, setReservationProducts] = useState<
     ReservationProductRecord[]
   >([]);
+  const [profiles, setProfiles] = useState<ReservationProfileRecord[]>([]);
   const [selectedReleaseId, setSelectedReleaseId] = useState("");
   const [releaseForm, setReleaseForm] = useState(blankReleaseForm);
   const [editingReleaseId, setEditingReleaseId] = useState("");
@@ -170,10 +172,6 @@ export default function ReservationsPage() {
   const [reservationForms, setReservationForms] = useState<
     Record<string, typeof blankReservationForm>
   >({});
-  const [adminPinEntry, setAdminPinEntry] = useState("");
-  const [adminUnlocked, setAdminUnlocked] = useState(
-    () => window.sessionStorage.getItem(ADMIN_SESSION_KEY) === "true"
-  );
   const [loading, setLoading] = useState(false);
   const [savingRelease, setSavingRelease] = useState(false);
   const [message, setMessage] = useState("");
@@ -227,6 +225,8 @@ export default function ReservationsPage() {
       {}
     );
   }, [products, reservationProducts]);
+
+  const isAdmin = Boolean(profile?.is_admin);
 
   const selectedRelease =
     releases.find((release) => release.id === selectedReleaseId) ??
@@ -385,7 +385,7 @@ export default function ReservationsPage() {
   }, [authSession, profileChecked, profile]);
 
   const loadData = useCallback(
-    async (includeReservations = adminUnlocked) => {
+    async (includeReservations = isAdmin) => {
       if (!isReservationsConfigured || !authSession || !profile) return;
 
       setLoading(true);
@@ -397,6 +397,7 @@ export default function ReservationsPage() {
           productRows,
           reservationRows,
           reservationProductRows,
+          profileRows,
         ] = await Promise.all([
           fetchReleases(includeReservations),
           fetchReleaseProducts(),
@@ -406,12 +407,16 @@ export default function ReservationsPage() {
           includeReservations
             ? fetchReservationProducts()
             : Promise.resolve<ReservationProductRecord[]>([]),
+          includeReservations
+            ? fetchReservationProfiles()
+            : Promise.resolve<ReservationProfileRecord[]>([]),
         ]);
 
         setReleases(releaseRows);
         setProducts(productRows);
         setReservations(reservationRows);
         setReservationProducts(reservationProductRows);
+        setProfiles(profileRows);
         setSelectedReleaseId((current) => current || releaseRows[0]?.id || "");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unable to load data.");
@@ -419,7 +424,7 @@ export default function ReservationsPage() {
         setLoading(false);
       }
     },
-    [adminUnlocked, authSession, profile]
+    [authSession, isAdmin, profile]
   );
 
   useEffect(() => {
@@ -427,6 +432,12 @@ export default function ReservationsPage() {
       loadData();
     }
   }, [authChecked, authSession, profile, loadData]);
+
+  useEffect(() => {
+    if (!isAdmin && tab > 0) {
+      setTab(0);
+    }
+  }, [isAdmin, tab]);
 
   const login = async () => {
     if (!loginForm.email.trim() || !loginForm.password) {
@@ -500,12 +511,11 @@ export default function ReservationsPage() {
 
     persistAuthSession(null);
     setPasswordSetupSession(null);
-    setAdminUnlocked(false);
-    window.sessionStorage.removeItem(ADMIN_SESSION_KEY);
     setReleases([]);
     setProducts([]);
     setReservations([]);
     setReservationProducts([]);
+    setProfiles([]);
     setReservationForms({});
 
     if (currentAccessToken) {
@@ -550,25 +560,12 @@ export default function ReservationsPage() {
     }
   };
 
-  const unlockAdmin = () => {
-    if (!reservationsAdminPin) {
-      setError("Set VITE_RESERVATION_ADMIN_PIN before using admin tools.");
-      return;
-    }
-
-    if (adminPinEntry !== reservationsAdminPin) {
-      setError("Admin PIN did not match.");
-      return;
-    }
-
-    window.sessionStorage.setItem(ADMIN_SESSION_KEY, "true");
-    setAdminUnlocked(true);
-    setAdminPinEntry("");
-    setMessage("Admin tools unlocked.");
-    loadData(true);
-  };
-
   const saveRelease = async () => {
+    if (!isAdmin) {
+      setError("Admin access is required to manage releases.");
+      return;
+    }
+
     const productNames = releaseForm.products
       .map((product) => product.trim())
       .filter(Boolean);
@@ -634,6 +631,11 @@ export default function ReservationsPage() {
   };
 
   const saveEditedRelease = async (release: ReleaseRecord) => {
+    if (!isAdmin) {
+      setError("Admin access is required to manage releases.");
+      return;
+    }
+
     if (!editReleaseForm) return;
 
     const productItems = editReleaseForm.products
@@ -715,6 +717,11 @@ export default function ReservationsPage() {
   const submitReservation = async (releaseId: string) => {
     const form = reservationForms[releaseId] ?? blankReservationForm;
 
+    if (!authSession) {
+      setError("Log in before submitting a reservation.");
+      return;
+    }
+
     if (!profile) {
       setError("Create your profile before submitting a reservation.");
       return;
@@ -730,6 +737,7 @@ export default function ReservationsPage() {
 
     try {
       await createReservation({
+        user_id: authSession.user.id,
         release_id: releaseId,
         employee_name: profile.display_name,
         employee_contact: profile.contact,
@@ -752,6 +760,11 @@ export default function ReservationsPage() {
   };
 
   const setReleaseActive = async (release: ReleaseRecord, isActive: boolean) => {
+    if (!isAdmin) {
+      setError("Admin access is required to manage releases.");
+      return;
+    }
+
     setError("");
     setMessage("");
 
@@ -768,6 +781,11 @@ export default function ReservationsPage() {
     reservation: ReservationRecord,
     status: ReservationStatus
   ) => {
+    if (!isAdmin) {
+      setError("Admin access is required to update reservations.");
+      return;
+    }
+
     setError("");
     setMessage("");
 
@@ -799,6 +817,49 @@ export default function ReservationsPage() {
           : form.productIds.filter((id) => id !== productId),
       },
     }));
+  };
+
+  const changeProfileAdmin = async (
+    targetProfile: ReservationProfileRecord,
+    checked: boolean
+  ) => {
+    if (!isAdmin) {
+      setError("Admin access is required to manage profiles.");
+      return;
+    }
+
+    if (targetProfile.id === authSession?.user.id && !checked) {
+      setError("You cannot remove your own admin access.");
+      return;
+    }
+
+    setError("");
+    setMessage("");
+
+    try {
+      const updatedProfile = await updateReservationProfileAdmin(
+        targetProfile.id,
+        checked
+      );
+
+      setProfiles((prev) =>
+        prev.map((item) => (item.id === updatedProfile.id ? updatedProfile : item))
+      );
+
+      if (profile?.id === updatedProfile.id) {
+        setProfile(updatedProfile);
+      }
+
+      setMessage(
+        checked
+          ? `${updatedProfile.display_name} is now an admin.`
+          : `${updatedProfile.display_name} is no longer an admin.`
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to update profile access."
+      );
+    }
   };
 
   if (!authChecked) {
@@ -1093,12 +1154,21 @@ export default function ReservationsPage() {
               sx={{ justifyContent: { xs: "flex-start", md: "flex-end" } }}
             >
               <Chip label={`${activeReleases.length} active releases`} />
-              <Chip
-                label={`${reservations.length} reservations`}
-                color="primary"
-                variant="outlined"
-              />
+              {isAdmin ? (
+                <Chip
+                  label={`${reservations.length} reservations`}
+                  color="primary"
+                  variant="outlined"
+                />
+              ) : null}
               <Chip label={profile.display_name} color="success" />
+              {isAdmin ? (
+                <Chip
+                  label="Admin"
+                  color="secondary"
+                  icon={<AdminPanelSettingsIcon />}
+                />
+              ) : null}
               {authSession.user.email ? (
                 <Chip label={authSession.user.email} variant="outlined" />
               ) : null}
@@ -1137,16 +1207,20 @@ export default function ReservationsPage() {
             }}
           >
             <Tab icon={<EventAvailableIcon />} iconPosition="start" label="Reserve" />
-            <Tab
-              icon={<InventoryIcon />}
-              iconPosition="start"
-              label="Reservation Queue"
-            />
-            <Tab
-              icon={<AdminPanelSettingsIcon />}
-              iconPosition="start"
-              label="Manage Releases"
-            />
+            {isAdmin ? (
+              <Tab
+                icon={<InventoryIcon />}
+                iconPosition="start"
+                label="Reservation Queue"
+              />
+            ) : null}
+            {isAdmin ? (
+              <Tab
+                icon={<AdminPanelSettingsIcon />}
+                iconPosition="start"
+                label="Manage Releases"
+              />
+            ) : null}
           </Tabs>
         </Paper>
 
@@ -1318,37 +1392,14 @@ export default function ReservationsPage() {
         ) : null}
 
         {tab === 1 ? (
-          <Stack spacing={2}>
-            {!adminUnlocked ? (
-              <Card>
-                <CardContent>
-                  <Stack spacing={2}>
-                    <Typography variant="h5">Manager Access</Typography>
-                    <TextField
-                      label="Admin PIN"
-                      type="password"
-                      value={adminPinEntry}
-                      onChange={(event) => setAdminPinEntry(event.target.value)}
-                    />
-                    <Button
-                      variant="contained"
-                      startIcon={<AdminPanelSettingsIcon />}
-                      onClick={unlockAdmin}
-                    >
-                      Unlock Queue
-                    </Button>
-                  </Stack>
-                </CardContent>
-              </Card>
-            ) : (
-              <Box
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: { xs: "1fr", lg: "320px 1fr" },
-                  gap: 2,
-                  alignItems: "start",
-                }}
-              >
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", lg: "320px 1fr" },
+              gap: 2,
+              alignItems: "start",
+            }}
+          >
                 <Card sx={{ position: { lg: "sticky" }, top: { lg: 88 } }}>
                   <CardContent>
                     <Stack spacing={1.5}>
@@ -1507,46 +1558,22 @@ export default function ReservationsPage() {
                   </Card>
                 ) : null}
                 </Stack>
-              </Box>
-            )}
-          </Stack>
+          </Box>
         ) : null}
 
         {tab === 2 ? (
-          <Stack spacing={2}>
-            {!adminUnlocked ? (
-              <Card>
-                <CardContent>
-                  <Stack spacing={2}>
-                    <Typography variant="h5">Manager Access</Typography>
-                    <TextField
-                      label="Admin PIN"
-                      type="password"
-                      value={adminPinEntry}
-                      onChange={(event) => setAdminPinEntry(event.target.value)}
-                    />
-                    <Button
-                      variant="contained"
-                      startIcon={<AdminPanelSettingsIcon />}
-                      onClick={unlockAdmin}
-                    >
-                      Unlock Release Tools
-                    </Button>
-                  </Stack>
-                </CardContent>
-              </Card>
-            ) : (
-              <Box
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: { xs: "1fr", xl: "minmax(420px, 520px) 1fr" },
-                  gap: 2,
-                  alignItems: "start",
-                }}
-              >
-                <Card sx={{ position: { xl: "sticky" }, top: { xl: 88 } }}>
-                  <CardContent>
-                    <Stack spacing={2}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", xl: "minmax(420px, 520px) 1fr" },
+              gap: 2,
+              alignItems: "start",
+            }}
+          >
+                <Stack spacing={2} sx={{ position: { xl: "sticky" }, top: { xl: 88 } }}>
+                  <Card>
+                    <CardContent>
+                      <Stack spacing={2}>
                       <Typography variant="h5">Add Release</Typography>
                       <Box
                         sx={{
@@ -1682,9 +1709,83 @@ export default function ReservationsPage() {
                       >
                         Add Release
                       </Button>
-                    </Stack>
-                  </CardContent>
-                </Card>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardContent>
+                      <Stack spacing={2}>
+                        <Stack
+                          direction={{ xs: "column", sm: "row" }}
+                          spacing={1}
+                          justifyContent="space-between"
+                          alignItems={{ xs: "stretch", sm: "center" }}
+                        >
+                          <Typography variant="h5">Admin Accounts</Typography>
+                          <Button
+                            variant="outlined"
+                            startIcon={<RefreshIcon />}
+                            onClick={() => loadData(true)}
+                            disabled={loading}
+                          >
+                            Refresh
+                          </Button>
+                        </Stack>
+
+                        <Stack spacing={1}>
+                          {profiles.map((item) => (
+                            <Paper
+                              key={item.id}
+                              variant="outlined"
+                              sx={{ p: 1.25 }}
+                            >
+                              <Stack
+                                direction={{ xs: "column", sm: "row" }}
+                                spacing={1}
+                                justifyContent="space-between"
+                                alignItems={{ xs: "stretch", sm: "center" }}
+                              >
+                                <Box sx={{ minWidth: 0 }}>
+                                  <Typography sx={{ fontWeight: 900 }}>
+                                    {item.display_name}
+                                  </Typography>
+                                  <Typography color="text.secondary">
+                                    {item.contact || "No contact saved"}
+                                  </Typography>
+                                </Box>
+                                <FormControlLabel
+                                  control={
+                                    <Switch
+                                      checked={item.is_admin}
+                                      onChange={(event) =>
+                                        changeProfileAdmin(
+                                          item,
+                                          event.target.checked
+                                        )
+                                      }
+                                      disabled={
+                                        item.id === authSession.user.id &&
+                                        item.is_admin
+                                      }
+                                    />
+                                  }
+                                  label="Admin"
+                                />
+                              </Stack>
+                            </Paper>
+                          ))}
+
+                          {!profiles.length ? (
+                            <Typography color="text.secondary">
+                              No profiles have been created yet.
+                            </Typography>
+                          ) : null}
+                        </Stack>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                </Stack>
 
                 <Card>
                   <CardContent>
@@ -2018,8 +2119,6 @@ export default function ReservationsPage() {
                   </CardContent>
                 </Card>
               </Box>
-            )}
-          </Stack>
         ) : null}
       </Stack>
     </Container>

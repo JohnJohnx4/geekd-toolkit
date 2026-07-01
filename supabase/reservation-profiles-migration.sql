@@ -2,6 +2,7 @@ create table if not exists public.reservation_profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   display_name text not null check (length(trim(display_name)) > 0),
   contact text,
+  is_admin boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -18,7 +19,11 @@ drop policy if exists "Users can create own reservation profile" on public.reser
 create policy "Users can create own reservation profile"
   on public.reservation_profiles for insert
   to authenticated
-  with check (auth.uid() = id and length(trim(display_name)) > 0);
+  with check (
+    auth.uid() = id
+    and length(trim(display_name)) > 0
+    and is_admin = false
+  );
 
 drop policy if exists "Users can update own reservation profile" on public.reservation_profiles;
 create policy "Users can update own reservation profile"

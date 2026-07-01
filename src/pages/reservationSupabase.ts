@@ -28,6 +28,7 @@ export type ReservationStatus =
 
 export type ReservationRecord = {
   id: string;
+  user_id: string | null;
   release_id: string;
   employee_name: string;
   employee_contact: string | null;
@@ -46,6 +47,7 @@ export type ReservationProfileRecord = {
   id: string;
   display_name: string;
   contact: string | null;
+  is_admin: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -72,6 +74,7 @@ type ReleaseInput = {
 };
 
 type ReservationInput = {
+  user_id: string;
   release_id: string;
   employee_name: string;
   employee_contact: string | null;
@@ -94,9 +97,6 @@ type ReleaseProductInput = {
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
 const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 let reservationsAccessToken = "";
-
-export const reservationsAdminPin = import.meta.env
-  .VITE_RESERVATION_ADMIN_PIN;
 
 export const isReservationsConfigured = Boolean(
   supabaseUrl && publishableKey
@@ -297,6 +297,11 @@ export const fetchReservationProfile = async (userId: string) => {
   return rows[0] ?? null;
 };
 
+export const fetchReservationProfiles = () =>
+  requestJson<ReservationProfileRecord[]>(
+    "reservation_profiles?select=*&order=display_name.asc,created_at.asc"
+  );
+
 export const upsertReservationProfile = async (
   profile: ReservationProfileInput
 ) => {
@@ -306,6 +311,22 @@ export const upsertReservationProfile = async (
       method: "POST",
       headers: getHeaders("resolution=merge-duplicates,return=representation"),
       body: JSON.stringify(profile),
+    }
+  );
+
+  return rows[0];
+};
+
+export const updateReservationProfileAdmin = async (
+  id: string,
+  isAdmin: boolean
+) => {
+  const rows = await requestJson<ReservationProfileRecord[]>(
+    `reservation_profiles?id=eq.${encodeFilter(id)}`,
+    {
+      method: "PATCH",
+      headers: getHeaders("return=representation"),
+      body: JSON.stringify({ is_admin: isAdmin }),
     }
   );
 
@@ -417,6 +438,7 @@ export const createReservation = async (reservation: ReservationInput) => {
     method: "POST",
     headers: getHeaders("return=representation"),
     body: JSON.stringify({
+      user_id: reservation.user_id,
       release_id: reservation.release_id,
       employee_name: reservation.employee_name,
       employee_contact: reservation.employee_contact,

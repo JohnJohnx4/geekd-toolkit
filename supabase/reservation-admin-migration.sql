@@ -1,56 +1,11 @@
-create extension if not exists pgcrypto;
+alter table public.reservation_profiles
+  add column if not exists is_admin boolean not null default false;
 
-create table if not exists public.releases (
-  id uuid primary key default gen_random_uuid(),
-  title text not null,
-  game text not null,
-  release_date date,
-  description text,
-  image_url text,
-  is_active boolean not null default true,
-  created_at timestamptz not null default now()
-);
+alter table public.reservations
+  add column if not exists user_id uuid references auth.users(id) on delete set null;
 
-create table if not exists public.reservations (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references auth.users(id) on delete set null default auth.uid(),
-  release_id uuid not null references public.releases(id) on delete cascade,
-  employee_name text not null,
-  employee_contact text,
-  notes text,
-  status text not null default 'pending'
-    check (status in ('pending', 'set_aside', 'picked_up', 'skipped', 'canceled')),
-  employee_lookup text generated always as (
-    lower(trim(employee_name)) || '|' || lower(trim(coalesce(employee_contact, '')))
-  ) stored,
-  created_at timestamptz not null default now()
-);
-
-create table if not exists public.release_products (
-  id uuid primary key default gen_random_uuid(),
-  release_id uuid not null references public.releases(id) on delete cascade,
-  name text not null,
-  description text,
-  sort_order integer not null default 0,
-  is_active boolean not null default true,
-  created_at timestamptz not null default now()
-);
-
-create table if not exists public.reservation_products (
-  reservation_id uuid not null references public.reservations(id) on delete cascade,
-  product_id uuid not null references public.release_products(id) on delete cascade,
-  created_at timestamptz not null default now(),
-  primary key (reservation_id, product_id)
-);
-
-create table if not exists public.reservation_profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
-  display_name text not null check (length(trim(display_name)) > 0),
-  contact text,
-  is_admin boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
+alter table public.reservations
+  alter column user_id set default auth.uid();
 
 create or replace function public.is_reservation_admin()
 returns boolean
@@ -66,33 +21,6 @@ as $$
       and is_admin = true
   );
 $$;
-
-create unique index if not exists reservations_one_request_per_employee
-  on public.reservations (release_id, employee_lookup);
-
-create index if not exists releases_sort_idx
-  on public.releases (is_active, release_date, created_at);
-
-create index if not exists reservations_release_queue_idx
-  on public.reservations (release_id, created_at);
-
-create index if not exists release_products_release_sort_idx
-  on public.release_products (release_id, sort_order, created_at);
-
-create index if not exists reservation_products_product_idx
-  on public.reservation_products (product_id);
-
-alter table public.releases enable row level security;
-alter table public.reservations enable row level security;
-alter table public.release_products enable row level security;
-alter table public.reservation_products enable row level security;
-alter table public.reservation_profiles enable row level security;
-
-drop policy if exists "Public can read releases" on public.releases;
-create policy "Public can read releases"
-  on public.releases for select
-  to authenticated
-  using (auth.role() = 'authenticated');
 
 drop policy if exists "Public can manage releases" on public.releases;
 drop policy if exists "Admins can manage releases" on public.releases;
@@ -122,12 +50,6 @@ create policy "Admins can update reservation statuses"
   to authenticated
   using (public.is_reservation_admin())
   with check (public.is_reservation_admin());
-
-drop policy if exists "Public can read release products" on public.release_products;
-create policy "Public can read release products"
-  on public.release_products for select
-  to authenticated
-  using (auth.role() = 'authenticated');
 
 drop policy if exists "Public can manage release products" on public.release_products;
 drop policy if exists "Admins can manage release products" on public.release_products;
@@ -200,17 +122,4 @@ create policy "Admins can update reservation profiles"
   using (public.is_reservation_admin())
   with check (public.is_reservation_admin() and length(trim(display_name)) > 0);
 
-comment on table public.releases is
-  'Upcoming releases employees can request/reserve.';
-
-comment on table public.reservations is
-  'Employee reservation requests ordered by created_at.';
-
-comment on table public.release_products is
-  'Products/SKUs available under an upcoming release.';
-
-comment on table public.reservation_products is
-  'Products selected on each employee reservation request.';
-
-comment on table public.reservation_profiles is
-  'Reservation profile attached to each authenticated employee.';
+notify pgrst, 'reload schema';
