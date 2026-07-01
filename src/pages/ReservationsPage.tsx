@@ -125,6 +125,24 @@ const formatReleaseDate = (value: string | null) => {
   });
 };
 
+const compareReleasesByDisplayDate = (
+  left: ReleaseRecord,
+  right: ReleaseRecord
+) => {
+  if (left.release_date && !right.release_date) return -1;
+  if (!left.release_date && right.release_date) return 1;
+
+  if (left.release_date && right.release_date) {
+    const dateSort = right.release_date.localeCompare(left.release_date);
+
+    if (dateSort !== 0) return dateSort;
+  }
+
+  return left.title.localeCompare(right.title, undefined, {
+    sensitivity: "base",
+  });
+};
+
 const formatRequestTime = (value: string) =>
   new Date(value).toLocaleString(undefined, {
     month: "short",
@@ -250,7 +268,19 @@ export default function ReservationsPage() {
   const [error, setError] = useState("");
 
   const activeReleases = useMemo(
-    () => releases.filter((release) => release.is_active),
+    () =>
+      releases
+        .filter((release) => release.is_active)
+        .sort(compareReleasesByDisplayDate),
+    [releases]
+  );
+
+  const releasesById = useMemo(
+    () =>
+      releases.reduce<Record<string, ReleaseRecord>>((groups, release) => {
+        groups[release.id] = release;
+        return groups;
+      }, {}),
     [releases]
   );
 
@@ -303,10 +333,22 @@ export default function ReservationsPage() {
   const currentUserReservations = useMemo(() => {
     if (!authSession) return [];
 
-    return reservations.filter(
-      (reservation) => reservation.user_id === authSession.user.id
-    );
-  }, [authSession, reservations]);
+    return reservations
+      .filter((reservation) => reservation.user_id === authSession.user.id)
+      .sort((left, right) => {
+        const leftRelease = releasesById[left.release_id];
+        const rightRelease = releasesById[right.release_id];
+
+        if (leftRelease && rightRelease) {
+          return compareReleasesByDisplayDate(leftRelease, rightRelease);
+        }
+
+        if (leftRelease) return -1;
+        if (rightRelease) return 1;
+
+        return left.created_at.localeCompare(right.created_at);
+      });
+  }, [authSession, releasesById, reservations]);
 
   const currentUserReservationsByRelease = useMemo(() => {
     return currentUserReservations.reduce<Record<string, ReservationRecord>>(
@@ -341,22 +383,7 @@ export default function ReservationsPage() {
     return Object.values(releaseGroups)
       .map((group) => ({
         ...group,
-        releases: group.releases.sort((left, right) => {
-          if (left.release_date && !right.release_date) return -1;
-          if (!left.release_date && right.release_date) return 1;
-
-          if (left.release_date && right.release_date) {
-            const dateSort = right.release_date.localeCompare(
-              left.release_date
-            );
-
-            if (dateSort !== 0) return dateSort;
-          }
-
-          return left.title.localeCompare(right.title, undefined, {
-            sensitivity: "base",
-          });
-        }),
+        releases: group.releases.sort(compareReleasesByDisplayDate),
       }))
       .sort((left, right) =>
         left.game.localeCompare(right.game, undefined, { sensitivity: "base" })
