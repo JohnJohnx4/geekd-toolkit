@@ -73,6 +73,7 @@ import {
   updateReservationStatus,
   upsertReservationProfile,
 } from "./reservationSupabase";
+import { TCG_OPTIONS } from "./timerControllerUtils";
 
 const AUTH_SESSION_KEY = "geekd.reservations.authSession";
 const PROFILE_REQUIRED_KEY = "geekd.reservations.profileRequired";
@@ -137,6 +138,57 @@ const getStatusColor = (status: ReservationStatus) => {
   if (status === "picked_up") return "success";
   if (status === "skipped" || status === "canceled") return "warning";
   return "default";
+};
+
+const getReleaseGameOption = (game: string) =>
+  TCG_OPTIONS.find(
+    (option) => option.name.toLowerCase() === game.trim().toLowerCase()
+  );
+
+const GameBadge = ({
+  game,
+  size = "medium",
+}: {
+  game: string;
+  size?: "small" | "medium";
+}) => {
+  const gameOption = getReleaseGameOption(game);
+  const logoSize = size === "small" ? 26 : 34;
+
+  if (!gameOption) {
+    return <Chip label={game} size={size === "small" ? "small" : "medium"} />;
+  }
+
+  return (
+    <Stack direction="row" spacing={0.75} alignItems="center">
+      <Box
+        sx={{
+          width: logoSize,
+          height: logoSize,
+          borderRadius: 1,
+          bgcolor: gameOption.background,
+          display: "grid",
+          placeItems: "center",
+          p: 0.35,
+        }}
+      >
+        <Box
+          component="img"
+          src={gameOption.logoImage}
+          alt=""
+          sx={{
+            maxWidth: "100%",
+            maxHeight: "100%",
+            objectFit: "contain",
+          }}
+        />
+      </Box>
+      <Chip
+        label={gameOption.name}
+        size={size === "small" ? "small" : "medium"}
+      />
+    </Stack>
+  );
 };
 
 export default function ReservationsPage() {
@@ -1423,6 +1475,11 @@ export default function ReservationsPage() {
                               justifyContent="space-between"
                             >
                               <Box>
+                                {release ? (
+                                  <Box sx={{ mb: 0.75 }}>
+                                    <GameBadge game={release.game} size="small" />
+                                  </Box>
+                                ) : null}
                                 <Typography sx={{ fontWeight: 900 }}>
                                   {release?.title ?? "Release"}
                                 </Typography>
@@ -1517,7 +1574,7 @@ export default function ReservationsPage() {
                             flexWrap="wrap"
                             useFlexGap
                           >
-                            <Chip label={release.game} size="small" />
+                            <GameBadge game={release.game} size="small" />
                           </Stack>
                           <Typography variant="h5" sx={{ mt: 0.75 }}>
                             {release.title}
@@ -1729,10 +1786,19 @@ export default function ReservationsPage() {
                           <Typography variant="h5">
                             {selectedRelease.title}
                           </Typography>
-                          <Typography color="text.secondary">
-                            {selectedRelease.game} •{" "}
-                            {formatReleaseDate(selectedRelease.release_date)}
-                          </Typography>
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            alignItems="center"
+                            flexWrap="wrap"
+                            useFlexGap
+                            sx={{ mt: 0.75 }}
+                          >
+                            <GameBadge game={selectedRelease.game} size="small" />
+                            <Typography color="text.secondary">
+                              {formatReleaseDate(selectedRelease.release_date)}
+                            </Typography>
+                          </Stack>
                         </Box>
 
                         <Stack spacing={1.25}>
@@ -1882,6 +1948,7 @@ export default function ReservationsPage() {
                           }
                         />
                         <TextField
+                          select
                           label="Game / category"
                           value={releaseForm.game}
                           onChange={(event) =>
@@ -1890,7 +1957,32 @@ export default function ReservationsPage() {
                               game: event.target.value,
                             }))
                           }
-                        />
+                        >
+                          {TCG_OPTIONS.map((option) => (
+                            <MenuItem key={option.key} value={option.name}>
+                              <Stack
+                                direction="row"
+                                spacing={1}
+                                alignItems="center"
+                              >
+                                <Box
+                                  component="img"
+                                  src={option.logoImage}
+                                  alt=""
+                                  sx={{
+                                    width: 42,
+                                    height: 24,
+                                    objectFit: "contain",
+                                    bgcolor: option.background,
+                                    borderRadius: 0.75,
+                                    p: 0.35,
+                                  }}
+                                />
+                                <span>{option.name}</span>
+                              </Stack>
+                            </MenuItem>
+                          ))}
+                        </TextField>
                         <TextField
                           label="Release date"
                           type="date"
@@ -2157,6 +2249,7 @@ export default function ReservationsPage() {
                                     }
                                   />
                                   <TextField
+                                    select
                                     label="Game / category"
                                     value={editReleaseForm.game}
                                     onChange={(event) =>
@@ -2169,7 +2262,35 @@ export default function ReservationsPage() {
                                           : prev
                                       )
                                     }
-                                  />
+                                  >
+                                    {TCG_OPTIONS.map((option) => (
+                                      <MenuItem
+                                        key={option.key}
+                                        value={option.name}
+                                      >
+                                        <Stack
+                                          direction="row"
+                                          spacing={1}
+                                          alignItems="center"
+                                        >
+                                          <Box
+                                            component="img"
+                                            src={option.logoImage}
+                                            alt=""
+                                            sx={{
+                                              width: 42,
+                                              height: 24,
+                                              objectFit: "contain",
+                                              bgcolor: option.background,
+                                              borderRadius: 0.75,
+                                              p: 0.35,
+                                            }}
+                                          />
+                                          <span>{option.name}</span>
+                                        </Stack>
+                                      </MenuItem>
+                                    ))}
+                                  </TextField>
                                   <TextField
                                     label="Release date"
                                     type="date"
@@ -2333,7 +2454,7 @@ export default function ReservationsPage() {
                                   <Typography variant="h6">
                                     {release.title}
                                   </Typography>
-                                  <Chip label={release.game} />
+                                  <GameBadge game={release.game} size="small" />
                                   <Chip
                                     label={
                                       release.is_active ? "Active" : "Archived"
@@ -2422,11 +2543,14 @@ export default function ReservationsPage() {
               </Typography>
               <Typography color="text.secondary">
                 {editingRelease
-                  ? `${editingRelease.game} - ${formatReleaseDate(
-                      editingRelease.release_date
-                    )}`
+                  ? formatReleaseDate(editingRelease.release_date)
                   : ""}
               </Typography>
+              {editingRelease ? (
+                <Box sx={{ mt: 1 }}>
+                  <GameBadge game={editingRelease.game} size="small" />
+                </Box>
+              ) : null}
             </Box>
 
             <Box>
