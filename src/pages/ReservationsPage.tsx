@@ -2020,28 +2020,43 @@ export default function ReservationsPage() {
             sx={{
               display: "grid",
               gridTemplateColumns: { xs: "1fr", lg: "280px 1fr" },
-              gap: 2,
+              gap: { xs: 1.25, md: 2 },
               alignItems: "start",
             }}
           >
                 <Card sx={{ position: { lg: "sticky" }, top: { lg: 88 } }}>
-                  <CardContent>
-                    <Stack spacing={1.5}>
-                      <Typography variant="h5">Queue Controls</Typography>
+                  <CardContent sx={{ p: { xs: 1.25, sm: 2 } }}>
+                    <Stack
+                      direction={{ xs: "row", lg: "column" }}
+                      spacing={1}
+                      alignItems={{ xs: "center", lg: "stretch" }}
+                      flexWrap="wrap"
+                      useFlexGap
+                    >
+                      <Typography
+                        variant="h5"
+                        sx={{ display: { xs: "none", lg: "block" } }}
+                      >
+                        Queue Controls
+                      </Typography>
                       <Chip
                         label={`${reservationQueueGroups.length} games`}
+                        size="small"
                         variant="outlined"
                       />
-                      <Chip label={`${releases.length} releases`} />
+                      <Chip label={`${releases.length} releases`} size="small" />
                       <Chip
                         label={`${reservations.length} reservations`}
                         color="primary"
+                        size="small"
                       />
                       <Button
                         variant="outlined"
+                        size="small"
                         startIcon={<RefreshIcon />}
                         onClick={() => loadData(true)}
                         disabled={loading}
+                        sx={{ ml: { xs: "auto", lg: 0 } }}
                       >
                         Refresh
                       </Button>
@@ -2049,25 +2064,26 @@ export default function ReservationsPage() {
                   </CardContent>
                 </Card>
 
-                <Stack spacing={2} sx={{ minWidth: 0 }}>
+                <Stack spacing={{ xs: 1.25, md: 2 }} sx={{ minWidth: 0 }}>
                 {reservationQueueGroups.map((group) => (
                   <Card key={group.game}>
-                    <CardContent>
-                      <Stack spacing={2}>
+                    <CardContent sx={{ p: { xs: 1.25, sm: 2 } }}>
+                      <Stack spacing={{ xs: 1.25, md: 2 }}>
                         <Stack
-                          direction={{ xs: "column", sm: "row" }}
+                          direction="row"
                           spacing={1}
-                          alignItems={{ xs: "flex-start", sm: "center" }}
+                          alignItems="center"
                           justifyContent="space-between"
                         >
                           <GameBadge game={group.game} />
                           <Chip
                             label={`${group.releases.length} releases`}
+                            size="small"
                             variant="outlined"
                           />
                         </Stack>
 
-                        <Stack spacing={1.5}>
+                        <Stack spacing={{ xs: 1, md: 1.5 }}>
                           {group.releases.map((release) => {
                             const releaseReservations =
                               reservationsByRelease[release.id] ?? [];
@@ -2076,23 +2092,31 @@ export default function ReservationsPage() {
                               <Paper
                                 key={release.id}
                                 variant="outlined"
-                                sx={{ p: { xs: 1.5, sm: 2 } }}
+                                sx={{ p: { xs: 1, sm: 1.5, md: 2 } }}
                               >
-                                <Stack spacing={1.5}>
+                                <Stack spacing={{ xs: 1, md: 1.5 }}>
                                   <Stack
-                                    direction={{ xs: "column", md: "row" }}
+                                    direction="row"
                                     spacing={1}
-                                    alignItems={{
-                                      xs: "flex-start",
-                                      md: "center",
-                                    }}
+                                    alignItems="center"
                                     justifyContent="space-between"
                                   >
-                                    <Box>
-                                      <Typography variant="h5">
+                                    <Box sx={{ minWidth: 0 }}>
+                                      <Typography
+                                        variant="h5"
+                                        sx={{
+                                          fontSize: {
+                                            xs: "1rem",
+                                            sm: "1.25rem",
+                                          },
+                                        }}
+                                      >
                                         {release.title}
                                       </Typography>
-                                      <Typography color="text.secondary">
+                                      <Typography
+                                        color="text.secondary"
+                                        sx={{ fontSize: { xs: "0.8rem", sm: "0.875rem" } }}
+                                      >
                                         {formatReleaseDate(
                                           release.release_date
                                         )}
@@ -2100,6 +2124,7 @@ export default function ReservationsPage() {
                                     </Box>
                                     <Chip
                                       label={`${releaseReservations.length} reservations`}
+                                      size="small"
                                       color={
                                         releaseReservations.length
                                           ? "primary"
@@ -2113,14 +2138,14 @@ export default function ReservationsPage() {
                                     />
                                   </Stack>
 
-                                  <Stack spacing={1.25}>
+                                  <Stack spacing={{ xs: 0.75, md: 1.25 }}>
                                     {releaseReservations.map(
                                       (reservation, index) => (
                                         <Paper
                                           key={reservation.id}
                                           variant="outlined"
                                           sx={{
-                                            p: { xs: 1.5, sm: 2 },
+                                            p: { xs: 1, sm: 1.5, md: 2 },
                                             bgcolor: "background.default",
                                           }}
                                         >
@@ -2129,7 +2154,7 @@ export default function ReservationsPage() {
                                               xs: "column",
                                               md: "row",
                                             }}
-                                            spacing={1.5}
+                                            spacing={{ xs: 1, md: 1.5 }}
                                             alignItems={{
                                               xs: "stretch",
                                               md: "center",
@@ -2139,14 +2164,23 @@ export default function ReservationsPage() {
                                             <Box>
                                               <Stack
                                                 direction="row"
-                                                spacing={1}
+                                                spacing={0.75}
                                                 alignItems="center"
                                                 flexWrap="wrap"
                                               >
-                                                <Chip label={`#${index + 1}`} />
+                                                <Chip
+                                                  label={`#${index + 1}`}
+                                                  size="small"
+                                                />
                                                 <Typography
                                                   variant="h6"
-                                                  sx={{ fontWeight: 900 }}
+                                                  sx={{
+                                                    fontWeight: 900,
+                                                    fontSize: {
+                                                      xs: "1rem",
+                                                      sm: "1.125rem",
+                                                    },
+                                                  }}
                                                 >
                                                   {reservation.employee_name}
                                                 </Typography>
@@ -2159,9 +2193,18 @@ export default function ReservationsPage() {
                                                   color={getStatusColor(
                                                     reservation.status
                                                   )}
+                                                  size="small"
                                                 />
                                               </Stack>
-                                              <Typography color="text.secondary">
+                                              <Typography
+                                                color="text.secondary"
+                                                sx={{
+                                                  fontSize: {
+                                                    xs: "0.78rem",
+                                                    sm: "0.875rem",
+                                                  },
+                                                }}
+                                              >
                                                 {formatRequestTime(
                                                   reservation.created_at
                                                 )}
@@ -2170,8 +2213,8 @@ export default function ReservationsPage() {
                                                   : ""}
                                               </Typography>
                                               <Stack
-                                                spacing={0.75}
-                                                sx={{ mt: 0.75 }}
+                                                spacing={0.5}
+                                                sx={{ mt: 0.5 }}
                                               >
                                                 {(
                                                   productsByReservation[
@@ -2181,34 +2224,40 @@ export default function ReservationsPage() {
                                                   <Paper
                                                     key={product.id}
                                                     variant="outlined"
-                                                    sx={{ p: 1 }}
+                                                    sx={{ p: { xs: 0.75, sm: 1 } }}
                                                   >
                                                     <Stack
-                                                      direction={{
-                                                        xs: "column",
-                                                        sm: "row",
-                                                      }}
-                                                      spacing={1}
-                                                      alignItems={{
-                                                        xs: "stretch",
-                                                        sm: "center",
-                                                      }}
+                                                      direction="row"
+                                                      spacing={0.75}
+                                                      alignItems="center"
                                                       justifyContent="space-between"
                                                     >
                                                       <Typography
-                                                        sx={{ fontWeight: 800 }}
+                                                        sx={{
+                                                          fontWeight: 800,
+                                                          minWidth: 0,
+                                                          fontSize: {
+                                                            xs: "0.86rem",
+                                                            sm: "0.95rem",
+                                                          },
+                                                        }}
                                                       >
                                                         {product.name}
                                                       </Typography>
                                                       <FormControl
                                                         size="small"
-                                                        sx={{ minWidth: 160 }}
+                                                        sx={{
+                                                          minWidth: {
+                                                            xs: 126,
+                                                            sm: 160,
+                                                          },
+                                                        }}
                                                       >
                                                         <InputLabel>
-                                                          Product Status
+                                                          Status
                                                         </InputLabel>
                                                         <Select
-                                                          label="Product Status"
+                                                          label="Status"
                                                           value={
                                                             product.reservationProductStatus
                                                           }
@@ -2240,13 +2289,26 @@ export default function ReservationsPage() {
                                                 ))}
                                               </Stack>
                                               {reservation.notes ? (
-                                                <Typography sx={{ mt: 0.5 }}>
+                                                <Typography
+                                                  sx={{
+                                                    mt: 0.5,
+                                                    fontSize: {
+                                                      xs: "0.86rem",
+                                                      sm: "0.95rem",
+                                                    },
+                                                  }}
+                                                >
                                                   {reservation.notes}
                                                 </Typography>
                                               ) : null}
                                             </Box>
 
-                                            <FormControl sx={{ minWidth: 190 }}>
+                                            <FormControl
+                                              size="small"
+                                              sx={{
+                                                minWidth: { xs: "100%", md: 190 },
+                                              }}
+                                            >
                                               <InputLabel>Status</InputLabel>
                                               <Select
                                                 label="Status"
