@@ -180,6 +180,8 @@ export default function ReservationsPage() {
   const [editingReservationId, setEditingReservationId] = useState("");
   const [editingReservationForm, setEditingReservationForm] =
     useState(blankReservationForm);
+  const [savingReservationReleaseId, setSavingReservationReleaseId] =
+    useState("");
   const [loading, setLoading] = useState(false);
   const [savingRelease, setSavingRelease] = useState(false);
   const [message, setMessage] = useState("");
@@ -765,6 +767,7 @@ export default function ReservationsPage() {
 
     setError("");
     setMessage("");
+    setSavingReservationReleaseId(releaseId);
 
     try {
       if (existingReservation) {
@@ -805,6 +808,8 @@ export default function ReservationsPage() {
           ? "That employee already has a request for this release."
           : details || "Unable to save reservation."
       );
+    } finally {
+      setSavingReservationReleaseId("");
     }
   };
 
@@ -1475,9 +1480,14 @@ export default function ReservationsPage() {
             {unrequestedActiveReleases.map((release) => {
               const form = reservationForms[release.id] ?? blankReservationForm;
               const releaseProducts = productsByRelease[release.id] ?? [];
+              const isSavingReservation =
+                savingReservationReleaseId === release.id;
 
               return (
-                <Card key={release.id} sx={{ height: "100%" }}>
+                <Card
+                  key={release.id}
+                  sx={{ height: "100%", position: "relative", overflow: "hidden" }}
+                >
                   <CardContent
                     sx={{
                       height: "100%",
@@ -1609,16 +1619,39 @@ export default function ReservationsPage() {
                         disabled={
                           !isReservationsConfigured ||
                           !releaseProducts.length ||
-                          !form.productIds.length
+                          !form.productIds.length ||
+                          isSavingReservation
                         }
                         sx={{ mt: "auto" }}
                       >
-                        {form.productIds.length
+                        {isSavingReservation
+                          ? "Saving..."
+                          : form.productIds.length
                           ? "Request Reservation"
                           : "Select a Product First"}
                       </Button>
                     </Stack>
                   </CardContent>
+                  {isSavingReservation ? (
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        inset: 0,
+                        zIndex: 1,
+                        display: "grid",
+                        placeItems: "center",
+                        bgcolor: "rgba(255, 255, 255, 0.78)",
+                        backdropFilter: "blur(2px)",
+                      }}
+                    >
+                      <Stack spacing={1} alignItems="center">
+                        <CircularProgress />
+                        <Typography sx={{ fontWeight: 900 }}>
+                          Saving reservation...
+                        </Typography>
+                      </Stack>
+                    </Box>
+                  ) : null}
                 </Card>
               );
             })}
