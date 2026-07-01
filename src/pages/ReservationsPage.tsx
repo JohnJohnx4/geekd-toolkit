@@ -53,6 +53,7 @@ import {
   fetchReservationProfiles,
   fetchReservationProducts,
   fetchReservations,
+  ensureOwnerReservationProducts,
   isReservationsConfigured,
   refreshReservationsSession,
   type ReservationAuthSession,
@@ -790,10 +791,14 @@ export default function ReservationsPage() {
         .filter((product) => !product.id)
         .map((product) => product.name);
 
-      await createReleaseProducts(
+      const createdProducts = await createReleaseProducts(
         release.id,
         newProductNames,
         productItems.length - newProductNames.length
+      );
+      await ensureOwnerReservationProducts(
+        release.id,
+        createdProducts.map((product) => product.id)
       );
 
       cancelEditingRelease();

@@ -106,7 +106,7 @@ drop policy if exists "Public can add reservation requests" on public.reservatio
 create policy "Public can add reservation requests"
   on public.reservations for insert
   to authenticated
-  with check (auth.uid() = user_id);
+  with check (auth.uid() = user_id or public.is_reservation_admin());
 
 drop policy if exists "Public can read reservation queue" on public.reservations;
 drop policy if exists "Users can read own reservations and admins can read queue" on public.reservations;
