@@ -1362,7 +1362,17 @@ export default function ReservationsPage() {
                 <CardContent>
                   <Stack spacing={1.5}>
                     <Typography variant="h5">Your Reservations</Typography>
-                    <Stack spacing={1}>
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: {
+                          xs: "1fr",
+                          sm: "repeat(2, minmax(0, 1fr))",
+                          lg: "repeat(3, minmax(0, 1fr))",
+                        },
+                        gap: 1,
+                      }}
+                    >
                       {currentUserReservations.map((reservation) => {
                         const release = releases.find(
                           (item) => item.id === reservation.release_id
@@ -1376,23 +1386,27 @@ export default function ReservationsPage() {
                             type="button"
                             onClick={() => openReservationEditor(reservation)}
                             sx={{
-                              width: "100%",
                               p: 1.5,
                               textAlign: "left",
                               borderColor: "divider",
                               cursor: "pointer",
                               bgcolor: "background.paper",
+                              minHeight: 132,
                             }}
                           >
                             <Stack
-                              direction={{ xs: "column", sm: "row" }}
                               spacing={1}
+                              sx={{ height: "100%" }}
                               justifyContent="space-between"
-                              alignItems={{ xs: "stretch", sm: "center" }}
                             >
                               <Box>
                                 <Typography sx={{ fontWeight: 900 }}>
                                   {release?.title ?? "Release"}
+                                </Typography>
+                                <Typography color="text.secondary">
+                                  {formatReleaseDate(
+                                    release?.release_date ?? null
+                                  )}
                                 </Typography>
                                 <Typography color="text.secondary">
                                   {(productsByReservation[reservation.id] ?? [])
@@ -1400,7 +1414,12 @@ export default function ReservationsPage() {
                                     .join(", ") || "No products selected"}
                                 </Typography>
                               </Box>
-                              <Stack direction="row" spacing={1}>
+                              <Stack
+                                direction="row"
+                                spacing={1}
+                                flexWrap="wrap"
+                                useFlexGap
+                              >
                                 <Chip
                                   label={statusLabels[reservation.status]}
                                   color={getStatusColor(reservation.status)}
@@ -1417,7 +1436,7 @@ export default function ReservationsPage() {
                           </Paper>
                         );
                       })}
-                    </Stack>
+                    </Box>
                   </Stack>
                 </CardContent>
               </Card>
