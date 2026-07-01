@@ -153,6 +153,39 @@ const getFullscreenTimeFontSize = (
   return { xs: 64, sm: 86, md: 104, xl: 124 };
 };
 
+const getFullscreenLogoSize = (count: number) => {
+  if (count <= 1) {
+    return {
+      width: { xs: 190, sm: 320, md: 440, xl: 540 },
+      height: { xs: 116, sm: 190, md: 260, xl: 320 },
+    };
+  }
+
+  if (count === 2) {
+    return {
+      width: { xs: 160, sm: 240, md: 300, xl: 360 },
+      height: { xs: 98, sm: 146, md: 180, xl: 216 },
+    };
+  }
+
+  return {
+    width: { xs: 132, sm: 176, md: 220, xl: 260 },
+    height: { xs: 82, sm: 108, md: 134, xl: 158 },
+  };
+};
+
+const getFullscreenTitleFontSize = (count: number) => {
+  if (count <= 1) return { xs: 54, sm: 96, md: 136, xl: 164 };
+  if (count === 2) return { xs: 48, sm: 74, md: 94, xl: 116 };
+  return { xs: 38, sm: 52, md: 64, xl: 76 };
+};
+
+const getFullscreenGameFontSize = (count: number) => {
+  if (count <= 1) return { xs: 28, sm: 48, md: 64, xl: 78 };
+  if (count === 2) return { xs: 24, sm: 36, md: 46, xl: 56 };
+  return { xs: 20, sm: 28, md: 34, xl: 40 };
+};
+
 export default function TimerControllerPage() {
   const [timers, setTimers] = useState<TimerItem[]>(() =>
     normalizeSavedTimers(readTimerSnapshot(), true)
@@ -762,9 +795,10 @@ export default function TimerControllerPage() {
                     >
                       <Box
                         sx={{
-                          width: { xs: 88, sm: 124, md: 150 },
-                          minWidth: { xs: 88, sm: 124, md: 150 },
-                          height: { xs: 58, sm: 82, md: 98 },
+                          ...getFullscreenLogoSize(displayedTimers.length),
+                          minWidth: getFullscreenLogoSize(
+                            displayedTimers.length
+                          ).width,
                           display: "grid",
                           placeItems: "center",
                           borderRadius: 2,
@@ -787,7 +821,9 @@ export default function TimerControllerPage() {
                       <Box sx={{ minWidth: 0 }}>
                         <Typography
                           sx={{
-                            fontSize: { xs: 26, sm: 38, md: 48 },
+                            fontSize: getFullscreenTitleFontSize(
+                              displayedTimers.length
+                            ),
                             fontWeight: 900,
                             lineHeight: 1.05,
                             overflowWrap: "anywhere",
@@ -799,8 +835,11 @@ export default function TimerControllerPage() {
                           sx={{
                             color: "#cbd5e1",
                             mt: 0.5,
-                            fontSize: { xs: 16, sm: 20, md: 24 },
+                            fontSize: getFullscreenGameFontSize(
+                              displayedTimers.length
+                            ),
                             fontWeight: 800,
+                            lineHeight: 1.05,
                           }}
                         >
                           {tcg.name}
