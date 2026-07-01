@@ -232,7 +232,6 @@ export default function ReservationsPage() {
     ReservationProductRecord[]
   >([]);
   const [profiles, setProfiles] = useState<ReservationProfileRecord[]>([]);
-  const [selectedReleaseId, setSelectedReleaseId] = useState("");
   const [releaseForm, setReleaseForm] = useState(blankReleaseForm);
   const [editingReleaseId, setEditingReleaseId] = useState("");
   const [editReleaseForm, setEditReleaseForm] =
@@ -327,9 +326,37 @@ export default function ReservationsPage() {
     [activeReleases, currentUserReservationsByRelease]
   );
 
-  const selectedRelease =
-    releases.find((release) => release.id === selectedReleaseId) ??
-    releases[0];
+  const reservationQueueGroups = useMemo(() => {
+    const releaseGroups = releases.reduce<
+      Record<string, { game: string; releases: ReleaseRecord[] }>
+    >((groups, release) => {
+      const game = release.game.trim() || "Other";
+      const groupKey = game.toLowerCase();
+
+      groups[groupKey] = groups[groupKey] ?? { game, releases: [] };
+      groups[groupKey].releases.push(release);
+      return groups;
+    }, {});
+
+    return Object.values(releaseGroups)
+      .map((group) => ({
+        ...group,
+        releases: group.releases.sort((left, right) => {
+          const titleSort = left.title.localeCompare(right.title, undefined, {
+            sensitivity: "base",
+          });
+
+          if (titleSort !== 0) return titleSort;
+
+          return (left.release_date ?? "").localeCompare(
+            right.release_date ?? ""
+          );
+        }),
+      }))
+      .sort((left, right) =>
+        left.game.localeCompare(right.game, undefined, { sensitivity: "base" })
+      );
+  }, [releases]);
 
   const persistAuthSession = useCallback(
     (session: ReservationAuthSession | null) => {
@@ -512,7 +539,6 @@ export default function ReservationsPage() {
         setReservations(reservationRows);
         setReservationProducts(reservationProductRows);
         setProfiles(profileRows);
-        setSelectedReleaseId((current) => current || releaseRows[0]?.id || "");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unable to load data.");
       } finally {
@@ -1744,7 +1770,7 @@ export default function ReservationsPage() {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", lg: "320px 1fr" },
+              gridTemplateColumns: { xs: "1fr", lg: "280px 1fr" },
               gap: 2,
               alignItems: "start",
             }}
@@ -1753,22 +1779,15 @@ export default function ReservationsPage() {
                   <CardContent>
                     <Stack spacing={1.5}>
                       <Typography variant="h5">Queue Controls</Typography>
-                      <FormControl fullWidth>
-                        <InputLabel>Release</InputLabel>
-                        <Select
-                          label="Release"
-                          value={selectedRelease?.id ?? ""}
-                          onChange={(event) =>
-                            setSelectedReleaseId(event.target.value)
-                          }
-                        >
-                          {releases.map((release) => (
-                            <MenuItem key={release.id} value={release.id}>
-                              {release.title}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
+                      <Chip
+                        label={`${reservationQueueGroups.length} games`}
+                        variant="outlined"
+                      />
+                      <Chip label={`${releases.length} releases`} />
+                      <Chip
+                        label={`${reservations.length} reservations`}
+                        color="primary"
+                      />
                       <Button
                         variant="outlined"
                         startIcon={<RefreshIcon />}
@@ -1781,137 +1800,207 @@ export default function ReservationsPage() {
                   </CardContent>
                 </Card>
 
-                <Stack
-                  spacing={2}
-                  sx={{ minWidth: 0 }}
-                >
-                {selectedRelease ? (
-                  <Card>
+                <Stack spacing={2} sx={{ minWidth: 0 }}>
+                {reservationQueueGroups.map((group) => (
+                  <Card key={group.game}>
                     <CardContent>
                       <Stack spacing={2}>
-                        <Box>
-                          <Typography variant="h5">
-                            {selectedRelease.title}
-                          </Typography>
-                          <Stack
-                            direction="row"
-                            spacing={1}
-                            alignItems="center"
-                            flexWrap="wrap"
-                            useFlexGap
-                            sx={{ mt: 0.75 }}
-                          >
-                            <GameBadge game={selectedRelease.game} size="small" />
-                            <Typography color="text.secondary">
-                              {formatReleaseDate(selectedRelease.release_date)}
-                            </Typography>
-                          </Stack>
-                        </Box>
+                        <Stack
+                          direction={{ xs: "column", sm: "row" }}
+                          spacing={1}
+                          alignItems={{ xs: "flex-start", sm: "center" }}
+                          justifyContent="space-between"
+                        >
+                          <GameBadge game={group.game} />
+                          <Chip
+                            label={`${group.releases.length} releases`}
+                            variant="outlined"
+                          />
+                        </Stack>
 
-                        <Stack spacing={1.25}>
-                          {(reservationsByRelease[selectedRelease.id] ?? []).map(
-                            (reservation, index) => (
+                        <Stack spacing={1.5}>
+                          {group.releases.map((release) => {
+                            const releaseReservations =
+                              reservationsByRelease[release.id] ?? [];
+
+                            return (
                               <Paper
-                                key={reservation.id}
+                                key={release.id}
                                 variant="outlined"
                                 sx={{ p: { xs: 1.5, sm: 2 } }}
                               >
-                                <Stack
-                                  direction={{ xs: "column", md: "row" }}
-                                  spacing={1.5}
-                                  alignItems={{ xs: "stretch", md: "center" }}
-                                  justifyContent="space-between"
-                                >
-                                  <Box>
-                                    <Stack
-                                      direction="row"
-                                      spacing={1}
-                                      alignItems="center"
-                                      flexWrap="wrap"
-                                    >
-                                      <Chip label={`#${index + 1}`} />
-                                      <Typography
-                                        variant="h6"
-                                        sx={{ fontWeight: 900 }}
-                                      >
-                                        {reservation.employee_name}
+                                <Stack spacing={1.5}>
+                                  <Stack
+                                    direction={{ xs: "column", md: "row" }}
+                                    spacing={1}
+                                    alignItems={{
+                                      xs: "flex-start",
+                                      md: "center",
+                                    }}
+                                    justifyContent="space-between"
+                                  >
+                                    <Box>
+                                      <Typography variant="h5">
+                                        {release.title}
                                       </Typography>
-                                      <Chip
-                                        label={statusLabels[reservation.status]}
-                                        color={getStatusColor(
-                                          reservation.status
+                                      <Typography color="text.secondary">
+                                        {formatReleaseDate(
+                                          release.release_date
                                         )}
-                                      />
-                                    </Stack>
-                                    <Typography color="text.secondary">
-                                      {formatRequestTime(
-                                        reservation.created_at
-                                      )}
-                                      {reservation.employee_contact
-                                        ? ` • ${reservation.employee_contact}`
-                                        : ""}
-                                    </Typography>
-                                    <Stack
-                                      direction="row"
-                                      spacing={0.75}
-                                      flexWrap="wrap"
-                                      useFlexGap
-                                      sx={{ mt: 0.75 }}
-                                    >
-                                      {(
-                                        productsByReservation[reservation.id] ??
-                                        []
-                                      ).map((product) => (
-                                        <Chip
-                                          key={product.id}
-                                          label={product.name}
-                                          size="small"
-                                          color="primary"
+                                      </Typography>
+                                    </Box>
+                                    <Chip
+                                      label={`${releaseReservations.length} reservations`}
+                                      color={
+                                        releaseReservations.length
+                                          ? "primary"
+                                          : "default"
+                                      }
+                                      variant={
+                                        releaseReservations.length
+                                          ? "filled"
+                                          : "outlined"
+                                      }
+                                    />
+                                  </Stack>
+
+                                  <Stack spacing={1.25}>
+                                    {releaseReservations.map(
+                                      (reservation, index) => (
+                                        <Paper
+                                          key={reservation.id}
                                           variant="outlined"
-                                        />
-                                      ))}
-                                    </Stack>
-                                    {reservation.notes ? (
-                                      <Typography sx={{ mt: 0.5 }}>
-                                        {reservation.notes}
+                                          sx={{
+                                            p: { xs: 1.5, sm: 2 },
+                                            bgcolor: "background.default",
+                                          }}
+                                        >
+                                          <Stack
+                                            direction={{
+                                              xs: "column",
+                                              md: "row",
+                                            }}
+                                            spacing={1.5}
+                                            alignItems={{
+                                              xs: "stretch",
+                                              md: "center",
+                                            }}
+                                            justifyContent="space-between"
+                                          >
+                                            <Box>
+                                              <Stack
+                                                direction="row"
+                                                spacing={1}
+                                                alignItems="center"
+                                                flexWrap="wrap"
+                                              >
+                                                <Chip label={`#${index + 1}`} />
+                                                <Typography
+                                                  variant="h6"
+                                                  sx={{ fontWeight: 900 }}
+                                                >
+                                                  {reservation.employee_name}
+                                                </Typography>
+                                                <Chip
+                                                  label={
+                                                    statusLabels[
+                                                      reservation.status
+                                                    ]
+                                                  }
+                                                  color={getStatusColor(
+                                                    reservation.status
+                                                  )}
+                                                />
+                                              </Stack>
+                                              <Typography color="text.secondary">
+                                                {formatRequestTime(
+                                                  reservation.created_at
+                                                )}
+                                                {reservation.employee_contact
+                                                  ? ` - ${reservation.employee_contact}`
+                                                  : ""}
+                                              </Typography>
+                                              <Stack
+                                                direction="row"
+                                                spacing={0.75}
+                                                flexWrap="wrap"
+                                                useFlexGap
+                                                sx={{ mt: 0.75 }}
+                                              >
+                                                {(
+                                                  productsByReservation[
+                                                    reservation.id
+                                                  ] ?? []
+                                                ).map((product) => (
+                                                  <Chip
+                                                    key={product.id}
+                                                    label={product.name}
+                                                    size="small"
+                                                    color="primary"
+                                                    variant="outlined"
+                                                  />
+                                                ))}
+                                              </Stack>
+                                              {reservation.notes ? (
+                                                <Typography sx={{ mt: 0.5 }}>
+                                                  {reservation.notes}
+                                                </Typography>
+                                              ) : null}
+                                            </Box>
+
+                                            <FormControl sx={{ minWidth: 190 }}>
+                                              <InputLabel>Status</InputLabel>
+                                              <Select
+                                                label="Status"
+                                                value={reservation.status}
+                                                onChange={(event) =>
+                                                  changeReservationStatus(
+                                                    reservation,
+                                                    event.target
+                                                      .value as ReservationStatus
+                                                  )
+                                                }
+                                              >
+                                                {Object.entries(
+                                                  statusLabels
+                                                ).map(([value, label]) => (
+                                                  <MenuItem
+                                                    key={value}
+                                                    value={value}
+                                                  >
+                                                    {label}
+                                                  </MenuItem>
+                                                ))}
+                                              </Select>
+                                            </FormControl>
+                                          </Stack>
+                                        </Paper>
+                                      )
+                                    )}
+
+                                    {!releaseReservations.length ? (
+                                      <Typography color="text.secondary">
+                                        No requests have been submitted for this
+                                        release.
                                       </Typography>
                                     ) : null}
-                                  </Box>
-
-                                  <FormControl sx={{ minWidth: 190 }}>
-                                    <InputLabel>Status</InputLabel>
-                                    <Select
-                                      label="Status"
-                                      value={reservation.status}
-                                      onChange={(event) =>
-                                        changeReservationStatus(
-                                          reservation,
-                                          event.target
-                                            .value as ReservationStatus
-                                        )
-                                      }
-                                    >
-                                      {Object.entries(statusLabels).map(
-                                        ([value, label]) => (
-                                          <MenuItem key={value} value={value}>
-                                            {label}
-                                          </MenuItem>
-                                        )
-                                      )}
-                                    </Select>
-                                  </FormControl>
+                                  </Stack>
                                 </Stack>
                               </Paper>
-                            )
-                          )}
-
-                          {!reservationsByRelease[selectedRelease.id]?.length ? (
-                            <Typography color="text.secondary">
-                              No requests have been submitted for this release.
-                            </Typography>
-                          ) : null}
+                            );
+                          })}
                         </Stack>
                       </Stack>
+                    </CardContent>
+                  </Card>
+                ))}
+
+                {!reservationQueueGroups.length ? (
+                  <Card>
+                    <CardContent>
+                      <Typography>
+                        No releases are available in the queue yet.
+                      </Typography>
                     </CardContent>
                   </Card>
                 ) : null}
