@@ -1324,39 +1324,57 @@ export default function ReservationsPage() {
           </Stack>
         </Paper>
 
-        <Paper sx={{ overflow: "hidden" }}>
-          <Tabs
-            value={tab}
-            onChange={(_, nextTab) => setTab(nextTab)}
-            variant="scrollable"
-            scrollButtons="auto"
-            sx={{
-              px: { md: 1 },
-              ".MuiTabs-flexContainer": {
-                justifyContent: { md: "center" },
-              },
-            }}
-          >
-            <Tab icon={<EventAvailableIcon />} iconPosition="start" label="Reserve" />
-            {isAdmin ? (
+        {isAdmin ? (
+          <Paper sx={{ overflow: "hidden" }}>
+            <Tabs
+              value={tab}
+              onChange={(_, nextTab) => setTab(nextTab)}
+              variant="scrollable"
+              scrollButtons="auto"
+              sx={{
+                px: { md: 1 },
+                ".MuiTabs-flexContainer": {
+                  justifyContent: { md: "center" },
+                },
+              }}
+            >
+              <Tab
+                icon={<EventAvailableIcon />}
+                iconPosition="start"
+                label="Reserve"
+              />
               <Tab
                 icon={<InventoryIcon />}
                 iconPosition="start"
                 label="Reservation Queue"
               />
-            ) : null}
-            {isAdmin ? (
               <Tab
                 icon={<AdminPanelSettingsIcon />}
                 iconPosition="start"
                 label="Manage Releases"
               />
-            ) : null}
-          </Tabs>
-        </Paper>
+            </Tabs>
+          </Paper>
+        ) : null}
 
         {tab === 0 ? (
           <Stack spacing={2}>
+            {!isAdmin ? (
+              <Card>
+                <CardContent>
+                  <Stack spacing={1}>
+                    <Typography variant="h5">Make a Reservation</Typography>
+                    <Typography color="text.secondary">
+                      Select the products you want from an available release,
+                      add any notes, then submit your request. Releases you
+                      already requested move into Your Reservations, where you
+                      can tap the card to edit it.
+                    </Typography>
+                  </Stack>
+                </CardContent>
+              </Card>
+            ) : null}
+
             {currentUserReservations.length ? (
               <Card>
                 <CardContent>
