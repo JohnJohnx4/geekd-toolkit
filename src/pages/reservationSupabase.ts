@@ -67,6 +67,19 @@ export type ReservationAuthSession = {
 
 export type ReservationAuthUser = ReservationAuthSession["user"];
 
+export type InfoArticleRecord = {
+  id: string;
+  title: string;
+  summary: string | null;
+  url: string | null;
+  content_html: string;
+  is_published: boolean;
+  sort_order: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type ReleaseInput = {
   title: string;
   game: string;
@@ -95,6 +108,15 @@ type ReleaseProductInput = {
   name?: string;
   sort_order?: number;
   is_active?: boolean;
+};
+
+export type InfoArticleInput = {
+  title: string;
+  summary: string | null;
+  url: string | null;
+  content_html: string;
+  is_published: boolean;
+  sort_order: number;
 };
 
 const OWNER_RESERVATION_NAME = "Linda";
@@ -671,4 +693,47 @@ export const updateReservationStatus = async (
   );
 
   return rows[0];
+};
+
+export const fetchInfoArticles = (includeDrafts = false) => {
+  const draftFilter = includeDrafts ? "" : "&is_published=eq.true";
+  return requestJson<InfoArticleRecord[]>(
+    `info_articles?select=*&order=sort_order.asc,updated_at.desc${draftFilter}`
+  );
+};
+
+export const createInfoArticle = async (article: InfoArticleInput) => {
+  const rows = await requestJson<InfoArticleRecord[]>("info_articles", {
+    method: "POST",
+    headers: getHeaders("return=representation"),
+    body: JSON.stringify(article),
+  });
+
+  return rows[0];
+};
+
+export const updateInfoArticle = async (
+  id: string,
+  article: Partial<InfoArticleInput>
+) => {
+  const rows = await requestJson<InfoArticleRecord[]>(
+    `info_articles?id=eq.${encodeFilter(id)}`,
+    {
+      method: "PATCH",
+      headers: getHeaders("return=representation"),
+      body: JSON.stringify({
+        ...article,
+        updated_at: new Date().toISOString(),
+      }),
+    }
+  );
+
+  return rows[0];
+};
+
+export const deleteInfoArticle = async (id: string) => {
+  await requestJson<void>(`info_articles?id=eq.${encodeFilter(id)}`, {
+    method: "DELETE",
+    headers: getHeaders(),
+  });
 };

@@ -21,6 +21,8 @@ import CatchingPokemonIcon from "@mui/icons-material/CatchingPokemon";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 import TimerIcon from "@mui/icons-material/Timer";
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
+import ArticleIcon from "@mui/icons-material/Article";
+import PersonIcon from "@mui/icons-material/Person";
 
 const RESERVATION_PROFILE_REQUIRED_KEY =
   "geekd.reservations.profileRequired";
@@ -135,6 +137,18 @@ export default function AppLayout() {
                   <EventAvailableIcon fontSize="small" />
                 </ListItemIcon>
                 <ListItemText>Reservations</ListItemText>
+              </MenuItem>
+              <MenuItem onClick={() => handleNavigation("/info-hub")}>
+                <ListItemIcon>
+                  <ArticleIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Info Hub</ListItemText>
+              </MenuItem>
+              <MenuItem onClick={() => handleNavigation("/account")}>
+                <ListItemIcon>
+                  <PersonIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Account</ListItemText>
               </MenuItem>
             </Menu>
           </Stack>

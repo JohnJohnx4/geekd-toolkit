@@ -12,6 +12,8 @@ import MoneyIcon from "@mui/icons-material/Money";
 import PriceCheckIcon from "@mui/icons-material/PriceCheck";
 import TimerIcon from "@mui/icons-material/Timer";
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
+import ArticleIcon from "@mui/icons-material/Article";
+import PersonIcon from "@mui/icons-material/Person";
 import { useNavigate } from "@tanstack/react-router";
 
 const tools = [
@@ -62,6 +64,22 @@ const tools = [
     icon: EventAvailableIcon,
     color: "#166534",
     background: "#dcfce7",
+  },
+  {
+    label: "Info Hub",
+    description: "Employee articles and important links",
+    path: "/info-hub",
+    icon: ArticleIcon,
+    color: "#0f3d5e",
+    background: "#dff3ff",
+  },
+  {
+    label: "Account",
+    description: "Manage your employee profile and password",
+    path: "/account",
+    icon: PersonIcon,
+    color: "#5b21b6",
+    background: "#ede9fe",
   },
 ] as const;
 

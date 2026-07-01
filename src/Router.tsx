@@ -13,6 +13,8 @@ import PokemonSetSymbolsPage from "./pages/PokemonSetSymbolsPage";
 import MtgSetSymbolsPage from "./pages/MtgSetSymbolsPage";
 import TimerControllerPage from "./pages/TimerControllerPage";
 import ReservationsPage from "./pages/ReservationsPage";
+import InfoHubPage from "./pages/InfoHubPage";
+import AccountPage from "./pages/AccountPage";
 
 // --------------------
 // Root layout
@@ -72,6 +74,18 @@ const reservationsRoute = createRoute({
   component: ReservationsPage,
 });
 
+const infoHubRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/info-hub",
+  component: InfoHubPage,
+});
+
+const accountRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/account",
+  component: AccountPage,
+});
+
 // --------------------
 // Route tree
 // --------------------
@@ -84,6 +98,8 @@ const routeTree = rootRoute.addChildren([
   mtgSetSymbolsRoute,
   timerControllerRoute,
   reservationsRoute,
+  infoHubRoute,
+  accountRoute,
 ]);
 
 export const router = createRouter({ routeTree });
