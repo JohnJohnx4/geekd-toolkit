@@ -56,6 +56,7 @@ import {
   ensureOwnerReservationProducts,
   isReservationsConfigured,
   refreshReservationsSession,
+  sendReservationsPasswordReset,
   type ReservationAuthSession,
   setReservationsAccessToken,
   signInReservationsUser,
@@ -111,6 +112,11 @@ type ReleaseEditForm = {
 const blankReservationForm = {
   notes: "",
   productIds: [] as string[],
+};
+
+const blankPasswordForm = {
+  password: "",
+  confirmPassword: "",
 };
 
 const statusLabels: Record<ReservationStatus, string> = {
@@ -266,10 +272,11 @@ export default function ReservationsPage() {
     email: "",
     password: "",
   });
-  const [passwordSetupForm, setPasswordSetupForm] = useState({
-    password: "",
-    confirmPassword: "",
-  });
+  const [passwordSetupForm, setPasswordSetupForm] =
+    useState(blankPasswordForm);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [changePasswordForm, setChangePasswordForm] =
+    useState(blankPasswordForm);
   const [profile, setProfile] = useState<ReservationProfileRecord | null>(null);
   const [profileChecked, setProfileChecked] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
@@ -644,16 +651,51 @@ export default function ReservationsPage() {
     }
   };
 
-  const completePasswordSetup = async () => {
-    if (!passwordSetupSession) return;
-
-    if (passwordSetupForm.password.length < 8) {
+  const validatePasswordForm = (form: typeof blankPasswordForm) => {
+    if (form.password.length < 8) {
       setError("Password must be at least 8 characters.");
+      return false;
+    }
+
+    if (form.password !== form.confirmPassword) {
+      setError("Passwords do not match.");
+      return false;
+    }
+
+    return true;
+  };
+
+  const requestPasswordReset = async () => {
+    const email = loginForm.email.trim();
+
+    if (!email) {
+      setError("Enter your email first, then request a reset link.");
       return;
     }
 
-    if (passwordSetupForm.password !== passwordSetupForm.confirmPassword) {
-      setError("Passwords do not match.");
+    setAuthLoading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      await sendReservationsPasswordReset(
+        email,
+        `${window.location.origin}${window.location.pathname}${window.location.search}`
+      );
+      setMessage("Password reset link sent. Check your email.");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to send password reset link."
+      );
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const completePasswordSetup = async () => {
+    if (!passwordSetupSession || !validatePasswordForm(passwordSetupForm)) {
       return;
     }
 
@@ -673,11 +715,41 @@ export default function ReservationsPage() {
 
       persistAuthSession(session);
       setPasswordSetupSession(null);
-      setPasswordSetupForm({ password: "", confirmPassword: "" });
-      setMessage("Password set. You are logged in.");
+      setPasswordSetupForm(blankPasswordForm);
+      setMessage("Password saved. You are logged in.");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Unable to set password."
+      );
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const changeLoggedInPassword = async () => {
+    if (!authSession || !validatePasswordForm(changePasswordForm)) {
+      return;
+    }
+
+    setAuthLoading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const user = await updateReservationsPassword(
+        authSession.access_token,
+        changePasswordForm.password
+      );
+      persistAuthSession({
+        ...authSession,
+        user,
+      });
+      setChangePasswordForm(blankPasswordForm);
+      setChangePasswordOpen(false);
+      setMessage("Password changed.");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to change password."
       );
     } finally {
       setAuthLoading(false);
@@ -1339,6 +1411,18 @@ export default function ReservationsPage() {
                 >
                   {authLoading ? "Logging In..." : "Log In"}
                 </Button>
+                <Button
+                  variant="text"
+                  startIcon={<LockResetIcon />}
+                  onClick={requestPasswordReset}
+                  disabled={
+                    authLoading ||
+                    !isReservationsConfigured ||
+                    !loginForm.email.trim()
+                  }
+                >
+                  Send Reset Link
+                </Button>
               </Stack>
             </CardContent>
           </Card>
@@ -1454,7 +1538,13 @@ export default function ReservationsPage() {
     : [];
 
   return (
-    <Container maxWidth="xl" sx={{ py: { xs: 2, md: 4 } }}>
+    <Container
+      maxWidth="xl"
+      sx={{
+        pt: { xs: 2, md: 4 },
+        pb: { xs: isAdmin ? 11 : 2, md: 4 },
+      }}
+    >
       <Stack spacing={2.5}>
         <Paper sx={{ p: { xs: 2, sm: 3 } }}>
           <Stack
@@ -1480,25 +1570,19 @@ export default function ReservationsPage() {
               useFlexGap
               sx={{ justifyContent: { xs: "flex-start", md: "flex-end" } }}
             >
-              <Chip label={`${activeReleases.length} active releases`} />
-              {isAdmin ? (
-                <Chip
-                  label={`${reservations.length} reservations`}
-                  color="primary"
-                  variant="outlined"
-                />
-              ) : null}
               <Chip label={profile.display_name} color="success" />
-              {isAdmin ? (
-                <Chip
-                  label="Admin"
-                  color="secondary"
-                  icon={<AdminPanelSettingsIcon />}
-                />
-              ) : null}
-              {authSession.user.email ? (
-                <Chip label={authSession.user.email} variant="outlined" />
-              ) : null}
+              <Chip
+                label={isAdmin ? "Admin" : "Employee"}
+                color={isAdmin ? "secondary" : "default"}
+                icon={isAdmin ? <AdminPanelSettingsIcon /> : undefined}
+              />
+              <Button
+                variant="outlined"
+                startIcon={<LockResetIcon />}
+                onClick={() => setChangePasswordOpen(true)}
+              >
+                Change Password
+              </Button>
               <Button
                 variant="outlined"
                 startIcon={<LogoutIcon />}
@@ -1521,16 +1605,48 @@ export default function ReservationsPage() {
         </Paper>
 
         {isAdmin ? (
-          <Paper sx={{ overflow: "hidden" }}>
+          <Paper
+            sx={(theme) => ({
+              overflow: "hidden",
+              position: { xs: "fixed", md: "static" },
+              right: { xs: 0, md: "auto" },
+              bottom: { xs: 0, md: "auto" },
+              left: { xs: 0, md: "auto" },
+              zIndex: { xs: theme.zIndex.appBar, md: "auto" },
+              borderRadius: { xs: "12px 12px 0 0", md: 1 },
+              borderTop: { xs: `1px solid ${theme.palette.divider}`, md: 0 },
+              boxShadow: {
+                xs: "0 -10px 28px rgba(15, 23, 42, 0.16)",
+                md: theme.shadows[1],
+              },
+            })}
+          >
             <Tabs
               value={tab}
               onChange={(_, nextTab) => setTab(nextTab)}
-              variant="scrollable"
-              scrollButtons="auto"
+              variant="fullWidth"
               sx={{
                 px: { md: 1 },
                 ".MuiTabs-flexContainer": {
                   justifyContent: { md: "center" },
+                },
+                ".MuiTab-root": {
+                  flex: { xs: "0 0 33.3333%", md: "0 1 auto" },
+                  maxWidth: { xs: "33.3333%", md: 360 },
+                  minWidth: { xs: 0, md: 90 },
+                  width: { xs: "33.3333%", md: "auto" },
+                  minHeight: { xs: 66, md: 48 },
+                  px: { xs: 0.5, md: 2 },
+                  py: { xs: 0.75, md: 1.25 },
+                  fontSize: { xs: "0.68rem", sm: "0.75rem", md: "0.875rem" },
+                  lineHeight: 1.1,
+                  flexDirection: { xs: "column", md: "row" },
+                  gap: { xs: 0.35, md: 0 },
+                },
+                ".MuiTab-iconWrapper": {
+                  mr: { xs: 0, md: 0.75 },
+                  mb: { xs: 0.25, md: 0 },
+                  fontSize: { xs: 23, md: 24 },
                 },
               }}
             >
@@ -1904,28 +2020,43 @@ export default function ReservationsPage() {
             sx={{
               display: "grid",
               gridTemplateColumns: { xs: "1fr", lg: "280px 1fr" },
-              gap: 2,
+              gap: { xs: 1.25, md: 2 },
               alignItems: "start",
             }}
           >
                 <Card sx={{ position: { lg: "sticky" }, top: { lg: 88 } }}>
-                  <CardContent>
-                    <Stack spacing={1.5}>
-                      <Typography variant="h5">Queue Controls</Typography>
+                  <CardContent sx={{ p: { xs: 1.25, sm: 2 } }}>
+                    <Stack
+                      direction={{ xs: "row", lg: "column" }}
+                      spacing={1}
+                      alignItems={{ xs: "center", lg: "stretch" }}
+                      flexWrap="wrap"
+                      useFlexGap
+                    >
+                      <Typography
+                        variant="h5"
+                        sx={{ display: { xs: "none", lg: "block" } }}
+                      >
+                        Queue Controls
+                      </Typography>
                       <Chip
                         label={`${reservationQueueGroups.length} games`}
+                        size="small"
                         variant="outlined"
                       />
-                      <Chip label={`${releases.length} releases`} />
+                      <Chip label={`${releases.length} releases`} size="small" />
                       <Chip
                         label={`${reservations.length} reservations`}
                         color="primary"
+                        size="small"
                       />
                       <Button
                         variant="outlined"
+                        size="small"
                         startIcon={<RefreshIcon />}
                         onClick={() => loadData(true)}
                         disabled={loading}
+                        sx={{ ml: { xs: "auto", lg: 0 } }}
                       >
                         Refresh
                       </Button>
@@ -1933,25 +2064,26 @@ export default function ReservationsPage() {
                   </CardContent>
                 </Card>
 
-                <Stack spacing={2} sx={{ minWidth: 0 }}>
+                <Stack spacing={{ xs: 1.25, md: 2 }} sx={{ minWidth: 0 }}>
                 {reservationQueueGroups.map((group) => (
                   <Card key={group.game}>
-                    <CardContent>
-                      <Stack spacing={2}>
+                    <CardContent sx={{ p: { xs: 1.25, sm: 2 } }}>
+                      <Stack spacing={{ xs: 1.25, md: 2 }}>
                         <Stack
-                          direction={{ xs: "column", sm: "row" }}
+                          direction="row"
                           spacing={1}
-                          alignItems={{ xs: "flex-start", sm: "center" }}
+                          alignItems="center"
                           justifyContent="space-between"
                         >
                           <GameBadge game={group.game} />
                           <Chip
                             label={`${group.releases.length} releases`}
+                            size="small"
                             variant="outlined"
                           />
                         </Stack>
 
-                        <Stack spacing={1.5}>
+                        <Stack spacing={{ xs: 1, md: 1.5 }}>
                           {group.releases.map((release) => {
                             const releaseReservations =
                               reservationsByRelease[release.id] ?? [];
@@ -1960,23 +2092,31 @@ export default function ReservationsPage() {
                               <Paper
                                 key={release.id}
                                 variant="outlined"
-                                sx={{ p: { xs: 1.5, sm: 2 } }}
+                                sx={{ p: { xs: 1, sm: 1.5, md: 2 } }}
                               >
-                                <Stack spacing={1.5}>
+                                <Stack spacing={{ xs: 1, md: 1.5 }}>
                                   <Stack
-                                    direction={{ xs: "column", md: "row" }}
+                                    direction="row"
                                     spacing={1}
-                                    alignItems={{
-                                      xs: "flex-start",
-                                      md: "center",
-                                    }}
+                                    alignItems="center"
                                     justifyContent="space-between"
                                   >
-                                    <Box>
-                                      <Typography variant="h5">
+                                    <Box sx={{ minWidth: 0 }}>
+                                      <Typography
+                                        variant="h5"
+                                        sx={{
+                                          fontSize: {
+                                            xs: "1rem",
+                                            sm: "1.25rem",
+                                          },
+                                        }}
+                                      >
                                         {release.title}
                                       </Typography>
-                                      <Typography color="text.secondary">
+                                      <Typography
+                                        color="text.secondary"
+                                        sx={{ fontSize: { xs: "0.8rem", sm: "0.875rem" } }}
+                                      >
                                         {formatReleaseDate(
                                           release.release_date
                                         )}
@@ -1984,6 +2124,7 @@ export default function ReservationsPage() {
                                     </Box>
                                     <Chip
                                       label={`${releaseReservations.length} reservations`}
+                                      size="small"
                                       color={
                                         releaseReservations.length
                                           ? "primary"
@@ -1997,14 +2138,14 @@ export default function ReservationsPage() {
                                     />
                                   </Stack>
 
-                                  <Stack spacing={1.25}>
+                                  <Stack spacing={{ xs: 0.75, md: 1.25 }}>
                                     {releaseReservations.map(
                                       (reservation, index) => (
                                         <Paper
                                           key={reservation.id}
                                           variant="outlined"
                                           sx={{
-                                            p: { xs: 1.5, sm: 2 },
+                                            p: { xs: 1, sm: 1.5, md: 2 },
                                             bgcolor: "background.default",
                                           }}
                                         >
@@ -2013,7 +2154,7 @@ export default function ReservationsPage() {
                                               xs: "column",
                                               md: "row",
                                             }}
-                                            spacing={1.5}
+                                            spacing={{ xs: 1, md: 1.5 }}
                                             alignItems={{
                                               xs: "stretch",
                                               md: "center",
@@ -2023,14 +2164,23 @@ export default function ReservationsPage() {
                                             <Box>
                                               <Stack
                                                 direction="row"
-                                                spacing={1}
+                                                spacing={0.75}
                                                 alignItems="center"
                                                 flexWrap="wrap"
                                               >
-                                                <Chip label={`#${index + 1}`} />
+                                                <Chip
+                                                  label={`#${index + 1}`}
+                                                  size="small"
+                                                />
                                                 <Typography
                                                   variant="h6"
-                                                  sx={{ fontWeight: 900 }}
+                                                  sx={{
+                                                    fontWeight: 900,
+                                                    fontSize: {
+                                                      xs: "1rem",
+                                                      sm: "1.125rem",
+                                                    },
+                                                  }}
                                                 >
                                                   {reservation.employee_name}
                                                 </Typography>
@@ -2043,9 +2193,18 @@ export default function ReservationsPage() {
                                                   color={getStatusColor(
                                                     reservation.status
                                                   )}
+                                                  size="small"
                                                 />
                                               </Stack>
-                                              <Typography color="text.secondary">
+                                              <Typography
+                                                color="text.secondary"
+                                                sx={{
+                                                  fontSize: {
+                                                    xs: "0.78rem",
+                                                    sm: "0.875rem",
+                                                  },
+                                                }}
+                                              >
                                                 {formatRequestTime(
                                                   reservation.created_at
                                                 )}
@@ -2054,8 +2213,8 @@ export default function ReservationsPage() {
                                                   : ""}
                                               </Typography>
                                               <Stack
-                                                spacing={0.75}
-                                                sx={{ mt: 0.75 }}
+                                                spacing={0.5}
+                                                sx={{ mt: 0.5 }}
                                               >
                                                 {(
                                                   productsByReservation[
@@ -2065,34 +2224,40 @@ export default function ReservationsPage() {
                                                   <Paper
                                                     key={product.id}
                                                     variant="outlined"
-                                                    sx={{ p: 1 }}
+                                                    sx={{ p: { xs: 0.75, sm: 1 } }}
                                                   >
                                                     <Stack
-                                                      direction={{
-                                                        xs: "column",
-                                                        sm: "row",
-                                                      }}
-                                                      spacing={1}
-                                                      alignItems={{
-                                                        xs: "stretch",
-                                                        sm: "center",
-                                                      }}
+                                                      direction="row"
+                                                      spacing={0.75}
+                                                      alignItems="center"
                                                       justifyContent="space-between"
                                                     >
                                                       <Typography
-                                                        sx={{ fontWeight: 800 }}
+                                                        sx={{
+                                                          fontWeight: 800,
+                                                          minWidth: 0,
+                                                          fontSize: {
+                                                            xs: "0.86rem",
+                                                            sm: "0.95rem",
+                                                          },
+                                                        }}
                                                       >
                                                         {product.name}
                                                       </Typography>
                                                       <FormControl
                                                         size="small"
-                                                        sx={{ minWidth: 160 }}
+                                                        sx={{
+                                                          minWidth: {
+                                                            xs: 126,
+                                                            sm: 160,
+                                                          },
+                                                        }}
                                                       >
                                                         <InputLabel>
-                                                          Product Status
+                                                          Status
                                                         </InputLabel>
                                                         <Select
-                                                          label="Product Status"
+                                                          label="Status"
                                                           value={
                                                             product.reservationProductStatus
                                                           }
@@ -2124,13 +2289,26 @@ export default function ReservationsPage() {
                                                 ))}
                                               </Stack>
                                               {reservation.notes ? (
-                                                <Typography sx={{ mt: 0.5 }}>
+                                                <Typography
+                                                  sx={{
+                                                    mt: 0.5,
+                                                    fontSize: {
+                                                      xs: "0.86rem",
+                                                      sm: "0.95rem",
+                                                    },
+                                                  }}
+                                                >
                                                   {reservation.notes}
                                                 </Typography>
                                               ) : null}
                                             </Box>
 
-                                            <FormControl sx={{ minWidth: 190 }}>
+                                            <FormControl
+                                              size="small"
+                                              sx={{
+                                                minWidth: { xs: "100%", md: 190 },
+                                              }}
+                                            >
                                               <InputLabel>Status</InputLabel>
                                               <Select
                                                 label="Status"
@@ -2833,6 +3011,72 @@ export default function ReservationsPage() {
           </Box>
         ) : null}
       </Stack>
+
+      <Dialog
+        open={changePasswordOpen}
+        onClose={() => {
+          if (!authLoading) {
+            setChangePasswordOpen(false);
+            setChangePasswordForm(blankPasswordForm);
+          }
+        }}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Change Password</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <TextField
+              label="New password"
+              type="password"
+              value={changePasswordForm.password}
+              onChange={(event) =>
+                setChangePasswordForm((prev) => ({
+                  ...prev,
+                  password: event.target.value,
+                }))
+              }
+              fullWidth
+            />
+            <TextField
+              label="Confirm password"
+              type="password"
+              value={changePasswordForm.confirmPassword}
+              onChange={(event) =>
+                setChangePasswordForm((prev) => ({
+                  ...prev,
+                  confirmPassword: event.target.value,
+                }))
+              }
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  changeLoggedInPassword();
+                }
+              }}
+              fullWidth
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setChangePasswordOpen(false);
+              setChangePasswordForm(blankPasswordForm);
+            }}
+            disabled={authLoading}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<LockResetIcon />}
+            onClick={changeLoggedInPassword}
+            disabled={authLoading}
+          >
+            {authLoading ? "Saving..." : "Change Password"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog
         open={Boolean(editingReservation)}

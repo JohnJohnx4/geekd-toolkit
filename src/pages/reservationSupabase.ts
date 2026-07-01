@@ -256,6 +256,36 @@ export const signInReservationsUser = async (
   return session;
 };
 
+export const sendReservationsPasswordReset = async (
+  email: string,
+  redirectTo: string
+) => {
+  if (!supabaseUrl || !publishableKey) {
+    throw new Error("Supabase is not configured for reservations.");
+  }
+
+  const redirectQuery = redirectTo
+    ? `?redirect_to=${encodeURIComponent(redirectTo)}`
+    : "";
+
+  const response = await fetch(
+    `${supabaseUrl}/auth/v1/recover${redirectQuery}`,
+    {
+      method: "POST",
+      headers: {
+        apikey: publishableKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email }),
+    }
+  );
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(body || `Supabase auth request failed: ${response.status}`);
+  }
+};
+
 export const updateReservationsPassword = async (
   accessToken: string,
   password: string
