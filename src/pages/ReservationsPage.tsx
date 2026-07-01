@@ -24,13 +24,16 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
+import CancelIcon from "@mui/icons-material/Cancel";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import EditIcon from "@mui/icons-material/Edit";
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import InventoryIcon from "@mui/icons-material/Inventory";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SaveIcon from "@mui/icons-material/Save";
 
 import {
+  createReleaseProducts,
   createReleaseWithProducts,
   createReservation,
   fetchReleaseProducts,
@@ -45,6 +48,7 @@ import {
   type ReservationRecord,
   type ReservationStatus,
   updateRelease,
+  updateReleaseProduct,
   updateReservationStatus,
 } from "./reservationSupabase";
 
@@ -57,6 +61,20 @@ const blankReleaseForm = {
   description: "",
   image_url: "",
   products: [""] as string[],
+};
+
+type ReleaseProductFormItem = {
+  id?: string;
+  name: string;
+};
+
+type ReleaseEditForm = {
+  title: string;
+  game: string;
+  release_date: string;
+  description: string;
+  image_url: string;
+  products: ReleaseProductFormItem[];
 };
 
 const blankReservationForm = {
@@ -110,6 +128,9 @@ export default function ReservationsPage() {
   >([]);
   const [selectedReleaseId, setSelectedReleaseId] = useState("");
   const [releaseForm, setReleaseForm] = useState(blankReleaseForm);
+  const [editingReleaseId, setEditingReleaseId] = useState("");
+  const [editReleaseForm, setEditReleaseForm] =
+    useState<ReleaseEditForm | null>(null);
   const [reservationForms, setReservationForms] = useState<
     Record<string, typeof blankReservationForm>
   >({});
@@ -271,6 +292,109 @@ export default function ReservationsPage() {
       await loadData(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to add release.");
+    } finally {
+      setSavingRelease(false);
+    }
+  };
+
+  const startEditingRelease = (release: ReleaseRecord) => {
+    const releaseProducts = productsByRelease[release.id] ?? [];
+
+    setEditingReleaseId(release.id);
+    setEditReleaseForm({
+      title: release.title,
+      game: release.game,
+      release_date: release.release_date ?? "",
+      description: release.description ?? "",
+      image_url: release.image_url ?? "",
+      products: releaseProducts.length
+        ? releaseProducts.map((product) => ({
+            id: product.id,
+            name: product.name,
+          }))
+        : [{ name: "" }],
+    });
+  };
+
+  const cancelEditingRelease = () => {
+    setEditingReleaseId("");
+    setEditReleaseForm(null);
+  };
+
+  const saveEditedRelease = async (release: ReleaseRecord) => {
+    if (!editReleaseForm) return;
+
+    const productItems = editReleaseForm.products
+      .map((product) => ({
+        id: product.id,
+        name: product.name.trim(),
+      }))
+      .filter((product) => product.name);
+
+    if (!editReleaseForm.title.trim() || !editReleaseForm.game.trim()) {
+      setError("Release name and game are required.");
+      return;
+    }
+
+    if (!productItems.length) {
+      setError("At least one product is required for each release.");
+      return;
+    }
+
+    setSavingRelease(true);
+    setError("");
+    setMessage("");
+
+    try {
+      await updateRelease(release.id, {
+        title: editReleaseForm.title.trim(),
+        game: editReleaseForm.game.trim(),
+        release_date: editReleaseForm.release_date || null,
+        description: editReleaseForm.description.trim() || null,
+        image_url: editReleaseForm.image_url.trim() || null,
+      });
+
+      const existingProducts = productsByRelease[release.id] ?? [];
+      const keptProductIds = new Set(
+        productItems
+          .map((product) => product.id)
+          .filter((id): id is string => Boolean(id))
+      );
+
+      await Promise.all([
+        ...productItems.map((product, index) =>
+          product.id
+            ? updateReleaseProduct(product.id, {
+                name: product.name,
+                sort_order: index,
+                is_active: true,
+              })
+            : Promise.resolve(null)
+        ),
+        ...existingProducts
+          .filter((product) => !keptProductIds.has(product.id))
+          .map((product) =>
+            updateReleaseProduct(product.id, { is_active: false })
+          ),
+      ]);
+
+      const newProductNames = productItems
+        .filter((product) => !product.id)
+        .map((product) => product.name);
+
+      await createReleaseProducts(
+        release.id,
+        newProductNames,
+        productItems.length - newProductNames.length
+      );
+
+      cancelEditingRelease();
+      setMessage("Release updated.");
+      await loadData(true);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to update release."
+      );
     } finally {
       setSavingRelease(false);
     }
@@ -600,11 +724,15 @@ export default function ReservationsPage() {
                         startIcon={<CheckCircleIcon />}
                         onClick={() => submitReservation(release.id)}
                         disabled={
-                          !isReservationsConfigured || !releaseProducts.length
+                          !isReservationsConfigured ||
+                          !releaseProducts.length ||
+                          !form.productIds.length
                         }
                         sx={{ mt: "auto" }}
                       >
-                        Request Reservation
+                        {form.productIds.length
+                          ? "Request Reservation"
+                          : "Select a Product First"}
                       </Button>
                     </Stack>
                   </CardContent>
@@ -1012,17 +1140,235 @@ export default function ReservationsPage() {
                       </Stack>
 
                       <Stack spacing={1.25}>
-                        {releases.map((release) => (
+                        {releases.map((release) => {
+                          const isEditing = editingReleaseId === release.id;
+
+                          return (
                           <Paper
                             key={release.id}
                             variant="outlined"
                             sx={{ p: { xs: 1.5, sm: 2 } }}
                           >
+                            {isEditing && editReleaseForm ? (
+                              <Stack spacing={2}>
+                                <Stack
+                                  direction={{ xs: "column", sm: "row" }}
+                                  spacing={1}
+                                  justifyContent="space-between"
+                                  alignItems={{ xs: "stretch", sm: "center" }}
+                                >
+                                  <Typography variant="h6">
+                                    Edit Release
+                                  </Typography>
+                                  <Stack direction="row" spacing={1}>
+                                    <Button
+                                      variant="contained"
+                                      startIcon={<SaveIcon />}
+                                      onClick={() => saveEditedRelease(release)}
+                                      disabled={savingRelease}
+                                    >
+                                      Save
+                                    </Button>
+                                    <Button
+                                      variant="outlined"
+                                      startIcon={<CancelIcon />}
+                                      onClick={cancelEditingRelease}
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </Stack>
+                                </Stack>
+
+                                <Box
+                                  sx={{
+                                    display: "grid",
+                                    gridTemplateColumns: {
+                                      xs: "1fr",
+                                      lg: "repeat(2, minmax(0, 1fr))",
+                                    },
+                                    gap: 1.25,
+                                  }}
+                                >
+                                  <TextField
+                                    label="Release name"
+                                    value={editReleaseForm.title}
+                                    onChange={(event) =>
+                                      setEditReleaseForm((prev) =>
+                                        prev
+                                          ? {
+                                              ...prev,
+                                              title: event.target.value,
+                                            }
+                                          : prev
+                                      )
+                                    }
+                                  />
+                                  <TextField
+                                    label="Game / category"
+                                    value={editReleaseForm.game}
+                                    onChange={(event) =>
+                                      setEditReleaseForm((prev) =>
+                                        prev
+                                          ? {
+                                              ...prev,
+                                              game: event.target.value,
+                                            }
+                                          : prev
+                                      )
+                                    }
+                                  />
+                                  <TextField
+                                    label="Release date"
+                                    type="date"
+                                    value={editReleaseForm.release_date}
+                                    onChange={(event) =>
+                                      setEditReleaseForm((prev) =>
+                                        prev
+                                          ? {
+                                              ...prev,
+                                              release_date: event.target.value,
+                                            }
+                                          : prev
+                                      )
+                                    }
+                                    InputLabelProps={{ shrink: true }}
+                                  />
+                                  <TextField
+                                    label="Image URL"
+                                    value={editReleaseForm.image_url}
+                                    onChange={(event) =>
+                                      setEditReleaseForm((prev) =>
+                                        prev
+                                          ? {
+                                              ...prev,
+                                              image_url: event.target.value,
+                                            }
+                                          : prev
+                                      )
+                                    }
+                                  />
+                                </Box>
+
+                                <TextField
+                                  label="Notes"
+                                  value={editReleaseForm.description}
+                                  onChange={(event) =>
+                                    setEditReleaseForm((prev) =>
+                                      prev
+                                        ? {
+                                            ...prev,
+                                            description: event.target.value,
+                                          }
+                                        : prev
+                                    )
+                                  }
+                                  multiline
+                                  minRows={2}
+                                />
+
+                                <Box>
+                                  <Typography sx={{ fontWeight: 900, mb: 1 }}>
+                                    Products
+                                  </Typography>
+                                  <Stack spacing={1}>
+                                    {editReleaseForm.products.map(
+                                      (product, index) => (
+                                        <Stack
+                                          key={product.id ?? index}
+                                          direction={{
+                                            xs: "column",
+                                            sm: "row",
+                                          }}
+                                          spacing={1}
+                                        >
+                                          <TextField
+                                            label={`Product ${index + 1}`}
+                                            value={product.name}
+                                            onChange={(event) =>
+                                              setEditReleaseForm((prev) =>
+                                                prev
+                                                  ? {
+                                                      ...prev,
+                                                      products:
+                                                        prev.products.map(
+                                                          (
+                                                            currentProduct,
+                                                            productIndex
+                                                          ) =>
+                                                            productIndex ===
+                                                            index
+                                                              ? {
+                                                                  ...currentProduct,
+                                                                  name: event
+                                                                    .target
+                                                                    .value,
+                                                                }
+                                                              : currentProduct
+                                                        ),
+                                                    }
+                                                  : prev
+                                              )
+                                            }
+                                            fullWidth
+                                          />
+                                          <Button
+                                            variant="outlined"
+                                            color="warning"
+                                            onClick={() =>
+                                              setEditReleaseForm((prev) =>
+                                                prev
+                                                  ? {
+                                                      ...prev,
+                                                      products:
+                                                        prev.products.length <=
+                                                        1
+                                                          ? [{ name: "" }]
+                                                          : prev.products.filter(
+                                                              (
+                                                                _,
+                                                                productIndex
+                                                              ) =>
+                                                                productIndex !==
+                                                                index
+                                                            ),
+                                                    }
+                                                  : prev
+                                              )
+                                            }
+                                          >
+                                            Remove
+                                          </Button>
+                                        </Stack>
+                                      )
+                                    )}
+                                    <Button
+                                      variant="outlined"
+                                      onClick={() =>
+                                        setEditReleaseForm((prev) =>
+                                          prev
+                                            ? {
+                                                ...prev,
+                                                products: [
+                                                  ...prev.products,
+                                                  { name: "" },
+                                                ],
+                                              }
+                                            : prev
+                                        )
+                                      }
+                                    >
+                                      Add Product
+                                    </Button>
+                                  </Stack>
+                                </Box>
+                              </Stack>
+                            ) : null}
                             <Stack
                               direction={{ xs: "column", md: "row" }}
                               spacing={1.5}
                               justifyContent="space-between"
                               alignItems={{ xs: "stretch", md: "center" }}
+                              sx={{ display: isEditing ? "none" : "flex" }}
                             >
                               <Box>
                                 <Stack
@@ -1070,21 +1416,36 @@ export default function ReservationsPage() {
                                 </Stack>
                               </Box>
 
-                              <Button
-                                variant="outlined"
-                                startIcon={<SaveIcon />}
-                                onClick={() =>
-                                  setReleaseActive(
-                                    release,
-                                    !release.is_active
-                                  )
-                                }
+                              <Stack
+                                direction={{ xs: "column", sm: "row" }}
+                                spacing={1}
                               >
-                                {release.is_active ? "Archive" : "Reactivate"}
-                              </Button>
+                                <Button
+                                  variant="outlined"
+                                  startIcon={<EditIcon />}
+                                  onClick={() => startEditingRelease(release)}
+                                >
+                                  Edit
+                                </Button>
+                                <Button
+                                  variant="outlined"
+                                  startIcon={<SaveIcon />}
+                                  onClick={() =>
+                                    setReleaseActive(
+                                      release,
+                                      !release.is_active
+                                    )
+                                  }
+                                >
+                                  {release.is_active
+                                    ? "Archive"
+                                    : "Reactivate"}
+                                </Button>
+                              </Stack>
                             </Stack>
                           </Paper>
-                        ))}
+                          );
+                        })}
                       </Stack>
                     </Stack>
                   </CardContent>

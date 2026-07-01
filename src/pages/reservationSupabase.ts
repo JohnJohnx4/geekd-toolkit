@@ -59,6 +59,12 @@ type ReservationInput = {
   product_ids: string[];
 };
 
+type ReleaseProductInput = {
+  name?: string;
+  sort_order?: number;
+  is_active?: boolean;
+};
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
 const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
@@ -120,28 +126,38 @@ export const createRelease = async (release: ReleaseInput) => {
   return rows[0];
 };
 
+export const createReleaseProducts = async (
+  releaseId: string,
+  productNames: string[],
+  startOrder = 0
+) => {
+  const products = productNames
+    .map((name) => name.trim())
+    .filter(Boolean)
+    .map((name, index) => ({
+      release_id: releaseId,
+      name,
+      sort_order: startOrder + index,
+      is_active: true,
+    }));
+
+  if (!products.length) {
+    return [];
+  }
+
+  return requestJson<ReleaseProductRecord[]>("release_products", {
+    method: "POST",
+    headers: getHeaders("return=representation"),
+    body: JSON.stringify(products),
+  });
+};
+
 export const createReleaseWithProducts = async (
   release: ReleaseInput,
   productNames: string[]
 ) => {
   const createdRelease = await createRelease(release);
-  const products = productNames
-    .map((name) => name.trim())
-    .filter(Boolean)
-    .map((name, index) => ({
-      release_id: createdRelease.id,
-      name,
-      sort_order: index,
-      is_active: true,
-    }));
-
-  if (products.length) {
-    await requestJson<ReleaseProductRecord[]>("release_products", {
-      method: "POST",
-      headers: getHeaders("return=representation"),
-      body: JSON.stringify(products),
-    });
-  }
+  await createReleaseProducts(createdRelease.id, productNames);
 
   return createdRelease;
 };
@@ -166,6 +182,22 @@ export const fetchReleaseProducts = () =>
   requestJson<ReleaseProductRecord[]>(
     "release_products?select=*&order=sort_order.asc,created_at.asc"
   );
+
+export const updateReleaseProduct = async (
+  id: string,
+  product: ReleaseProductInput
+) => {
+  const rows = await requestJson<ReleaseProductRecord[]>(
+    `release_products?id=eq.${encodeFilter(id)}`,
+    {
+      method: "PATCH",
+      headers: getHeaders("return=representation"),
+      body: JSON.stringify(product),
+    }
+  );
+
+  return rows[0];
+};
 
 export const fetchReservations = () =>
   requestJson<ReservationRecord[]>(
