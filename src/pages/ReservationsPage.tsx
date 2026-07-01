@@ -164,7 +164,8 @@ const GameBadge = ({
   size?: "small" | "medium";
 }) => {
   const gameOption = getReleaseGameOption(game);
-  const logoSize = size === "small" ? 26 : 34;
+  const logoWidth = size === "small" ? 58 : 76;
+  const logoHeight = size === "small" ? 36 : 46;
 
   if (!gameOption) {
     return <Chip label={game} size={size === "small" ? "small" : "medium"} />;
@@ -174,8 +175,8 @@ const GameBadge = ({
     <Stack direction="row" spacing={0.75} alignItems="center">
       <Box
         sx={{
-          width: logoSize,
-          height: logoSize,
+          width: logoWidth,
+          height: logoHeight,
           borderRadius: 1,
           bgcolor: gameOption.background,
           display: "grid",
