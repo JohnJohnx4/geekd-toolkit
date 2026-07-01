@@ -42,6 +42,16 @@ export type ReservationProductRecord = {
   created_at: string;
 };
 
+export type ReservationAuthSession = {
+  access_token: string;
+  refresh_token: string;
+  expires_at: number;
+  user: {
+    id: string;
+    email?: string;
+  };
+};
+
 type ReleaseInput = {
   title: string;
   game: string;
@@ -67,6 +77,7 @@ type ReleaseProductInput = {
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
 const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+let reservationsAccessToken = "";
 
 export const reservationsAdminPin = import.meta.env
   .VITE_RESERVATION_ADMIN_PIN;
@@ -75,9 +86,13 @@ export const isReservationsConfigured = Boolean(
   supabaseUrl && publishableKey
 );
 
+export const setReservationsAccessToken = (accessToken: string) => {
+  reservationsAccessToken = accessToken;
+};
+
 const getHeaders = (prefer?: string) => ({
   apikey: publishableKey ?? "",
-  Authorization: `Bearer ${publishableKey ?? ""}`,
+  Authorization: `Bearer ${reservationsAccessToken || publishableKey || ""}`,
   "Content-Type": "application/json",
   ...(prefer ? { Prefer: prefer } : {}),
 });
@@ -108,6 +123,101 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 
   return response.json() as Promise<T>;
 }
+
+async function requestAuthJson<T>(
+  path: string,
+  init?: RequestInit
+): Promise<T> {
+  if (!supabaseUrl || !publishableKey) {
+    throw new Error("Supabase is not configured for reservations.");
+  }
+
+  const response = await fetch(`${supabaseUrl}/auth/v1/${path}`, {
+    ...init,
+    headers: {
+      apikey: publishableKey,
+      "Content-Type": "application/json",
+      ...init?.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(body || `Supabase auth request failed: ${response.status}`);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+type SupabaseAuthResponse = {
+  access_token: string;
+  refresh_token: string;
+  expires_in?: number;
+  expires_at?: number;
+  user: {
+    id: string;
+    email?: string;
+  };
+};
+
+const normalizeAuthSession = (
+  response: SupabaseAuthResponse
+): ReservationAuthSession => ({
+  access_token: response.access_token,
+  refresh_token: response.refresh_token,
+  expires_at:
+    response.expires_at ??
+    Math.floor(Date.now() / 1000) + (response.expires_in ?? 3600),
+  user: {
+    id: response.user.id,
+    email: response.user.email,
+  },
+});
+
+export const signInReservationsUser = async (
+  email: string,
+  password: string
+) => {
+  const response = await requestAuthJson<SupabaseAuthResponse>(
+    "token?grant_type=password",
+    {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }
+  );
+  const session = normalizeAuthSession(response);
+  setReservationsAccessToken(session.access_token);
+
+  return session;
+};
+
+export const refreshReservationsSession = async (refreshToken: string) => {
+  const response = await requestAuthJson<SupabaseAuthResponse>(
+    "token?grant_type=refresh_token",
+    {
+      method: "POST",
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    }
+  );
+  const session = normalizeAuthSession(response);
+  setReservationsAccessToken(session.access_token);
+
+  return session;
+};
+
+export const signOutReservationsUser = async (accessToken: string) => {
+  if (!supabaseUrl || !publishableKey) return;
+
+  await fetch(`${supabaseUrl}/auth/v1/logout`, {
+    method: "POST",
+    headers: {
+      apikey: publishableKey,
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+  });
+  setReservationsAccessToken("");
+};
 
 export const fetchReleases = (includeInactive = false) => {
   const activeFilter = includeInactive ? "" : "&is_active=eq.true";

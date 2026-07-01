@@ -6,6 +6,7 @@ The Reservations tool uses Supabase so employees can submit release requests fro
 
 1. Run `supabase/reservation-schema.sql` in the Supabase SQL editor.
    - If the original reservation schema is already installed, run `supabase/reservation-products-migration.sql` instead to add release products.
+   - Run `supabase/reservation-auth-migration.sql` to require Supabase Auth login for reservation data.
 2. Set these app environment variables:
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_PUBLISHABLE_KEY`
@@ -13,6 +14,8 @@ The Reservations tool uses Supabase so employees can submit release requests fro
 3. Do not put the Supabase secret key in frontend code or committed env files.
 
 The first version uses a simple admin PIN for the manager screens. This protects the UI from casual use, but it is not a full security boundary because frontend code is visible to users. For stronger admin protection, move manager actions behind Supabase Auth or an Edge Function.
+
+Create employee users in Supabase under Authentication. The app currently expects email/password sign-in.
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

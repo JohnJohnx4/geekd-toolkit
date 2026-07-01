@@ -7,6 +7,7 @@ import {
   CardContent,
   Checkbox,
   Chip,
+  CircularProgress,
   Container,
   Divider,
   FormControl,
@@ -29,6 +30,8 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import EditIcon from "@mui/icons-material/Edit";
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import InventoryIcon from "@mui/icons-material/Inventory";
+import LoginIcon from "@mui/icons-material/Login";
+import LogoutIcon from "@mui/icons-material/Logout";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SaveIcon from "@mui/icons-material/Save";
 
@@ -41,7 +44,12 @@ import {
   fetchReservationProducts,
   fetchReservations,
   isReservationsConfigured,
+  refreshReservationsSession,
+  type ReservationAuthSession,
   reservationsAdminPin,
+  setReservationsAccessToken,
+  signInReservationsUser,
+  signOutReservationsUser,
   type ReleaseProductRecord,
   type ReleaseRecord,
   type ReservationProductRecord,
@@ -53,6 +61,7 @@ import {
 } from "./reservationSupabase";
 
 const ADMIN_SESSION_KEY = "geekd.reservations.adminUnlocked";
+const AUTH_SESSION_KEY = "geekd.reservations.authSession";
 
 const blankReleaseForm = {
   title: "",
@@ -120,6 +129,14 @@ const getStatusColor = (status: ReservationStatus) => {
 
 export default function ReservationsPage() {
   const [tab, setTab] = useState(0);
+  const [authSession, setAuthSession] =
+    useState<ReservationAuthSession | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [loginForm, setLoginForm] = useState({
+    email: "",
+    password: "",
+  });
   const [releases, setReleases] = useState<ReleaseRecord[]>([]);
   const [products, setProducts] = useState<ReleaseProductRecord[]>([]);
   const [reservations, setReservations] = useState<ReservationRecord[]>([]);
@@ -196,9 +213,57 @@ export default function ReservationsPage() {
     releases.find((release) => release.id === selectedReleaseId) ??
     releases[0];
 
+  const persistAuthSession = useCallback(
+    (session: ReservationAuthSession | null) => {
+      setAuthSession(session);
+
+      if (session) {
+        setReservationsAccessToken(session.access_token);
+        window.localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+      } else {
+        setReservationsAccessToken("");
+        window.localStorage.removeItem(AUTH_SESSION_KEY);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    const restoreSession = async () => {
+      const storedValue = window.localStorage.getItem(AUTH_SESSION_KEY);
+
+      if (!storedValue) {
+        setAuthChecked(true);
+        return;
+      }
+
+      try {
+        const storedSession = JSON.parse(
+          storedValue
+        ) as ReservationAuthSession;
+        const expiresSoon = storedSession.expires_at < Date.now() / 1000 + 60;
+
+        if (expiresSoon) {
+          const refreshedSession = await refreshReservationsSession(
+            storedSession.refresh_token
+          );
+          persistAuthSession(refreshedSession);
+        } else {
+          persistAuthSession(storedSession);
+        }
+      } catch {
+        persistAuthSession(null);
+      } finally {
+        setAuthChecked(true);
+      }
+    };
+
+    restoreSession();
+  }, [persistAuthSession]);
+
   const loadData = useCallback(
     async (includeReservations = adminUnlocked) => {
-      if (!isReservationsConfigured) return;
+      if (!isReservationsConfigured || !authSession) return;
 
       setLoading(true);
       setError("");
@@ -231,12 +296,57 @@ export default function ReservationsPage() {
         setLoading(false);
       }
     },
-    [adminUnlocked]
+    [adminUnlocked, authSession]
   );
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (authChecked && authSession) {
+      loadData();
+    }
+  }, [authChecked, authSession, loadData]);
+
+  const login = async () => {
+    if (!loginForm.email.trim() || !loginForm.password) {
+      setError("Email and password are required.");
+      return;
+    }
+
+    setAuthLoading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const session = await signInReservationsUser(
+        loginForm.email.trim(),
+        loginForm.password
+      );
+      persistAuthSession(session);
+      setLoginForm({ email: "", password: "" });
+      setMessage("Logged in.");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to log in."
+      );
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const logout = async () => {
+    const currentAccessToken = authSession?.access_token;
+
+    persistAuthSession(null);
+    setAdminUnlocked(false);
+    window.sessionStorage.removeItem(ADMIN_SESSION_KEY);
+    setReleases([]);
+    setProducts([]);
+    setReservations([]);
+    setReservationProducts([]);
+
+    if (currentAccessToken) {
+      await signOutReservationsUser(currentAccessToken).catch(() => {});
+    }
+  };
 
   const unlockAdmin = () => {
     if (!reservationsAdminPin) {
@@ -489,6 +599,98 @@ export default function ReservationsPage() {
     }));
   };
 
+  if (!authChecked) {
+    return (
+      <Container maxWidth="sm" sx={{ py: { xs: 4, md: 8 } }}>
+        <Card>
+          <CardContent>
+            <Stack spacing={2} alignItems="center">
+              <CircularProgress />
+              <Typography>Checking reservation access...</Typography>
+            </Stack>
+          </CardContent>
+        </Card>
+      </Container>
+    );
+  }
+
+  if (!authSession) {
+    return (
+      <Container maxWidth="sm" sx={{ py: { xs: 3, md: 8 } }}>
+        <Stack spacing={2.5}>
+          <Paper sx={{ p: { xs: 2, sm: 3 } }}>
+            <Stack spacing={1.5}>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <EventAvailableIcon color="primary" sx={{ fontSize: 36 }} />
+                <Box>
+                  <Typography variant="h1">Employee Reservations</Typography>
+                  <Typography color="text.secondary">
+                    Sign in to view and submit release requests.
+                  </Typography>
+                </Box>
+              </Stack>
+
+              {!isReservationsConfigured ? (
+                <Alert severity="warning">
+                  Supabase is not configured. Add VITE_SUPABASE_URL and
+                  VITE_SUPABASE_PUBLISHABLE_KEY to the app environment.
+                </Alert>
+              ) : null}
+
+              {message ? <Alert severity="success">{message}</Alert> : null}
+              {error ? <Alert severity="error">{error}</Alert> : null}
+            </Stack>
+          </Paper>
+
+          <Card>
+            <CardContent>
+              <Stack spacing={2}>
+                <Typography variant="h5">Login</Typography>
+                <TextField
+                  label="Email"
+                  type="email"
+                  value={loginForm.email}
+                  onChange={(event) =>
+                    setLoginForm((prev) => ({
+                      ...prev,
+                      email: event.target.value,
+                    }))
+                  }
+                  fullWidth
+                />
+                <TextField
+                  label="Password"
+                  type="password"
+                  value={loginForm.password}
+                  onChange={(event) =>
+                    setLoginForm((prev) => ({
+                      ...prev,
+                      password: event.target.value,
+                    }))
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      login();
+                    }
+                  }}
+                  fullWidth
+                />
+                <Button
+                  variant="contained"
+                  startIcon={<LoginIcon />}
+                  onClick={login}
+                  disabled={authLoading || !isReservationsConfigured}
+                >
+                  {authLoading ? "Logging In..." : "Log In"}
+                </Button>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Stack>
+      </Container>
+    );
+  }
+
   return (
     <Container maxWidth="xl" sx={{ py: { xs: 2, md: 4 } }}>
       <Stack spacing={2.5}>
@@ -522,6 +724,16 @@ export default function ReservationsPage() {
                 color="primary"
                 variant="outlined"
               />
+              {authSession.user.email ? (
+                <Chip label={authSession.user.email} variant="outlined" />
+              ) : null}
+              <Button
+                variant="outlined"
+                startIcon={<LogoutIcon />}
+                onClick={logout}
+              >
+                Log Out
+              </Button>
             </Stack>
 
             {!isReservationsConfigured ? (
