@@ -369,7 +369,12 @@ export default function ReservationsPage() {
     <Container maxWidth="xl" sx={{ py: { xs: 2, md: 4 } }}>
       <Stack spacing={2.5}>
         <Paper sx={{ p: { xs: 2, sm: 3 } }}>
-          <Stack spacing={1.5}>
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={2}
+            alignItems={{ xs: "stretch", md: "center" }}
+            justifyContent="space-between"
+          >
             <Stack direction="row" spacing={1.5} alignItems="center">
               <EventAvailableIcon color="primary" sx={{ fontSize: 36 }} />
               <Box>
@@ -378,6 +383,21 @@ export default function ReservationsPage() {
                   Track employee requests for upcoming releases by request time.
                 </Typography>
               </Box>
+            </Stack>
+
+            <Stack
+              direction="row"
+              spacing={1}
+              flexWrap="wrap"
+              useFlexGap
+              sx={{ justifyContent: { xs: "flex-start", md: "flex-end" } }}
+            >
+              <Chip label={`${activeReleases.length} active releases`} />
+              <Chip
+                label={`${reservations.length} reservations`}
+                color="primary"
+                variant="outlined"
+              />
             </Stack>
 
             {!isReservationsConfigured ? (
@@ -392,12 +412,18 @@ export default function ReservationsPage() {
           </Stack>
         </Paper>
 
-        <Paper>
+        <Paper sx={{ overflow: "hidden" }}>
           <Tabs
             value={tab}
             onChange={(_, nextTab) => setTab(nextTab)}
             variant="scrollable"
             scrollButtons="auto"
+            sx={{
+              px: { md: 1 },
+              ".MuiTabs-flexContainer": {
+                justifyContent: { md: "center" },
+              },
+            }}
           >
             <Tab icon={<EventAvailableIcon />} iconPosition="start" label="Reserve" />
             <Tab
@@ -420,8 +446,10 @@ export default function ReservationsPage() {
               gridTemplateColumns: {
                 xs: "1fr",
                 md: "repeat(2, minmax(0, 1fr))",
+                xl: "repeat(3, minmax(0, 1fr))",
               },
-              gap: 2,
+              gap: { xs: 2, lg: 2.5 },
+              alignItems: "stretch",
             }}
           >
             {activeReleases.map((release) => {
@@ -429,9 +457,14 @@ export default function ReservationsPage() {
               const releaseProducts = productsByRelease[release.id] ?? [];
 
               return (
-                <Card key={release.id}>
-                  <CardContent>
-                    <Stack spacing={2}>
+                <Card key={release.id} sx={{ height: "100%" }}>
+                  <CardContent
+                    sx={{
+                      height: "100%",
+                      p: { xs: 2, lg: 2.5 },
+                    }}
+                  >
+                    <Stack spacing={2} sx={{ height: "100%" }}>
                       <Stack direction="row" spacing={2} alignItems="center">
                         {release.image_url ? (
                           <Box
@@ -469,7 +502,16 @@ export default function ReservationsPage() {
                           Products
                         </Typography>
                         {releaseProducts.length ? (
-                          <FormGroup>
+                          <FormGroup
+                            sx={{
+                              display: "grid",
+                              gridTemplateColumns: {
+                                xs: "1fr",
+                                lg: "repeat(2, minmax(0, 1fr))",
+                              },
+                              columnGap: 1,
+                            }}
+                          >
                             {releaseProducts.map((product) => (
                               <FormControlLabel
                                 key={product.id}
@@ -498,34 +540,45 @@ export default function ReservationsPage() {
                         )}
                       </Box>
 
-                      <TextField
-                        label="Employee name"
-                        value={form.employee_name}
-                        onChange={(event) =>
-                          setReservationForms((prev) => ({
-                            ...prev,
-                            [release.id]: {
-                              ...form,
-                              employee_name: event.target.value,
-                            },
-                          }))
-                        }
-                        fullWidth
-                      />
-                      <TextField
-                        label="Contact or initials"
-                        value={form.employee_contact}
-                        onChange={(event) =>
-                          setReservationForms((prev) => ({
-                            ...prev,
-                            [release.id]: {
-                              ...form,
-                              employee_contact: event.target.value,
-                            },
-                          }))
-                        }
-                        fullWidth
-                      />
+                      <Box
+                        sx={{
+                          display: "grid",
+                          gridTemplateColumns: {
+                            xs: "1fr",
+                            lg: "repeat(2, minmax(0, 1fr))",
+                          },
+                          gap: 1.25,
+                        }}
+                      >
+                        <TextField
+                          label="Employee name"
+                          value={form.employee_name}
+                          onChange={(event) =>
+                            setReservationForms((prev) => ({
+                              ...prev,
+                              [release.id]: {
+                                ...form,
+                                employee_name: event.target.value,
+                              },
+                            }))
+                          }
+                          fullWidth
+                        />
+                        <TextField
+                          label="Contact or initials"
+                          value={form.employee_contact}
+                          onChange={(event) =>
+                            setReservationForms((prev) => ({
+                              ...prev,
+                              [release.id]: {
+                                ...form,
+                                employee_contact: event.target.value,
+                              },
+                            }))
+                          }
+                          fullWidth
+                        />
+                      </Box>
                       <TextField
                         label="Notes"
                         value={form.notes}
@@ -549,6 +602,7 @@ export default function ReservationsPage() {
                         disabled={
                           !isReservationsConfigured || !releaseProducts.length
                         }
+                        sx={{ mt: "auto" }}
                       >
                         Request Reservation
                       </Button>
@@ -592,38 +646,50 @@ export default function ReservationsPage() {
                 </CardContent>
               </Card>
             ) : (
-              <>
-                <Stack
-                  direction={{ xs: "column", sm: "row" }}
-                  spacing={1.5}
-                  alignItems={{ xs: "stretch", sm: "center" }}
-                >
-                  <FormControl fullWidth>
-                    <InputLabel>Release</InputLabel>
-                    <Select
-                      label="Release"
-                      value={selectedRelease?.id ?? ""}
-                      onChange={(event) =>
-                        setSelectedReleaseId(event.target.value)
-                      }
-                    >
-                      {releases.map((release) => (
-                        <MenuItem key={release.id} value={release.id}>
-                          {release.title}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <Button
-                    variant="outlined"
-                    startIcon={<RefreshIcon />}
-                    onClick={() => loadData(true)}
-                    disabled={loading}
-                  >
-                    Refresh
-                  </Button>
-                </Stack>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr", lg: "320px 1fr" },
+                  gap: 2,
+                  alignItems: "start",
+                }}
+              >
+                <Card sx={{ position: { lg: "sticky" }, top: { lg: 88 } }}>
+                  <CardContent>
+                    <Stack spacing={1.5}>
+                      <Typography variant="h5">Queue Controls</Typography>
+                      <FormControl fullWidth>
+                        <InputLabel>Release</InputLabel>
+                        <Select
+                          label="Release"
+                          value={selectedRelease?.id ?? ""}
+                          onChange={(event) =>
+                            setSelectedReleaseId(event.target.value)
+                          }
+                        >
+                          {releases.map((release) => (
+                            <MenuItem key={release.id} value={release.id}>
+                              {release.title}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <Button
+                        variant="outlined"
+                        startIcon={<RefreshIcon />}
+                        onClick={() => loadData(true)}
+                        disabled={loading}
+                      >
+                        Refresh
+                      </Button>
+                    </Stack>
+                  </CardContent>
+                </Card>
 
+                <Stack
+                  spacing={2}
+                  sx={{ minWidth: 0 }}
+                >
                 {selectedRelease ? (
                   <Card>
                     <CardContent>
@@ -745,7 +811,8 @@ export default function ReservationsPage() {
                     </CardContent>
                   </Card>
                 ) : null}
-              </>
+                </Stack>
+              </Box>
             )}
           </Stack>
         ) : null}
@@ -774,8 +841,15 @@ export default function ReservationsPage() {
                 </CardContent>
               </Card>
             ) : (
-              <>
-                <Card>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr", xl: "minmax(420px, 520px) 1fr" },
+                  gap: 2,
+                  alignItems: "start",
+                }}
+              >
+                <Card sx={{ position: { xl: "sticky" }, top: { xl: 88 } }}>
                   <CardContent>
                     <Stack spacing={2}>
                       <Typography variant="h5">Add Release</Typography>
@@ -785,6 +859,7 @@ export default function ReservationsPage() {
                           gridTemplateColumns: {
                             xs: "1fr",
                             md: "repeat(2, minmax(0, 1fr))",
+                            xl: "1fr",
                           },
                           gap: 1.5,
                         }}
@@ -1014,7 +1089,7 @@ export default function ReservationsPage() {
                     </Stack>
                   </CardContent>
                 </Card>
-              </>
+              </Box>
             )}
           </Stack>
         ) : null}
