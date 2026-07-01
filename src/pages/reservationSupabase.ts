@@ -42,6 +42,14 @@ export type ReservationProductRecord = {
   created_at: string;
 };
 
+export type ReservationProfileRecord = {
+  id: string;
+  display_name: string;
+  contact: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type ReservationAuthSession = {
   access_token: string;
   refresh_token: string;
@@ -69,6 +77,12 @@ type ReservationInput = {
   employee_contact: string | null;
   notes: string | null;
   product_ids: string[];
+};
+
+type ReservationProfileInput = {
+  id: string;
+  display_name: string;
+  contact: string | null;
 };
 
 type ReleaseProductInput = {
@@ -273,6 +287,29 @@ export const signOutReservationsUser = async (accessToken: string) => {
     },
   });
   setReservationsAccessToken("");
+};
+
+export const fetchReservationProfile = async (userId: string) => {
+  const rows = await requestJson<ReservationProfileRecord[]>(
+    `reservation_profiles?id=eq.${encodeFilter(userId)}&select=*`
+  );
+
+  return rows[0] ?? null;
+};
+
+export const upsertReservationProfile = async (
+  profile: ReservationProfileInput
+) => {
+  const rows = await requestJson<ReservationProfileRecord[]>(
+    "reservation_profiles?on_conflict=id",
+    {
+      method: "POST",
+      headers: getHeaders("resolution=merge-duplicates,return=representation"),
+      body: JSON.stringify(profile),
+    }
+  );
+
+  return rows[0];
 };
 
 export const fetchReleases = (includeInactive = false) => {

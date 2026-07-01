@@ -44,6 +44,7 @@ import {
   fetchReservationsAuthUser,
   fetchReleaseProducts,
   fetchReleases,
+  fetchReservationProfile,
   fetchReservationProducts,
   fetchReservations,
   isReservationsConfigured,
@@ -56,16 +57,19 @@ import {
   type ReleaseProductRecord,
   type ReleaseRecord,
   type ReservationProductRecord,
+  type ReservationProfileRecord,
   type ReservationRecord,
   type ReservationStatus,
   updateRelease,
   updateReleaseProduct,
   updateReservationsPassword,
   updateReservationStatus,
+  upsertReservationProfile,
 } from "./reservationSupabase";
 
 const ADMIN_SESSION_KEY = "geekd.reservations.adminUnlocked";
 const AUTH_SESSION_KEY = "geekd.reservations.authSession";
+const PROFILE_REQUIRED_KEY = "geekd.reservations.profileRequired";
 
 const blankReleaseForm = {
   title: "",
@@ -91,8 +95,6 @@ type ReleaseEditForm = {
 };
 
 const blankReservationForm = {
-  employee_name: "",
-  employee_contact: "",
   notes: "",
   productIds: [] as string[],
 };
@@ -146,6 +148,13 @@ export default function ReservationsPage() {
   const [passwordSetupForm, setPasswordSetupForm] = useState({
     password: "",
     confirmPassword: "",
+  });
+  const [profile, setProfile] = useState<ReservationProfileRecord | null>(null);
+  const [profileChecked, setProfileChecked] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    display_name: "",
+    contact: "",
   });
   const [releases, setReleases] = useState<ReleaseRecord[]>([]);
   const [products, setProducts] = useState<ReleaseProductRecord[]>([]);
@@ -233,6 +242,10 @@ export default function ReservationsPage() {
       } else {
         setReservationsAccessToken("");
         window.localStorage.removeItem(AUTH_SESSION_KEY);
+        window.localStorage.removeItem(PROFILE_REQUIRED_KEY);
+        setProfile(null);
+        setProfileChecked(false);
+        setProfileForm({ display_name: "", contact: "" });
       }
     },
     []
@@ -315,9 +328,65 @@ export default function ReservationsPage() {
     restoreSession();
   }, [persistAuthSession]);
 
+  const loadProfile = useCallback(async () => {
+    if (!authSession) return;
+
+    if (!isReservationsConfigured) {
+      setProfileChecked(true);
+      return;
+    }
+
+    setProfileChecked(false);
+    setError("");
+
+    try {
+      const profileRow = await fetchReservationProfile(authSession.user.id);
+
+      setProfile(profileRow);
+      setProfileForm({
+        display_name: profileRow?.display_name ?? "",
+        contact: profileRow?.contact ?? "",
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load profile.");
+    } finally {
+      setProfileChecked(true);
+    }
+  }, [authSession]);
+
+  useEffect(() => {
+    if (authChecked && authSession) {
+      loadProfile();
+    }
+  }, [authChecked, authSession, loadProfile]);
+
+  useEffect(() => {
+    const shouldBlockNavigation = Boolean(
+      authSession && profileChecked && !profile
+    );
+
+    if (!shouldBlockNavigation) {
+      window.localStorage.removeItem(PROFILE_REQUIRED_KEY);
+      return;
+    }
+
+    window.localStorage.setItem(PROFILE_REQUIRED_KEY, "true");
+
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+
+    return () => {
+      window.removeEventListener("beforeunload", warnBeforeLeaving);
+    };
+  }, [authSession, profileChecked, profile]);
+
   const loadData = useCallback(
     async (includeReservations = adminUnlocked) => {
-      if (!isReservationsConfigured || !authSession) return;
+      if (!isReservationsConfigured || !authSession || !profile) return;
 
       setLoading(true);
       setError("");
@@ -350,14 +419,14 @@ export default function ReservationsPage() {
         setLoading(false);
       }
     },
-    [adminUnlocked, authSession]
+    [adminUnlocked, authSession, profile]
   );
 
   useEffect(() => {
-    if (authChecked && authSession) {
+    if (authChecked && authSession && profile) {
       loadData();
     }
-  }, [authChecked, authSession, loadData]);
+  }, [authChecked, authSession, profile, loadData]);
 
   const login = async () => {
     if (!loginForm.email.trim() || !loginForm.password) {
@@ -437,9 +506,47 @@ export default function ReservationsPage() {
     setProducts([]);
     setReservations([]);
     setReservationProducts([]);
+    setReservationForms({});
 
     if (currentAccessToken) {
       await signOutReservationsUser(currentAccessToken).catch(() => {});
+    }
+  };
+
+  const saveProfile = async () => {
+    if (!authSession) return;
+
+    const displayName = profileForm.display_name.trim();
+    const contact = profileForm.contact.trim();
+
+    if (!displayName) {
+      setError("Your name is required before using reservations.");
+      return;
+    }
+
+    setProfileSaving(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const savedProfile = await upsertReservationProfile({
+        id: authSession.user.id,
+        display_name: displayName,
+        contact: contact || null,
+      });
+
+      setProfile(savedProfile);
+      setProfileForm({
+        display_name: savedProfile.display_name,
+        contact: savedProfile.contact ?? "",
+      });
+      window.localStorage.removeItem(PROFILE_REQUIRED_KEY);
+      setMessage("Profile saved.");
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to save profile.");
+    } finally {
+      setProfileSaving(false);
     }
   };
 
@@ -608,8 +715,8 @@ export default function ReservationsPage() {
   const submitReservation = async (releaseId: string) => {
     const form = reservationForms[releaseId] ?? blankReservationForm;
 
-    if (!form.employee_name.trim()) {
-      setError("Employee name is required.");
+    if (!profile) {
+      setError("Create your profile before submitting a reservation.");
       return;
     }
 
@@ -624,8 +731,8 @@ export default function ReservationsPage() {
     try {
       await createReservation({
         release_id: releaseId,
-        employee_name: form.employee_name.trim(),
-        employee_contact: form.employee_contact.trim() || null,
+        employee_name: profile.display_name,
+        employee_contact: profile.contact,
         notes: form.notes.trim() || null,
         product_ids: form.productIds,
       });
@@ -862,6 +969,102 @@ export default function ReservationsPage() {
     );
   }
 
+  if (!profileChecked) {
+    return (
+      <Container maxWidth="sm" sx={{ py: { xs: 4, md: 8 } }}>
+        <Card>
+          <CardContent>
+            <Stack spacing={2} alignItems="center">
+              <CircularProgress />
+              <Typography>Checking reservation profile...</Typography>
+            </Stack>
+          </CardContent>
+        </Card>
+      </Container>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <Container maxWidth="sm" sx={{ py: { xs: 3, md: 8 } }}>
+        <Stack spacing={2.5}>
+          <Paper sx={{ p: { xs: 2, sm: 3 } }}>
+            <Stack spacing={1.5}>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <EventAvailableIcon color="primary" sx={{ fontSize: 36 }} />
+                <Box>
+                  <Typography variant="h1">Create Your Profile</Typography>
+                  <Typography color="text.secondary">
+                    Add your name before submitting release reservations.
+                  </Typography>
+                </Box>
+              </Stack>
+
+              {message ? <Alert severity="success">{message}</Alert> : null}
+              {error ? <Alert severity="error">{error}</Alert> : null}
+            </Stack>
+          </Paper>
+
+          <Card>
+            <CardContent>
+              <Stack spacing={2}>
+                <TextField
+                  label="Name"
+                  value={profileForm.display_name}
+                  onChange={(event) =>
+                    setProfileForm((prev) => ({
+                      ...prev,
+                      display_name: event.target.value,
+                    }))
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      saveProfile();
+                    }
+                  }}
+                  required
+                  autoFocus
+                  fullWidth
+                />
+                <TextField
+                  label="Contact or initials"
+                  value={profileForm.contact}
+                  onChange={(event) =>
+                    setProfileForm((prev) => ({
+                      ...prev,
+                      contact: event.target.value,
+                    }))
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      saveProfile();
+                    }
+                  }}
+                  fullWidth
+                />
+                <Button
+                  variant="contained"
+                  startIcon={<SaveIcon />}
+                  onClick={saveProfile}
+                  disabled={profileSaving || !profileForm.display_name.trim()}
+                >
+                  {profileSaving ? "Saving..." : "Save Profile"}
+                </Button>
+                <Button
+                  variant="text"
+                  startIcon={<LogoutIcon />}
+                  onClick={logout}
+                >
+                  Log Out
+                </Button>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Stack>
+      </Container>
+    );
+  }
+
   return (
     <Container maxWidth="xl" sx={{ py: { xs: 2, md: 4 } }}>
       <Stack spacing={2.5}>
@@ -895,6 +1098,7 @@ export default function ReservationsPage() {
                 color="primary"
                 variant="outlined"
               />
+              <Chip label={profile.display_name} color="success" />
               {authSession.user.email ? (
                 <Chip label={authSession.user.email} variant="outlined" />
               ) : null}
@@ -1047,45 +1251,25 @@ export default function ReservationsPage() {
                         )}
                       </Box>
 
-                      <Box
-                        sx={{
-                          display: "grid",
-                          gridTemplateColumns: {
-                            xs: "1fr",
-                            lg: "repeat(2, minmax(0, 1fr))",
-                          },
-                          gap: 1.25,
-                        }}
+                      <Paper
+                        variant="outlined"
+                        sx={{ p: 1.5, bgcolor: "background.default" }}
                       >
-                        <TextField
-                          label="Employee name"
-                          value={form.employee_name}
-                          onChange={(event) =>
-                            setReservationForms((prev) => ({
-                              ...prev,
-                              [release.id]: {
-                                ...form,
-                                employee_name: event.target.value,
-                              },
-                            }))
-                          }
-                          fullWidth
-                        />
-                        <TextField
-                          label="Contact or initials"
-                          value={form.employee_contact}
-                          onChange={(event) =>
-                            setReservationForms((prev) => ({
-                              ...prev,
-                              [release.id]: {
-                                ...form,
-                                employee_contact: event.target.value,
-                              },
-                            }))
-                          }
-                          fullWidth
-                        />
-                      </Box>
+                        <Stack
+                          direction={{ xs: "column", sm: "row" }}
+                          spacing={0.75}
+                          justifyContent="space-between"
+                        >
+                          <Typography sx={{ fontWeight: 900 }}>
+                            Requesting as {profile.display_name}
+                          </Typography>
+                          {profile.contact ? (
+                            <Typography color="text.secondary">
+                              {profile.contact}
+                            </Typography>
+                          ) : null}
+                        </Stack>
+                      </Paper>
                       <TextField
                         label="Notes"
                         value={form.notes}
