@@ -81,6 +81,7 @@ const PROFILE_REQUIRED_KEY = "geekd.reservations.profileRequired";
 const blankReleaseForm = {
   title: "",
   game: "",
+  gameIsOther: false,
   release_date: "",
   description: "",
   image_url: "",
@@ -95,6 +96,7 @@ type ReleaseProductFormItem = {
 type ReleaseEditForm = {
   title: string;
   game: string;
+  gameIsOther: boolean;
   release_date: string;
   description: string;
   image_url: string;
@@ -144,6 +146,15 @@ const getReleaseGameOption = (game: string) =>
   TCG_OPTIONS.find(
     (option) => option.name.toLowerCase() === game.trim().toLowerCase()
   );
+
+const OTHER_GAME_VALUE = "__other__";
+
+const getGameSelectValue = (game: string, gameIsOther = false) => {
+  if (gameIsOther) return OTHER_GAME_VALUE;
+  if (!game) return "";
+
+  return getReleaseGameOption(game)?.name ?? OTHER_GAME_VALUE;
+};
 
 const GameBadge = ({
   game,
@@ -697,6 +708,7 @@ export default function ReservationsPage() {
     setEditReleaseForm({
       title: release.title,
       game: release.game,
+      gameIsOther: !getReleaseGameOption(release.game),
       release_date: release.release_date ?? "",
       description: release.description ?? "",
       image_url: release.image_url ?? "",
@@ -1950,14 +1962,22 @@ export default function ReservationsPage() {
                         <TextField
                           select
                           label="Game / category"
-                          value={releaseForm.game}
-                          onChange={(event) =>
+                          value={getGameSelectValue(
+                            releaseForm.game,
+                            releaseForm.gameIsOther
+                          )}
+                          onChange={(event) => {
+                            const value = event.target.value;
                             setReleaseForm((prev) => ({
                               ...prev,
-                              game: event.target.value,
-                            }))
-                          }
+                              game: value === OTHER_GAME_VALUE ? "" : value,
+                              gameIsOther: value === OTHER_GAME_VALUE,
+                            }));
+                          }}
                         >
+                          <MenuItem value="" disabled>
+                            Select a game
+                          </MenuItem>
                           {TCG_OPTIONS.map((option) => (
                             <MenuItem key={option.key} value={option.name}>
                               <Stack
@@ -1982,7 +2002,20 @@ export default function ReservationsPage() {
                               </Stack>
                             </MenuItem>
                           ))}
+                          <MenuItem value={OTHER_GAME_VALUE}>Other</MenuItem>
                         </TextField>
+                        {releaseForm.gameIsOther ? (
+                          <TextField
+                            label="Custom game name"
+                            value={releaseForm.game}
+                            onChange={(event) =>
+                              setReleaseForm((prev) => ({
+                                ...prev,
+                                game: event.target.value,
+                              }))
+                            }
+                          />
+                        ) : null}
                         <TextField
                           label="Release date"
                           type="date"
@@ -2251,18 +2284,30 @@ export default function ReservationsPage() {
                                   <TextField
                                     select
                                     label="Game / category"
-                                    value={editReleaseForm.game}
-                                    onChange={(event) =>
+                                    value={getGameSelectValue(
+                                      editReleaseForm.game,
+                                      editReleaseForm.gameIsOther
+                                    )}
+                                    onChange={(event) => {
+                                      const value = event.target.value;
                                       setEditReleaseForm((prev) =>
                                         prev
                                           ? {
                                               ...prev,
-                                              game: event.target.value,
+                                              game:
+                                                value === OTHER_GAME_VALUE
+                                                  ? ""
+                                                  : value,
+                                              gameIsOther:
+                                                value === OTHER_GAME_VALUE,
                                             }
                                           : prev
-                                      )
-                                    }
+                                      );
+                                    }}
                                   >
+                                    <MenuItem value="" disabled>
+                                      Select a game
+                                    </MenuItem>
                                     {TCG_OPTIONS.map((option) => (
                                       <MenuItem
                                         key={option.key}
@@ -2290,7 +2335,26 @@ export default function ReservationsPage() {
                                         </Stack>
                                       </MenuItem>
                                     ))}
+                                    <MenuItem value={OTHER_GAME_VALUE}>
+                                      Other
+                                    </MenuItem>
                                   </TextField>
+                                  {editReleaseForm.gameIsOther ? (
+                                    <TextField
+                                      label="Custom game name"
+                                      value={editReleaseForm.game}
+                                      onChange={(event) =>
+                                        setEditReleaseForm((prev) =>
+                                          prev
+                                            ? {
+                                                ...prev,
+                                                game: event.target.value,
+                                              }
+                                            : prev
+                                        )
+                                      }
+                                    />
+                                  ) : null}
                                   <TextField
                                     label="Release date"
                                     type="date"
