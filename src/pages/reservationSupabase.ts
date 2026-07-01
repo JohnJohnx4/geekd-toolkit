@@ -52,6 +52,8 @@ export type ReservationAuthSession = {
   };
 };
 
+export type ReservationAuthUser = ReservationAuthSession["user"];
+
 type ReleaseInput = {
   title: string;
   game: string;
@@ -160,6 +162,11 @@ type SupabaseAuthResponse = {
   };
 };
 
+type SupabaseAuthUserResponse = {
+  id: string;
+  email?: string;
+};
+
 const normalizeAuthSession = (
   response: SupabaseAuthResponse
 ): ReservationAuthSession => ({
@@ -173,6 +180,37 @@ const normalizeAuthSession = (
     email: response.user.email,
   },
 });
+
+export const createReservationsSession = (
+  accessToken: string,
+  refreshToken: string,
+  expiresIn: number,
+  user: ReservationAuthUser
+): ReservationAuthSession => {
+  const session = {
+    access_token: accessToken,
+    refresh_token: refreshToken,
+    expires_at: Math.floor(Date.now() / 1000) + expiresIn,
+    user,
+  };
+  setReservationsAccessToken(session.access_token);
+
+  return session;
+};
+
+export const fetchReservationsAuthUser = async (accessToken: string) => {
+  const user = await requestAuthJson<SupabaseAuthUserResponse>("user", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  return {
+    id: user.id,
+    email: user.email,
+  };
+};
 
 export const signInReservationsUser = async (
   email: string,
@@ -189,6 +227,24 @@ export const signInReservationsUser = async (
   setReservationsAccessToken(session.access_token);
 
   return session;
+};
+
+export const updateReservationsPassword = async (
+  accessToken: string,
+  password: string
+) => {
+  const user = await requestAuthJson<SupabaseAuthUserResponse>("user", {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ password }),
+  });
+
+  return {
+    id: user.id,
+    email: user.email,
+  };
 };
 
 export const refreshReservationsSession = async (refreshToken: string) => {

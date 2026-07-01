@@ -16,6 +16,7 @@ The Reservations tool uses Supabase so employees can submit release requests fro
 The first version uses a simple admin PIN for the manager screens. This protects the UI from casual use, but it is not a full security boundary because frontend code is visible to users. For stronger admin protection, move manager actions behind Supabase Auth or an Edge Function.
 
 Create employee users in Supabase under Authentication. The app currently expects email/password sign-in.
+Set the Supabase Authentication Site URL and redirect URLs to the deployed app or local dev URL, including `/reservations`, so invitation links open the app. Invite links are handled by the Reservations page and prompt users to set their password.
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

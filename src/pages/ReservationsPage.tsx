@@ -32,13 +32,16 @@ import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import InventoryIcon from "@mui/icons-material/Inventory";
 import LoginIcon from "@mui/icons-material/Login";
 import LogoutIcon from "@mui/icons-material/Logout";
+import LockResetIcon from "@mui/icons-material/LockReset";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SaveIcon from "@mui/icons-material/Save";
 
 import {
+  createReservationsSession,
   createReleaseProducts,
   createReleaseWithProducts,
   createReservation,
+  fetchReservationsAuthUser,
   fetchReleaseProducts,
   fetchReleases,
   fetchReservationProducts,
@@ -57,6 +60,7 @@ import {
   type ReservationStatus,
   updateRelease,
   updateReleaseProduct,
+  updateReservationsPassword,
   updateReservationStatus,
 } from "./reservationSupabase";
 
@@ -131,11 +135,17 @@ export default function ReservationsPage() {
   const [tab, setTab] = useState(0);
   const [authSession, setAuthSession] =
     useState<ReservationAuthSession | null>(null);
+  const [passwordSetupSession, setPasswordSetupSession] =
+    useState<ReservationAuthSession | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [loginForm, setLoginForm] = useState({
     email: "",
     password: "",
+  });
+  const [passwordSetupForm, setPasswordSetupForm] = useState({
+    password: "",
+    confirmPassword: "",
   });
   const [releases, setReleases] = useState<ReleaseRecord[]>([]);
   const [products, setProducts] = useState<ReleaseProductRecord[]>([]);
@@ -230,6 +240,50 @@ export default function ReservationsPage() {
 
   useEffect(() => {
     const restoreSession = async () => {
+      const authParams = new URLSearchParams(
+        window.location.hash.startsWith("#")
+          ? window.location.hash.slice(1)
+          : window.location.hash
+      );
+      const inviteAccessToken = authParams.get("access_token");
+      const inviteRefreshToken = authParams.get("refresh_token");
+      const inviteExpiresIn = Number(authParams.get("expires_in") ?? 3600);
+      const inviteType = authParams.get("type");
+
+      if (
+        inviteAccessToken &&
+        inviteRefreshToken &&
+        (inviteType === "invite" || inviteType === "recovery")
+      ) {
+        try {
+          setReservationsAccessToken(inviteAccessToken);
+          const user = await fetchReservationsAuthUser(inviteAccessToken);
+          const session = createReservationsSession(
+            inviteAccessToken,
+            inviteRefreshToken,
+            Number.isFinite(inviteExpiresIn) ? inviteExpiresIn : 3600,
+            user
+          );
+
+          setPasswordSetupSession(session);
+          window.history.replaceState(
+            null,
+            document.title,
+            `${window.location.pathname}${window.location.search}`
+          );
+        } catch (err) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Unable to read invitation link."
+          );
+        } finally {
+          setAuthChecked(true);
+        }
+
+        return;
+      }
+
       const storedValue = window.localStorage.getItem(AUTH_SESSION_KEY);
 
       if (!storedValue) {
@@ -332,10 +386,51 @@ export default function ReservationsPage() {
     }
   };
 
+  const completePasswordSetup = async () => {
+    if (!passwordSetupSession) return;
+
+    if (passwordSetupForm.password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+
+    if (passwordSetupForm.password !== passwordSetupForm.confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setAuthLoading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const user = await updateReservationsPassword(
+        passwordSetupSession.access_token,
+        passwordSetupForm.password
+      );
+      const session = {
+        ...passwordSetupSession,
+        user,
+      };
+
+      persistAuthSession(session);
+      setPasswordSetupSession(null);
+      setPasswordSetupForm({ password: "", confirmPassword: "" });
+      setMessage("Password set. You are logged in.");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to set password."
+      );
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
   const logout = async () => {
     const currentAccessToken = authSession?.access_token;
 
     persistAuthSession(null);
+    setPasswordSetupSession(null);
     setAdminUnlocked(false);
     window.sessionStorage.removeItem(ADMIN_SESSION_KEY);
     setReleases([]);
@@ -610,6 +705,82 @@ export default function ReservationsPage() {
             </Stack>
           </CardContent>
         </Card>
+      </Container>
+    );
+  }
+
+  if (passwordSetupSession) {
+    return (
+      <Container maxWidth="sm" sx={{ py: { xs: 3, md: 8 } }}>
+        <Stack spacing={2.5}>
+          <Paper sx={{ p: { xs: 2, sm: 3 } }}>
+            <Stack spacing={1.5}>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <LockResetIcon color="primary" sx={{ fontSize: 36 }} />
+                <Box>
+                  <Typography variant="h1">Set Your Password</Typography>
+                  <Typography color="text.secondary">
+                    Finish setting up your reservation account.
+                  </Typography>
+                </Box>
+              </Stack>
+
+              {passwordSetupSession.user.email ? (
+                <Chip
+                  label={passwordSetupSession.user.email}
+                  sx={{ alignSelf: "flex-start" }}
+                />
+              ) : null}
+
+              {message ? <Alert severity="success">{message}</Alert> : null}
+              {error ? <Alert severity="error">{error}</Alert> : null}
+            </Stack>
+          </Paper>
+
+          <Card>
+            <CardContent>
+              <Stack spacing={2}>
+                <TextField
+                  label="New password"
+                  type="password"
+                  value={passwordSetupForm.password}
+                  onChange={(event) =>
+                    setPasswordSetupForm((prev) => ({
+                      ...prev,
+                      password: event.target.value,
+                    }))
+                  }
+                  fullWidth
+                />
+                <TextField
+                  label="Confirm password"
+                  type="password"
+                  value={passwordSetupForm.confirmPassword}
+                  onChange={(event) =>
+                    setPasswordSetupForm((prev) => ({
+                      ...prev,
+                      confirmPassword: event.target.value,
+                    }))
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      completePasswordSetup();
+                    }
+                  }}
+                  fullWidth
+                />
+                <Button
+                  variant="contained"
+                  startIcon={<LockResetIcon />}
+                  onClick={completePasswordSetup}
+                  disabled={authLoading}
+                >
+                  {authLoading ? "Saving..." : "Set Password"}
+                </Button>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Stack>
       </Container>
     );
   }
