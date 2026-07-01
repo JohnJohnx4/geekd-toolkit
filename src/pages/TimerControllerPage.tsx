@@ -788,17 +788,13 @@ export default function TimerControllerPage() {
                     }}
                   >
                     <Stack
-                      direction="row"
-                      spacing={{ xs: 1.25, sm: 2 }}
+                      spacing={{ xs: 1, sm: 1.5 }}
                       alignItems="center"
                       sx={{ minWidth: 0 }}
                     >
                       <Box
                         sx={{
                           ...getFullscreenLogoSize(displayedTimers.length),
-                          minWidth: getFullscreenLogoSize(
-                            displayedTimers.length
-                          ).width,
                           display: "grid",
                           placeItems: "center",
                           borderRadius: 2,
@@ -818,7 +814,7 @@ export default function TimerControllerPage() {
                           }}
                         />
                       </Box>
-                      <Box sx={{ minWidth: 0 }}>
+                      <Box sx={{ minWidth: 0, textAlign: "center" }}>
                         <Typography
                           sx={{
                             fontSize: getFullscreenTitleFontSize(
