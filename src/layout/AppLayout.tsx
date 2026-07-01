@@ -20,6 +20,7 @@ import MoneyIcon from "@mui/icons-material/Money";
 import CatchingPokemonIcon from "@mui/icons-material/CatchingPokemon";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 import TimerIcon from "@mui/icons-material/Timer";
+import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 
 export default function AppLayout() {
   const navigate = useNavigate();
@@ -115,6 +116,12 @@ export default function AppLayout() {
                   <TimerIcon fontSize="small" />
                 </ListItemIcon>
                 <ListItemText>Timer Controller</ListItemText>
+              </MenuItem>
+              <MenuItem onClick={() => handleNavigation("/reservations")}>
+                <ListItemIcon>
+                  <EventAvailableIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Reservations</ListItemText>
               </MenuItem>
             </Menu>
           </Stack>

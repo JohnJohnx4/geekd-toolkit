@@ -11,6 +11,7 @@ import CatchingPokemonIcon from "@mui/icons-material/CatchingPokemon";
 import MoneyIcon from "@mui/icons-material/Money";
 import PriceCheckIcon from "@mui/icons-material/PriceCheck";
 import TimerIcon from "@mui/icons-material/Timer";
+import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import { useNavigate } from "@tanstack/react-router";
 
 const tools = [
@@ -53,6 +54,14 @@ const tools = [
     icon: TimerIcon,
     color: "#334155",
     background: "#e2e8f0",
+  },
+  {
+    label: "Reservations",
+    description: "Collect employee requests for upcoming releases",
+    path: "/reservations",
+    icon: EventAvailableIcon,
+    color: "#166534",
+    background: "#dcfce7",
   },
 ] as const;
 
