@@ -14,6 +14,7 @@ export type ReleaseProductRecord = {
   release_id: string;
   name: string;
   description: string | null;
+  release_date: string | null;
   sort_order: number;
   is_active: boolean;
   created_at: string;
@@ -106,8 +107,14 @@ type ReservationProfileInput = {
 
 type ReleaseProductInput = {
   name?: string;
+  release_date?: string | null;
   sort_order?: number;
   is_active?: boolean;
+};
+
+export type ReleaseProductCreateInput = {
+  name: string;
+  release_date: string | null;
 };
 
 export type InfoArticleInput = {
@@ -427,15 +434,19 @@ export const createRelease = async (release: ReleaseInput) => {
 
 export const createReleaseProducts = async (
   releaseId: string,
-  productNames: string[],
+  productItems: ReleaseProductCreateInput[],
   startOrder = 0
 ) => {
-  const products = productNames
-    .map((name) => name.trim())
-    .filter(Boolean)
-    .map((name, index) => ({
+  const products = productItems
+    .map((product) => ({
+      name: product.name.trim(),
+      release_date: product.release_date || null,
+    }))
+    .filter((product) => product.name)
+    .map((product, index) => ({
       release_id: releaseId,
-      name,
+      name: product.name,
+      release_date: product.release_date,
       sort_order: startOrder + index,
       is_active: true,
     }));
@@ -453,12 +464,12 @@ export const createReleaseProducts = async (
 
 export const createReleaseWithProducts = async (
   release: ReleaseInput,
-  productNames: string[]
+  productItems: ReleaseProductCreateInput[]
 ) => {
   const createdRelease = await createRelease(release);
   const createdProducts = await createReleaseProducts(
     createdRelease.id,
-    productNames
+    productItems
   );
   await ensureOwnerReservationProducts(
     createdRelease.id,
@@ -487,7 +498,7 @@ export const updateRelease = async (
 
 export const fetchReleaseProducts = () =>
   requestJson<ReleaseProductRecord[]>(
-    "release_products?select=*&order=sort_order.asc,created_at.asc"
+    "release_products?select=*&order=release_date.asc.nullslast,sort_order.asc,created_at.asc"
   );
 
 export const updateReleaseProduct = async (

@@ -87,18 +87,19 @@ type ReservationProductDetail = ReleaseProductRecord & {
   reservationProductStatus: ReservationProductStatus;
 };
 
+type ReleaseProductFormItem = {
+  id?: string;
+  name: string;
+  release_date: string;
+};
+
 const blankReleaseForm = {
   title: "",
   game: "",
   gameIsOther: false,
   release_date: "",
   description: "",
-  products: [""] as string[],
-};
-
-type ReleaseProductFormItem = {
-  id?: string;
-  name: string;
+  products: [{ name: "", release_date: "" }] as ReleaseProductFormItem[],
 };
 
 type ReleaseEditForm = {
@@ -147,6 +148,11 @@ const formatReleaseDate = (value: string | null) => {
     year: "numeric",
   });
 };
+
+const formatProductLabel = (product: ReleaseProductRecord) =>
+  product.release_date
+    ? `${product.name} - ${formatReleaseDate(product.release_date)}`
+    : product.name;
 
 const compareReleasesByDisplayDate = (
   left: ReleaseRecord,
@@ -346,7 +352,7 @@ export default function ReservationsPage() {
   }, [reservations]);
 
   const productsByRelease = useMemo(() => {
-    return products.reduce<Record<string, ReleaseProductRecord[]>>(
+    const groups = products.reduce<Record<string, ReleaseProductRecord[]>>(
       (groups, product) => {
         if (!product.is_active) return groups;
 
@@ -355,6 +361,27 @@ export default function ReservationsPage() {
       },
       {}
     );
+
+    Object.values(groups).forEach((group) =>
+      group.sort((left, right) => {
+        if (left.release_date && !right.release_date) return -1;
+        if (!left.release_date && right.release_date) return 1;
+
+        if (left.release_date && right.release_date) {
+          const dateSort = left.release_date.localeCompare(right.release_date);
+          if (dateSort !== 0) return dateSort;
+        }
+
+        const orderSort = left.sort_order - right.sort_order;
+        if (orderSort !== 0) return orderSort;
+
+        return left.name.localeCompare(right.name, undefined, {
+          sensitivity: "base",
+        });
+      })
+    );
+
+    return groups;
   }, [products]);
 
   const productsByReservation = useMemo(() => {
@@ -851,16 +878,19 @@ export default function ReservationsPage() {
       return;
     }
 
-    const productNames = releaseForm.products
-      .map((product) => product.trim())
-      .filter(Boolean);
+    const productItems = releaseForm.products
+      .map((product) => ({
+        name: product.name.trim(),
+        release_date: product.release_date || releaseForm.release_date || null,
+      }))
+      .filter((product) => product.name);
 
     if (!releaseForm.title.trim() || !releaseForm.game.trim()) {
       setError("Release name and game are required.");
       return;
     }
 
-    if (!productNames.length) {
+    if (!productItems.length) {
       setError("Add at least one product for this release.");
       return;
     }
@@ -879,7 +909,7 @@ export default function ReservationsPage() {
           image_url: null,
           is_active: true,
         },
-        productNames
+        productItems
       );
       setReleaseForm(blankReleaseForm);
       setMessage("Release added.");
@@ -905,8 +935,9 @@ export default function ReservationsPage() {
         ? releaseProducts.map((product) => ({
             id: product.id,
             name: product.name,
+            release_date: product.release_date ?? release.release_date ?? "",
           }))
-        : [{ name: "" }],
+        : [{ name: "", release_date: release.release_date ?? "" }],
     });
   };
 
@@ -927,6 +958,7 @@ export default function ReservationsPage() {
       .map((product) => ({
         id: product.id,
         name: product.name.trim(),
+        release_date: product.release_date || editReleaseForm.release_date || null,
       }))
       .filter((product) => product.name);
 
@@ -965,6 +997,7 @@ export default function ReservationsPage() {
           product.id
             ? updateReleaseProduct(product.id, {
                 name: product.name,
+                release_date: product.release_date,
                 sort_order: index,
                 is_active: true,
               })
@@ -977,14 +1010,17 @@ export default function ReservationsPage() {
           ),
       ]);
 
-      const newProductNames = productItems
+      const newProductItems = productItems
         .filter((product) => !product.id)
-        .map((product) => product.name);
+        .map((product) => ({
+          name: product.name,
+          release_date: product.release_date,
+        }));
 
       const createdProducts = await createReleaseProducts(
         release.id,
-        newProductNames,
-        productItems.length - newProductNames.length
+        newProductItems,
+        productItems.length - newProductItems.length
       );
       await ensureOwnerReservationProducts(
         release.id,
@@ -1786,7 +1822,7 @@ export default function ReservationsPage() {
                                   ).map((product) => (
                                     <Chip
                                       key={product.id}
-                                      label={`${product.name}: ${
+                                      label={`${formatProductLabel(product)}: ${
                                         productStatusLabels[
                                           product.reservationProductStatus
                                         ]
@@ -1931,7 +1967,7 @@ export default function ReservationsPage() {
                                             }
                                           />
                                         }
-                                        label={product.name}
+                                        label={formatProductLabel(product)}
                                       />
                                     ))}
                                   </FormGroup>
@@ -2273,7 +2309,9 @@ export default function ReservationsPage() {
                                                           },
                                                         }}
                                                       >
-                                                        {product.name}
+                                                        {formatProductLabel(
+                                                          product
+                                                        )}
                                                       </Typography>
                                                       <FormControl
                                                         size="small"
@@ -2529,19 +2567,43 @@ export default function ReservationsPage() {
                             >
                               <TextField
                                 label={`Product ${index + 1}`}
-                                value={product}
+                                value={product.name}
                                 onChange={(event) =>
                                   setReleaseForm((prev) => ({
                                     ...prev,
                                     products: prev.products.map(
                                       (currentProduct, productIndex) =>
                                         productIndex === index
-                                          ? event.target.value
+                                          ? {
+                                              ...currentProduct,
+                                              name: event.target.value,
+                                            }
                                           : currentProduct
                                     ),
                                   }))
                                 }
                                 fullWidth
+                              />
+                              <TextField
+                                label="Product date"
+                                type="date"
+                                value={product.release_date}
+                                onChange={(event) =>
+                                  setReleaseForm((prev) => ({
+                                    ...prev,
+                                    products: prev.products.map(
+                                      (currentProduct, productIndex) =>
+                                        productIndex === index
+                                          ? {
+                                              ...currentProduct,
+                                              release_date: event.target.value,
+                                            }
+                                          : currentProduct
+                                    ),
+                                  }))
+                                }
+                                InputLabelProps={{ shrink: true }}
+                                sx={{ minWidth: { sm: 180 } }}
                               />
                               <Button
                                 variant="outlined"
@@ -2551,7 +2613,7 @@ export default function ReservationsPage() {
                                     ...prev,
                                     products:
                                       prev.products.length <= 1
-                                        ? [""]
+                                        ? [{ name: "", release_date: "" }]
                                         : prev.products.filter(
                                             (_, productIndex) =>
                                               productIndex !== index
@@ -2568,7 +2630,13 @@ export default function ReservationsPage() {
                             onClick={() =>
                               setReleaseForm((prev) => ({
                                 ...prev,
-                                products: [...prev.products, ""],
+                                products: [
+                                  ...prev.products,
+                                  {
+                                    name: "",
+                                    release_date: prev.release_date,
+                                  },
+                                ],
                               }))
                             }
                           >
@@ -2900,6 +2968,38 @@ export default function ReservationsPage() {
                                             }
                                             fullWidth
                                           />
+                                          <TextField
+                                            label="Product date"
+                                            type="date"
+                                            value={product.release_date}
+                                            onChange={(event) =>
+                                              setEditReleaseForm((prev) =>
+                                                prev
+                                                  ? {
+                                                      ...prev,
+                                                      products:
+                                                        prev.products.map(
+                                                          (
+                                                            currentProduct,
+                                                            productIndex
+                                                          ) =>
+                                                            productIndex ===
+                                                            index
+                                                              ? {
+                                                                  ...currentProduct,
+                                                                  release_date:
+                                                                    event.target
+                                                                      .value,
+                                                                }
+                                                              : currentProduct
+                                                        ),
+                                                    }
+                                                  : prev
+                                              )
+                                            }
+                                            InputLabelProps={{ shrink: true }}
+                                            sx={{ minWidth: { sm: 180 } }}
+                                          />
                                           <Button
                                             variant="outlined"
                                             color="warning"
@@ -2911,7 +3011,13 @@ export default function ReservationsPage() {
                                                       products:
                                                         prev.products.length <=
                                                         1
-                                                          ? [{ name: "" }]
+                                                          ? [
+                                                              {
+                                                                name: "",
+                                                                release_date:
+                                                                  prev.release_date,
+                                                              },
+                                                            ]
                                                           : prev.products.filter(
                                                               (
                                                                 _,
@@ -2939,7 +3045,11 @@ export default function ReservationsPage() {
                                                 ...prev,
                                                 products: [
                                                   ...prev.products,
-                                                  { name: "" },
+                                                  {
+                                                    name: "",
+                                                    release_date:
+                                                      prev.release_date,
+                                                  },
                                                 ],
                                               }
                                             : prev
@@ -2996,7 +3106,7 @@ export default function ReservationsPage() {
                                     (product) => (
                                       <Chip
                                         key={product.id}
-                                        label={product.name}
+                                        label={formatProductLabel(product)}
                                         size="small"
                                         variant="outlined"
                                       />
@@ -3172,7 +3282,7 @@ export default function ReservationsPage() {
                         }
                       />
                     }
-                    label={product.name}
+                    label={formatProductLabel(product)}
                   />
                 ))}
               </FormGroup>

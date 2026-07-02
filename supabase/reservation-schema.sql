@@ -31,6 +31,7 @@ create table if not exists public.release_products (
   release_id uuid not null references public.releases(id) on delete cascade,
   name text not null,
   description text,
+  release_date date,
   sort_order integer not null default 0,
   is_active boolean not null default true,
   created_at timestamptz not null default now()
@@ -79,7 +80,7 @@ create index if not exists reservations_release_queue_idx
   on public.reservations (release_id, created_at);
 
 create index if not exists release_products_release_sort_idx
-  on public.release_products (release_id, sort_order, created_at);
+  on public.release_products (release_id, release_date, sort_order, created_at);
 
 create index if not exists reservation_products_product_idx
   on public.reservation_products (product_id);
