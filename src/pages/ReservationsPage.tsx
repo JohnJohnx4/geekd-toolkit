@@ -19,6 +19,7 @@ import {
   FormControl,
   FormControlLabel,
   FormGroup,
+  InputAdornment,
   InputLabel,
   MenuItem,
   Paper,
@@ -43,6 +44,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import LockResetIcon from "@mui/icons-material/LockReset";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SaveIcon from "@mui/icons-material/Save";
+import SearchIcon from "@mui/icons-material/Search";
 
 import {
   createReservationsSession,
@@ -220,6 +222,14 @@ const getReleaseGameOption = (game: string) =>
   );
 
 const OTHER_GAME_VALUE = "__other__";
+const ALL_RELEASE_GAMES_VALUE = "__all_games__";
+const RELEASE_STATUS_FILTERS = {
+  all: "All",
+  active: "Active",
+  archived: "Archived",
+} as const;
+
+type ReleaseStatusFilter = keyof typeof RELEASE_STATUS_FILTERS;
 
 const getGameSelectValue = (game: string, gameIsOther = false) => {
   if (gameIsOther) return OTHER_GAME_VALUE;
@@ -314,6 +324,12 @@ export default function ReservationsPage() {
   const [expandedReleaseGame, setExpandedReleaseGame] = useState<string | null>(
     null
   );
+  const [manageReleaseSearch, setManageReleaseSearch] = useState("");
+  const [manageReleaseGameFilter, setManageReleaseGameFilter] = useState(
+    ALL_RELEASE_GAMES_VALUE
+  );
+  const [manageReleaseStatusFilter, setManageReleaseStatusFilter] =
+    useState<ReleaseStatusFilter>("all");
   const [reservationForms, setReservationForms] = useState<
     Record<string, typeof blankReservationForm>
   >({});
@@ -461,6 +477,69 @@ export default function ReservationsPage() {
   const reservationQueueGroups = useMemo(
     () => groupReleasesByGame(releases),
     [releases]
+  );
+
+  const manageReleaseGameOptions = useMemo(
+    () =>
+      [...new Set(releases.map((release) => release.game.trim() || "Other"))]
+        .sort((left, right) =>
+          left.localeCompare(right, undefined, { sensitivity: "base" })
+        ),
+    [releases]
+  );
+
+  const filteredManageReleases = useMemo(() => {
+    const normalizedSearch = manageReleaseSearch.trim().toLowerCase();
+
+    return releases.filter((release) => {
+      if (
+        manageReleaseGameFilter !== ALL_RELEASE_GAMES_VALUE &&
+        (release.game.trim() || "Other") !== manageReleaseGameFilter
+      ) {
+        return false;
+      }
+
+      if (
+        manageReleaseStatusFilter === "active" &&
+        !release.is_active
+      ) {
+        return false;
+      }
+
+      if (
+        manageReleaseStatusFilter === "archived" &&
+        release.is_active
+      ) {
+        return false;
+      }
+
+      if (!normalizedSearch) return true;
+
+      const releaseProducts = productsByRelease[release.id] ?? [];
+      const searchText = [
+        release.title,
+        release.game,
+        release.release_date ?? "",
+        release.description ?? "",
+        release.is_active ? "active" : "archived",
+        ...releaseProducts.map(formatProductLabel),
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return searchText.includes(normalizedSearch);
+    });
+  }, [
+    manageReleaseGameFilter,
+    manageReleaseSearch,
+    manageReleaseStatusFilter,
+    productsByRelease,
+    releases,
+  ]);
+
+  const managedReleaseGroups = useMemo(
+    () => groupReleasesByGame(filteredManageReleases),
+    [filteredManageReleases]
   );
 
   const persistAuthSession = useCallback(
@@ -2778,7 +2857,12 @@ export default function ReservationsPage() {
                         justifyContent="space-between"
                         alignItems={{ xs: "stretch", sm: "center" }}
                       >
-                        <Typography variant="h5">Current Releases</Typography>
+                        <Box>
+                          <Typography variant="h5">Current Releases</Typography>
+                          <Typography color="text.secondary">
+                            {filteredManageReleases.length} of {releases.length} shown
+                          </Typography>
+                        </Box>
                         <Button
                           variant="outlined"
                           startIcon={<RefreshIcon />}
@@ -2789,15 +2873,104 @@ export default function ReservationsPage() {
                         </Button>
                       </Stack>
 
-                      <Stack spacing={1.25}>
-                        {releases.map((release) => {
-                          const isEditing = editingReleaseId === release.id;
+                      <Box
+                        sx={{
+                          display: "grid",
+                          gridTemplateColumns: {
+                            xs: "1fr",
+                            md: "minmax(220px, 1fr) 210px 160px",
+                          },
+                          gap: 1,
+                        }}
+                      >
+                        <TextField
+                          label="Search releases"
+                          value={manageReleaseSearch}
+                          onChange={(event) =>
+                            setManageReleaseSearch(event.target.value)
+                          }
+                          size="small"
+                          slotProps={{
+                            input: {
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <SearchIcon fontSize="small" />
+                                </InputAdornment>
+                              ),
+                            },
+                          }}
+                        />
+                        <TextField
+                          select
+                          label="Game"
+                          value={manageReleaseGameFilter}
+                          onChange={(event) =>
+                            setManageReleaseGameFilter(event.target.value)
+                          }
+                          size="small"
+                        >
+                          <MenuItem value={ALL_RELEASE_GAMES_VALUE}>
+                            All Games
+                          </MenuItem>
+                          {manageReleaseGameOptions.map((game) => (
+                            <MenuItem key={game} value={game}>
+                              {game}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                        <TextField
+                          select
+                          label="Status"
+                          value={manageReleaseStatusFilter}
+                          onChange={(event) =>
+                            setManageReleaseStatusFilter(
+                              event.target.value as ReleaseStatusFilter
+                            )
+                          }
+                          size="small"
+                        >
+                          {Object.entries(RELEASE_STATUS_FILTERS).map(
+                            ([value, label]) => (
+                              <MenuItem key={value} value={value}>
+                                {label}
+                              </MenuItem>
+                            )
+                          )}
+                        </TextField>
+                      </Box>
 
-                          return (
+                      <Stack spacing={1.25}>
+                        {managedReleaseGroups.map((group) => (
+                          <Paper
+                            key={group.game}
+                            variant="outlined"
+                            sx={{ p: { xs: 1, sm: 1.25 } }}
+                          >
+                            <Stack spacing={1}>
+                              <Stack
+                                direction="row"
+                                spacing={1}
+                                alignItems="center"
+                                justifyContent="space-between"
+                              >
+                                <GameBadge game={group.game} size="small" />
+                                <Chip
+                                  label={`${group.releases.length} releases`}
+                                  size="small"
+                                  variant="outlined"
+                                />
+                              </Stack>
+
+                              <Stack spacing={0.75}>
+                                {group.releases.map((release) => {
+                                  const isEditing =
+                                    editingReleaseId === release.id;
+
+                                  return (
                           <Paper
                             key={release.id}
                             variant="outlined"
-                            sx={{ p: { xs: 1.5, sm: 2 } }}
+                            sx={{ p: { xs: 1, sm: 1.25 } }}
                           >
                             {isEditing && editReleaseForm ? (
                               <Stack spacing={2}>
@@ -3184,6 +3357,21 @@ export default function ReservationsPage() {
                           </Paper>
                           );
                         })}
+                              </Stack>
+                            </Stack>
+                          </Paper>
+                        ))}
+
+                        {!managedReleaseGroups.length ? (
+                          <Paper
+                            variant="outlined"
+                            sx={{ p: 2, textAlign: "center" }}
+                          >
+                            <Typography color="text.secondary">
+                              No releases match those filters.
+                            </Typography>
+                          </Paper>
+                        ) : null}
                       </Stack>
                     </Stack>
                   </CardContent>
