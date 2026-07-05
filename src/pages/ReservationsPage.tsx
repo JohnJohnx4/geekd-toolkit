@@ -1859,6 +1859,19 @@ export default function ReservationsPage() {
                         const release = releases.find(
                           (item) => item.id === reservation.release_id
                         );
+                        const reservedProducts =
+                          productsByReservation[reservation.id] ?? [];
+                        const productPreview = reservedProducts
+                          .slice(0, 2)
+                          .map((product) => product.name)
+                          .join(", ");
+                        const productStatusCounts = reservedProducts.reduce<
+                          Partial<Record<ReservationProductStatus, number>>
+                        >((counts, product) => {
+                          counts[product.reservationProductStatus] =
+                            (counts[product.reservationProductStatus] ?? 0) + 1;
+                          return counts;
+                        }, {});
 
                         return (
                           <Paper
@@ -1873,27 +1886,49 @@ export default function ReservationsPage() {
                               borderColor: "divider",
                               cursor: "pointer",
                               bgcolor: "background.paper",
-                              minHeight: 132,
+                              minHeight: 118,
                             }}
                           >
                             <Stack
-                              spacing={1}
+                              spacing={0.75}
                               sx={{ height: "100%" }}
                               justifyContent="space-between"
                             >
                               <Box>
                                 {release ? (
-                                  <Box sx={{ mb: 0.75 }}>
+                                  <Box sx={{ mb: 0.5 }}>
                                     <GameBadge game={release.game} size="small" />
                                   </Box>
                                 ) : null}
-                                <Typography sx={{ fontWeight: 900 }}>
+                                <Typography sx={{ fontWeight: 900 }} noWrap>
                                   {release?.title ?? "Release"}
                                 </Typography>
-                                <Typography color="text.secondary">
+                                <Typography color="text.secondary" variant="body2">
                                   {formatReleaseDate(
                                     release?.release_date ?? null
                                   )}
+                                </Typography>
+                                <Typography
+                                  color="text.secondary"
+                                  variant="body2"
+                                  noWrap
+                                  sx={{ mt: 0.25 }}
+                                >
+                                  {reservedProducts.length
+                                    ? `${reservedProducts.length} product${
+                                        reservedProducts.length === 1 ? "" : "s"
+                                      }${
+                                        productPreview
+                                          ? `: ${productPreview}${
+                                              reservedProducts.length > 2
+                                                ? ` +${
+                                                    reservedProducts.length - 2
+                                                  } more`
+                                                : ""
+                                            }`
+                                          : ""
+                                      }`
+                                    : "No products selected"}
                                 </Typography>
                                 <Stack
                                   direction="row"
@@ -1902,29 +1937,23 @@ export default function ReservationsPage() {
                                   useFlexGap
                                   sx={{ mt: 0.75 }}
                                 >
-                                  {(
-                                    productsByReservation[reservation.id] ?? []
-                                  ).map((product) => (
+                                  {Object.entries(productStatusCounts).map(
+                                    ([status, count]) => (
                                     <Chip
-                                      key={product.id}
-                                      label={`${formatProductLabel(product)}: ${
+                                      key={status}
+                                      label={`${count} ${
                                         productStatusLabels[
-                                          product.reservationProductStatus
+                                          status as ReservationProductStatus
                                         ]
                                       }`}
                                       color={getStatusColor(
-                                        product.reservationProductStatus
+                                        status as ReservationProductStatus
                                       )}
                                       size="small"
                                       variant="outlined"
                                     />
-                                  ))}
-                                  {!productsByReservation[reservation.id]
-                                    ?.length ? (
-                                    <Typography color="text.secondary">
-                                      No products selected
-                                    </Typography>
-                                  ) : null}
+                                    )
+                                  )}
                                 </Stack>
                               </Box>
                               <Stack
@@ -2056,46 +2085,82 @@ export default function ReservationsPage() {
                                 </Box>
 
                                 {releaseProducts.length ? (
-                                  <FormGroup
-                                    sx={{
-                                      display: "grid",
-                                      gridTemplateColumns: "1fr",
-                                      gap: 0.25,
-                                      "& .MuiFormControlLabel-root": {
-                                        mr: 0,
-                                        alignItems: "flex-start",
-                                      },
-                                      "& .MuiFormControlLabel-label": {
-                                        fontSize: "0.9rem",
-                                        lineHeight: 1.25,
-                                      },
-                                      "& .MuiCheckbox-root": {
-                                        py: 0.25,
-                                      },
-                                    }}
-                                  >
-                                    {releaseProducts.map((product) => (
-                                      <FormControlLabel
-                                        key={product.id}
-                                        control={
-                                          <Checkbox
-                                            size="small"
-                                            checked={form.productIds.includes(
-                                              product.id
-                                            )}
-                                            onChange={(event) =>
-                                              updateReservationProduct(
-                                                release.id,
-                                                product.id,
-                                                event.target.checked
-                                              )
-                                            }
-                                          />
+                                  <Box>
+                                    <Stack
+                                      direction="row"
+                                      spacing={1}
+                                      alignItems="center"
+                                      justifyContent="space-between"
+                                      sx={{ mb: 0.5 }}
+                                    >
+                                      <Typography
+                                        variant="subtitle2"
+                                        sx={{ fontWeight: 900 }}
+                                      >
+                                        Choose Products
+                                      </Typography>
+                                      <Chip
+                                        label={`${form.productIds.length}/${releaseProducts.length} selected`}
+                                        size="small"
+                                        variant={
+                                          form.productIds.length
+                                            ? "filled"
+                                            : "outlined"
                                         }
-                                        label={formatProductLabel(product)}
+                                        color={
+                                          form.productIds.length
+                                            ? "primary"
+                                            : "default"
+                                        }
                                       />
-                                    ))}
-                                  </FormGroup>
+                                    </Stack>
+                                    <FormGroup
+                                      sx={{
+                                        display: "grid",
+                                        gridTemplateColumns: "1fr",
+                                        gap: 0.25,
+                                        maxHeight: 260,
+                                        overflowY: "auto",
+                                        border: "1px solid",
+                                        borderColor: "divider",
+                                        borderRadius: 1,
+                                        p: 0.75,
+                                        "& .MuiFormControlLabel-root": {
+                                          mr: 0,
+                                          alignItems: "flex-start",
+                                        },
+                                        "& .MuiFormControlLabel-label": {
+                                          fontSize: "0.9rem",
+                                          lineHeight: 1.25,
+                                        },
+                                        "& .MuiCheckbox-root": {
+                                          py: 0.25,
+                                        },
+                                      }}
+                                    >
+                                      {releaseProducts.map((product) => (
+                                        <FormControlLabel
+                                          key={product.id}
+                                          control={
+                                            <Checkbox
+                                              size="small"
+                                              checked={form.productIds.includes(
+                                                product.id
+                                              )}
+                                              onChange={(event) =>
+                                                updateReservationProduct(
+                                                  release.id,
+                                                  product.id,
+                                                  event.target.checked
+                                                )
+                                              }
+                                            />
+                                          }
+                                          label={formatProductLabel(product)}
+                                        />
+                                      ))}
+                                    </FormGroup>
+                                  </Box>
                                 ) : (
                                   <Alert severity="info">
                                     Products have not been added yet.
@@ -3498,10 +3563,39 @@ export default function ReservationsPage() {
             </Box>
 
             <Box>
-              <Typography sx={{ fontWeight: 900, mb: 1 }}>
-                Products
-              </Typography>
-              <FormGroup>
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                justifyContent="space-between"
+                sx={{ mb: 1 }}
+              >
+                <Typography sx={{ fontWeight: 900 }}>Choose Products</Typography>
+                <Chip
+                  label={`${editingReservationForm.productIds.length}/${editingReleaseProducts.length} selected`}
+                  size="small"
+                  color={
+                    editingReservationForm.productIds.length
+                      ? "primary"
+                      : "default"
+                  }
+                  variant={
+                    editingReservationForm.productIds.length
+                      ? "filled"
+                      : "outlined"
+                  }
+                />
+              </Stack>
+              <FormGroup
+                sx={{
+                  maxHeight: { xs: 320, sm: 420 },
+                  overflowY: "auto",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  borderRadius: 1,
+                  p: 1,
+                }}
+              >
                 {editingReleaseProducts.map((product) => (
                   <FormControlLabel
                     key={product.id}
