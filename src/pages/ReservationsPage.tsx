@@ -1841,10 +1841,20 @@ export default function ReservationsPage() {
 
             {currentUserReservations.length ? (
               <Card>
-                <CardContent>
-                  <Stack spacing={1.5}>
-                    <Typography variant="h5">Your Reservations</Typography>
-                    <Stack spacing={0.75}>
+                <CardContent
+                  sx={{
+                    p: { xs: 1.25, sm: 2 },
+                    "&:last-child": { pb: { xs: 1.25, sm: 2 } },
+                  }}
+                >
+                  <Stack spacing={{ xs: 0.75, sm: 1.5 }}>
+                    <Typography
+                      variant="h5"
+                      sx={{ fontSize: { xs: "1rem", sm: "1.5rem" } }}
+                    >
+                      Your Reservations
+                    </Typography>
+                    <Stack spacing={{ xs: 0.4, sm: 0.75 }}>
                       {currentUserReservations.map((reservation) => {
                         const release = releases.find(
                           (item) => item.id === reservation.release_id
@@ -1860,7 +1870,7 @@ export default function ReservationsPage() {
                             type="button"
                             onClick={() => openReservationEditor(reservation)}
                             sx={{
-                              p: { xs: 1, sm: 1.25 },
+                              p: { xs: 0.75, sm: 1.25 },
                               textAlign: "left",
                               borderColor: "divider",
                               cursor: "pointer",
@@ -1868,32 +1878,46 @@ export default function ReservationsPage() {
                             }}
                           >
                             <Stack
-                              direction={{ xs: "column", sm: "row" }}
-                              spacing={0.75}
-                              alignItems={{ xs: "stretch", sm: "center" }}
+                              direction="row"
+                              spacing={{ xs: 0.5, sm: 0.75 }}
+                              alignItems="center"
                               justifyContent="space-between"
                             >
                               <Box sx={{ minWidth: 0 }}>
                                 <Stack
                                   direction="row"
-                                  spacing={0.75}
+                                  spacing={0.5}
                                   alignItems="center"
                                   sx={{ minWidth: 0 }}
                                 >
-                                  <Typography sx={{ fontWeight: 900 }} noWrap>
+                                  <Typography
+                                    sx={{
+                                      fontWeight: 900,
+                                      fontSize: { xs: "0.9rem", sm: "1rem" },
+                                    }}
+                                    noWrap
+                                  >
                                     {release?.title ?? "Release"}
                                   </Typography>
                                   <Chip
                                     label={statusLabels[reservation.status]}
                                     color={getStatusColor(reservation.status)}
                                     size="small"
-                                    sx={{ flexShrink: 0 }}
+                                    sx={{
+                                      flexShrink: 0,
+                                      height: { xs: 20, sm: 24 },
+                                      "& .MuiChip-label": {
+                                        px: { xs: 0.6, sm: 1 },
+                                        fontSize: { xs: "0.68rem", sm: "0.8125rem" },
+                                      },
+                                    }}
                                   />
                                 </Stack>
                                 <Typography
                                   color="text.secondary"
                                   variant="body2"
                                   noWrap
+                                  sx={{ fontSize: { xs: "0.76rem", sm: "0.875rem" } }}
                                 >
                                   {formatReleaseDate(
                                     release?.release_date ?? null
@@ -1907,7 +1931,7 @@ export default function ReservationsPage() {
                                 spacing={0.75}
                                 alignItems="center"
                                 justifyContent="flex-end"
-                                sx={{ flexShrink: 0 }}
+                                sx={{ flexShrink: 0, display: { xs: "none", sm: "flex" } }}
                               >
                                 <Chip
                                   label="Edit"
