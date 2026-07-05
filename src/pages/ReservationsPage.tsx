@@ -92,6 +92,7 @@ const QUEUE_SORT_OPTIONS = {
   release_desc: "Release date: newest",
   release_asc: "Release date: oldest",
   alpha: "Release name A-Z",
+  set: "Group by set",
 } as const;
 
 type QueueSortOption = keyof typeof QUEUE_SORT_OPTIONS;
@@ -593,13 +594,30 @@ export default function ReservationsPage() {
       return compareReleasesByDisplayDate(left, right);
     });
 
+    if (queueSort !== "set") {
+      return sortedReleases.map((release) => ({
+        key: release.id,
+        game: release.game.trim() || "Other",
+        releases: [release],
+        grouped: false,
+      }));
+    }
+
     const releaseGroups = sortedReleases.reduce<
-      Record<string, { game: string; releases: ReleaseRecord[]; order: number }>
+      Record<
+        string,
+        { game: string; releases: ReleaseRecord[]; order: number; grouped: true }
+      >
     >((groups, release, index) => {
       const game = release.game.trim() || "Other";
       const groupKey = game.toLowerCase();
 
-      groups[groupKey] = groups[groupKey] ?? { game, releases: [], order: index };
+      groups[groupKey] = groups[groupKey] ?? {
+        game,
+        releases: [],
+        order: index,
+        grouped: true,
+      };
       groups[groupKey].releases.push(release);
       return groups;
     }, {});
@@ -615,7 +633,9 @@ export default function ReservationsPage() {
       })
       .map((group) => ({
         game: group.game,
+        key: group.game,
         releases: group.releases,
+        grouped: group.grouped,
       }));
   }, [productsByRelease, queueSort, releases]);
 
@@ -2406,7 +2426,11 @@ export default function ReservationsPage() {
                         Queue Controls
                       </Typography>
                       <Chip
-                        label={`${reservationQueueGroups.length} games`}
+                        label={
+                          queueSort === "set"
+                            ? `${reservationQueueGroups.length} groups`
+                            : `${reservationQueueGroups.length} releases`
+                        }
                         size="small"
                         variant="outlined"
                       />
@@ -2455,22 +2479,24 @@ export default function ReservationsPage() {
 
                 <Stack spacing={{ xs: 1.25, md: 2 }} sx={{ minWidth: 0 }}>
                 {reservationQueueGroups.map((group) => (
-                  <Card key={group.game}>
+                  <Card key={group.key}>
                     <CardContent sx={{ p: { xs: 1.25, sm: 2 } }}>
                       <Stack spacing={{ xs: 1.25, md: 2 }}>
-                        <Stack
-                          direction="row"
-                          spacing={1}
-                          alignItems="center"
-                          justifyContent="space-between"
-                        >
-                          <GameBadge game={group.game} />
-                          <Chip
-                            label={`${group.releases.length} releases`}
-                            size="small"
-                            variant="outlined"
-                          />
-                        </Stack>
+                        {group.grouped ? (
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            alignItems="center"
+                            justifyContent="space-between"
+                          >
+                            <GameBadge game={group.game} />
+                            <Chip
+                              label={`${group.releases.length} releases`}
+                              size="small"
+                              variant="outlined"
+                            />
+                          </Stack>
+                        ) : null}
 
                         <Stack spacing={{ xs: 1, md: 1.5 }}>
                           {group.releases.map((release) => {
