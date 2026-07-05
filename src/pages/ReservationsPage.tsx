@@ -88,14 +88,24 @@ import { TCG_OPTIONS } from "./timerControllerUtils";
 const AUTH_SESSION_KEY = "geekd.reservations.authSession";
 const PROFILE_REQUIRED_KEY = "geekd.reservations.profileRequired";
 const QUEUE_SORT_OPTIONS = {
-  urgent: "Urgent first",
-  release_desc: "Release date: newest",
-  release_asc: "Release date: oldest",
-  alpha: "Release name A-Z",
   set: "Group by set",
+  urgent: "Urgent first",
+  release_desc: "Furthest away",
+  release_asc: "Most recent",
+  alpha: "Release name A-Z",
 } as const;
 
 type QueueSortOption = keyof typeof QUEUE_SORT_OPTIONS;
+
+const getQueueGameSortRank = (game: string) => {
+  const normalizedGame = game.toLowerCase();
+
+  if (normalizedGame.includes("pokemon")) return 0;
+  if (normalizedGame.includes("magic")) return 1;
+  if (normalizedGame.includes("one piece")) return 2;
+
+  return 3;
+};
 
 type ReservationProductDetail = ReleaseProductRecord & {
   reservationProductStatus: ReservationProductStatus;
@@ -392,7 +402,7 @@ export default function ReservationsPage() {
   const [reservationForms, setReservationForms] = useState<
     Record<string, typeof blankReservationForm>
   >({});
-  const [queueSort, setQueueSort] = useState<QueueSortOption>("urgent");
+  const [queueSort, setQueueSort] = useState<QueueSortOption>("set");
   const [editingReservationId, setEditingReservationId] = useState("");
   const [editingReservationForm, setEditingReservationForm] =
     useState(blankReservationForm);
@@ -554,6 +564,15 @@ export default function ReservationsPage() {
 
     const sortedReleases = [...releases].sort((left, right) => {
       if (queueSort === "urgent") {
+        const leftReservationCount =
+          reservationsByRelease[left.id]?.length ?? 0;
+        const rightReservationCount =
+          reservationsByRelease[right.id]?.length ?? 0;
+        const reservationSort =
+          Number(rightReservationCount > 0) - Number(leftReservationCount > 0);
+
+        if (reservationSort !== 0) return reservationSort;
+
         const leftUrgency = getReleaseUrgencySort(left);
         const rightUrgency = getReleaseUrgencySort(right);
 
@@ -624,12 +643,20 @@ export default function ReservationsPage() {
 
     return Object.values(releaseGroups)
       .sort((left, right) => {
-        const orderSort = left.order - right.order;
-        if (orderSort !== 0) return orderSort;
+        const leftRank = getQueueGameSortRank(left.game);
+        const rightRank = getQueueGameSortRank(right.game);
+        const rankSort = leftRank - rightRank;
+        if (rankSort !== 0) return rankSort;
 
-        return left.game.localeCompare(right.game, undefined, {
-          sensitivity: "base",
-        });
+        if (leftRank > 2 && rightRank > 2) {
+          const gameSort = left.game.localeCompare(right.game, undefined, {
+            sensitivity: "base",
+          });
+
+          if (gameSort !== 0) return gameSort;
+        }
+
+        return left.order - right.order;
       })
       .map((group) => ({
         game: group.game,
@@ -637,7 +664,7 @@ export default function ReservationsPage() {
         releases: group.releases,
         grouped: group.grouped,
       }));
-  }, [productsByRelease, queueSort, releases]);
+  }, [productsByRelease, queueSort, releases, reservationsByRelease]);
 
   const manageReleaseGameOptions = useMemo(
     () =>
