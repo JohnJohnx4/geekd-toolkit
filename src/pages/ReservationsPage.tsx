@@ -594,19 +594,29 @@ export default function ReservationsPage() {
     });
 
     const releaseGroups = sortedReleases.reduce<
-      Record<string, { game: string; releases: ReleaseRecord[] }>
-    >((groups, release) => {
+      Record<string, { game: string; releases: ReleaseRecord[]; order: number }>
+    >((groups, release, index) => {
       const game = release.game.trim() || "Other";
       const groupKey = game.toLowerCase();
 
-      groups[groupKey] = groups[groupKey] ?? { game, releases: [] };
+      groups[groupKey] = groups[groupKey] ?? { game, releases: [], order: index };
       groups[groupKey].releases.push(release);
       return groups;
     }, {});
 
-    return Object.values(releaseGroups).sort((left, right) =>
-      left.game.localeCompare(right.game, undefined, { sensitivity: "base" })
-    );
+    return Object.values(releaseGroups)
+      .sort((left, right) => {
+        const orderSort = left.order - right.order;
+        if (orderSort !== 0) return orderSort;
+
+        return left.game.localeCompare(right.game, undefined, {
+          sensitivity: "base",
+        });
+      })
+      .map((group) => ({
+        game: group.game,
+        releases: group.releases,
+      }));
   }, [productsByRelease, queueSort, releases]);
 
   const manageReleaseGameOptions = useMemo(
