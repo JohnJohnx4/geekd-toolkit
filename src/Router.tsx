@@ -9,8 +9,7 @@ import OptionsPage from "./pages/OptionsPage";
 import StaircasePrizingCalculator from "./pages/PrizingCalculator";
 import LandingPage from "./pages/LandingPage";
 import CashCalculator from "./pages/CashCalculator";
-import PokemonSetSymbolsPage from "./pages/PokemonSetSymbolsPage";
-import MtgSetSymbolsPage from "./pages/MtgSetSymbolsPage";
+import SetSymbolsPage from "./pages/SetSymbolsPage";
 import TimerControllerPage from "./pages/TimerControllerPage";
 import ReservationsPage from "./pages/ReservationsPage";
 import InfoHubPage from "./pages/InfoHubPage";
@@ -53,13 +52,19 @@ const cashCalculatorRoute = createRoute({
 const pokemonSetSymbolsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/pokemon-set-symbols",
-  component: PokemonSetSymbolsPage,
+  component: SetSymbolsPage,
 });
 
 const mtgSetSymbolsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/mtg-set-symbols",
-  component: MtgSetSymbolsPage,
+  component: SetSymbolsPage,
+});
+
+const setSymbolsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/set-symbols",
+  component: SetSymbolsPage,
 });
 
 const timerControllerRoute = createRoute({
@@ -94,6 +99,7 @@ const routeTree = rootRoute.addChildren([
   optionsRoute,
   prizingRoute,
   cashCalculatorRoute,
+  setSymbolsRoute,
   pokemonSetSymbolsRoute,
   mtgSetSymbolsRoute,
   timerControllerRoute,

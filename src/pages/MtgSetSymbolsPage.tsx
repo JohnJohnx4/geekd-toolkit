@@ -70,7 +70,13 @@ const searchTextForGroup = (group: MtgSymbolGroup) =>
       .join(" "),
   );
 
-export default function MtgSetSymbolsPage() {
+type SetSymbolsPanelProps = {
+  embedded?: boolean;
+};
+
+export default function MtgSetSymbolsPage({
+  embedded = false,
+}: SetSymbolsPanelProps = {}) {
   const [query, setQuery] = useState("");
   const [expandedYear, setExpandedYear] = useState<number | null>(null);
 
@@ -134,8 +140,7 @@ export default function MtgSetSymbolsPage() {
       }));
   }, [filteredGroups]);
 
-  return (
-    <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 4 } }}>
+  const content = (
       <Stack spacing={2.5}>
         <Paper sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2 }}>
           <Stack spacing={2}>
@@ -319,6 +324,13 @@ export default function MtgSetSymbolsPage() {
           </Paper>
         ) : null}
       </Stack>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 4 } }}>
+      {content}
     </Container>
   );
 }

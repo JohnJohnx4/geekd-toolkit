@@ -17,7 +17,6 @@ import MenuIcon from "@mui/icons-material/Menu";
 import HomeIcon from "@mui/icons-material/Home";
 import PrizingIcon from "@mui/icons-material/EmojiEvents";
 import MoneyIcon from "@mui/icons-material/Money";
-import CatchingPokemonIcon from "@mui/icons-material/CatchingPokemon";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 import TimerIcon from "@mui/icons-material/Timer";
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
@@ -114,17 +113,11 @@ export default function AppLayout() {
                 </ListItemIcon>
                 <ListItemText>Prizing Calculator</ListItemText>
               </MenuItem>
-              <MenuItem onClick={() => handleNavigation("/pokemon-set-symbols")}>
-                <ListItemIcon>
-                  <CatchingPokemonIcon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText>Pokemon Set Symbols</ListItemText>
-              </MenuItem>
-              <MenuItem onClick={() => handleNavigation("/mtg-set-symbols")}>
+              <MenuItem onClick={() => handleNavigation("/set-symbols")}>
                 <ListItemIcon>
                   <AutoFixHighIcon fontSize="small" />
                 </ListItemIcon>
-                <ListItemText>MTG Set Symbols</ListItemText>
+                <ListItemText>Set Symbols</ListItemText>
               </MenuItem>
               <MenuItem onClick={() => handleNavigation("/timer-controller")}>
                 <ListItemIcon>

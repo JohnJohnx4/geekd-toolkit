@@ -7,7 +7,6 @@ import {
   Typography,
 } from "@mui/material";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
-import CatchingPokemonIcon from "@mui/icons-material/CatchingPokemon";
 import MoneyIcon from "@mui/icons-material/Money";
 import PriceCheckIcon from "@mui/icons-material/PriceCheck";
 import TimerIcon from "@mui/icons-material/Timer";
@@ -34,20 +33,12 @@ const tools = [
     background: "#fed7aa",
   },
   {
-    label: "Pokemon Symbols",
-    description: "Find Pokemon TCG set symbols by year",
-    path: "/pokemon-set-symbols",
-    icon: CatchingPokemonIcon,
+    label: "Set Symbols",
+    description: "Search Pokemon and MTG set symbols",
+    path: "/set-symbols",
+    icon: AutoFixHighIcon,
     color: "#1d4ed8",
     background: "#dbeafe",
-  },
-  {
-    label: "MTG Symbols",
-    description: "Search Magic set symbols and releases",
-    path: "/mtg-set-symbols",
-    icon: AutoFixHighIcon,
-    color: "#581c87",
-    background: "#f3e8ff",
   },
   {
     label: "Timer Controller",

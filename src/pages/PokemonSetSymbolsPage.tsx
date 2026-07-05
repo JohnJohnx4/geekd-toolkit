@@ -21,7 +21,13 @@ import { pokemonSets, pokemonSetSymbolSource } from "../data/pokemonSets";
 
 const normalize = (value: string) => value.toLowerCase().trim();
 
-export default function PokemonSetSymbolsPage() {
+type SetSymbolsPanelProps = {
+  embedded?: boolean;
+};
+
+export default function PokemonSetSymbolsPage({
+  embedded = false,
+}: SetSymbolsPanelProps = {}) {
   const [query, setQuery] = useState("");
   const [expandedYear, setExpandedYear] = useState<number | null>(null);
 
@@ -54,8 +60,7 @@ export default function PokemonSetSymbolsPage() {
       }));
   }, [filteredSets]);
 
-  return (
-    <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 4 } }}>
+  const content = (
       <Stack spacing={2.5}>
         <Paper sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2 }}>
           <Stack spacing={2}>
@@ -237,6 +242,13 @@ export default function PokemonSetSymbolsPage() {
           </Paper>
         ) : null}
       </Stack>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 4 } }}>
+      {content}
     </Container>
   );
 }
