@@ -1844,34 +1844,13 @@ export default function ReservationsPage() {
                 <CardContent>
                   <Stack spacing={1.5}>
                     <Typography variant="h5">Your Reservations</Typography>
-                    <Box
-                      sx={{
-                        display: "grid",
-                        gridTemplateColumns: {
-                          xs: "1fr",
-                          sm: "repeat(2, minmax(0, 1fr))",
-                          lg: "repeat(3, minmax(0, 1fr))",
-                        },
-                        gap: 1,
-                      }}
-                    >
+                    <Stack spacing={0.75}>
                       {currentUserReservations.map((reservation) => {
                         const release = releases.find(
                           (item) => item.id === reservation.release_id
                         );
                         const reservedProducts =
                           productsByReservation[reservation.id] ?? [];
-                        const productPreview = reservedProducts
-                          .slice(0, 2)
-                          .map((product) => product.name)
-                          .join(", ");
-                        const productStatusCounts = reservedProducts.reduce<
-                          Partial<Record<ReservationProductStatus, number>>
-                        >((counts, product) => {
-                          counts[product.reservationProductStatus] =
-                            (counts[product.reservationProductStatus] ?? 0) + 1;
-                          return counts;
-                        }, {});
 
                         return (
                           <Paper
@@ -1881,92 +1860,55 @@ export default function ReservationsPage() {
                             type="button"
                             onClick={() => openReservationEditor(reservation)}
                             sx={{
-                              p: 1.5,
+                              p: { xs: 1, sm: 1.25 },
                               textAlign: "left",
                               borderColor: "divider",
                               cursor: "pointer",
                               bgcolor: "background.paper",
-                              minHeight: 118,
                             }}
                           >
                             <Stack
+                              direction={{ xs: "column", sm: "row" }}
                               spacing={0.75}
-                              sx={{ height: "100%" }}
+                              alignItems={{ xs: "stretch", sm: "center" }}
                               justifyContent="space-between"
                             >
-                              <Box>
-                                {release ? (
-                                  <Box sx={{ mb: 0.5 }}>
-                                    <GameBadge game={release.game} size="small" />
-                                  </Box>
-                                ) : null}
-                                <Typography sx={{ fontWeight: 900 }} noWrap>
-                                  {release?.title ?? "Release"}
-                                </Typography>
-                                <Typography color="text.secondary" variant="body2">
-                                  {formatReleaseDate(
-                                    release?.release_date ?? null
-                                  )}
-                                </Typography>
+                              <Box sx={{ minWidth: 0 }}>
+                                <Stack
+                                  direction="row"
+                                  spacing={0.75}
+                                  alignItems="center"
+                                  sx={{ minWidth: 0 }}
+                                >
+                                  <Typography sx={{ fontWeight: 900 }} noWrap>
+                                    {release?.title ?? "Release"}
+                                  </Typography>
+                                  <Chip
+                                    label={statusLabels[reservation.status]}
+                                    color={getStatusColor(reservation.status)}
+                                    size="small"
+                                    sx={{ flexShrink: 0 }}
+                                  />
+                                </Stack>
                                 <Typography
                                   color="text.secondary"
                                   variant="body2"
                                   noWrap
-                                  sx={{ mt: 0.25 }}
                                 >
-                                  {reservedProducts.length
-                                    ? `${reservedProducts.length} product${
-                                        reservedProducts.length === 1 ? "" : "s"
-                                      }${
-                                        productPreview
-                                          ? `: ${productPreview}${
-                                              reservedProducts.length > 2
-                                                ? ` +${
-                                                    reservedProducts.length - 2
-                                                  } more`
-                                                : ""
-                                            }`
-                                          : ""
-                                      }`
-                                    : "No products selected"}
+                                  {formatReleaseDate(
+                                    release?.release_date ?? null
+                                  )}{" "}
+                                  - {reservedProducts.length} product
+                                  {reservedProducts.length === 1 ? "" : "s"}
                                 </Typography>
-                                <Stack
-                                  direction="row"
-                                  spacing={0.75}
-                                  flexWrap="wrap"
-                                  useFlexGap
-                                  sx={{ mt: 0.75 }}
-                                >
-                                  {Object.entries(productStatusCounts).map(
-                                    ([status, count]) => (
-                                    <Chip
-                                      key={status}
-                                      label={`${count} ${
-                                        productStatusLabels[
-                                          status as ReservationProductStatus
-                                        ]
-                                      }`}
-                                      color={getStatusColor(
-                                        status as ReservationProductStatus
-                                      )}
-                                      size="small"
-                                      variant="outlined"
-                                    />
-                                    )
-                                  )}
-                                </Stack>
                               </Box>
                               <Stack
                                 direction="row"
-                                spacing={1}
-                                flexWrap="wrap"
-                                useFlexGap
+                                spacing={0.75}
+                                alignItems="center"
+                                justifyContent="flex-end"
+                                sx={{ flexShrink: 0 }}
                               >
-                                <Chip
-                                  label={statusLabels[reservation.status]}
-                                  color={getStatusColor(reservation.status)}
-                                  size="small"
-                                />
                                 <Chip
                                   label="Edit"
                                   icon={<EditIcon />}
@@ -1978,7 +1920,7 @@ export default function ReservationsPage() {
                           </Paper>
                         );
                       })}
-                    </Box>
+                    </Stack>
                   </Stack>
                 </CardContent>
               </Card>
