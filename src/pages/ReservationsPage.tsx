@@ -159,6 +159,50 @@ const formatProductLabel = (product: ReleaseProductRecord) =>
     ? `${product.name} - ${formatReleaseDate(product.release_date)}`
     : product.name;
 
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+const getReleaseUrgency = (value: string | null) => {
+  if (!value) return null;
+
+  const today = new Date();
+  const todayStart = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate()
+  );
+  const releaseDate = new Date(`${value}T12:00:00`);
+  const daysAway = Math.ceil(
+    (releaseDate.getTime() - todayStart.getTime()) / DAY_IN_MS
+  );
+
+  if (daysAway < 0 || daysAway > 30) return null;
+
+  if (daysAway <= 7) {
+    return {
+      label: "Within 1 week",
+      color: "error" as const,
+      bgcolor: "rgba(211, 47, 47, 0.08)",
+      borderColor: "rgba(211, 47, 47, 0.35)",
+    };
+  }
+
+  if (daysAway <= 14) {
+    return {
+      label: "Within 2 weeks",
+      color: "warning" as const,
+      bgcolor: "rgba(237, 108, 2, 0.08)",
+      borderColor: "rgba(237, 108, 2, 0.35)",
+    };
+  }
+
+  return {
+    label: "This month",
+    color: "info" as const,
+    bgcolor: "rgba(2, 136, 209, 0.08)",
+    borderColor: "rgba(2, 136, 209, 0.35)",
+  };
+};
+
 const compareReleasesByDisplayDate = (
   left: ReleaseRecord,
   right: ReleaseRecord
@@ -2446,75 +2490,123 @@ export default function ReservationsPage() {
                                                   productsByReservation[
                                                     reservation.id
                                                   ] ?? []
-                                                ).map((product) => (
-                                                  <Paper
-                                                    key={product.id}
-                                                    variant="outlined"
-                                                    sx={{ p: { xs: 0.75, sm: 1 } }}
-                                                  >
-                                                    <Stack
-                                                      direction="row"
-                                                      spacing={0.75}
-                                                      alignItems="center"
-                                                      justifyContent="space-between"
+                                                ).map((product) => {
+                                                  const releaseUrgency =
+                                                    getReleaseUrgency(
+                                                      product.release_date
+                                                    );
+
+                                                  return (
+                                                    <Paper
+                                                      key={product.id}
+                                                      variant="outlined"
+                                                      sx={{
+                                                        p: { xs: 0.75, sm: 1 },
+                                                        bgcolor:
+                                                          releaseUrgency
+                                                            ?.bgcolor ??
+                                                          "background.paper",
+                                                        borderColor:
+                                                          releaseUrgency
+                                                            ?.borderColor ??
+                                                          "divider",
+                                                      }}
                                                     >
-                                                      <Typography
-                                                        sx={{
-                                                          fontWeight: 800,
-                                                          minWidth: 0,
-                                                          fontSize: {
-                                                            xs: "0.86rem",
-                                                            sm: "0.95rem",
-                                                          },
-                                                        }}
+                                                      <Stack
+                                                        direction="row"
+                                                        spacing={0.75}
+                                                        alignItems="center"
+                                                        justifyContent="space-between"
                                                       >
-                                                        {formatProductLabel(
-                                                          product
-                                                        )}
-                                                      </Typography>
-                                                      <FormControl
-                                                        size="small"
-                                                        sx={{
-                                                          minWidth: {
-                                                            xs: 126,
-                                                            sm: 160,
-                                                          },
-                                                        }}
-                                                      >
-                                                        <InputLabel>
-                                                          Status
-                                                        </InputLabel>
-                                                        <Select
-                                                          label="Status"
-                                                          value={
-                                                            product.reservationProductStatus
-                                                          }
-                                                          onChange={(event) =>
-                                                            changeReservationProductStatus(
-                                                              reservation.id,
-                                                              product.id,
-                                                              event.target
-                                                                .value as ReservationProductStatus
-                                                            )
-                                                          }
+                                                        <Stack
+                                                          direction="row"
+                                                          spacing={0.75}
+                                                          alignItems="center"
+                                                          flexWrap="wrap"
+                                                          sx={{ minWidth: 0 }}
                                                         >
-                                                          {Object.entries(
-                                                            productStatusLabels
-                                                          ).map(
-                                                            ([value, label]) => (
-                                                              <MenuItem
-                                                                key={value}
-                                                                value={value}
-                                                              >
-                                                                {label}
-                                                              </MenuItem>
-                                                            )
-                                                          )}
-                                                        </Select>
-                                                      </FormControl>
-                                                    </Stack>
-                                                  </Paper>
-                                                ))}
+                                                          <Typography
+                                                            sx={{
+                                                              fontWeight: 800,
+                                                              minWidth: 0,
+                                                              fontSize: {
+                                                                xs: "0.86rem",
+                                                                sm: "0.95rem",
+                                                              },
+                                                            }}
+                                                          >
+                                                            {formatProductLabel(
+                                                              product
+                                                            )}
+                                                          </Typography>
+                                                          {releaseUrgency ? (
+                                                            <Chip
+                                                              label={
+                                                                releaseUrgency.label
+                                                              }
+                                                              color={
+                                                                releaseUrgency.color
+                                                              }
+                                                              size="small"
+                                                              sx={{
+                                                                height: 22,
+                                                                "& .MuiChip-label":
+                                                                  {
+                                                                    px: 0.8,
+                                                                    fontSize:
+                                                                      "0.72rem",
+                                                                  },
+                                                              }}
+                                                            />
+                                                          ) : null}
+                                                        </Stack>
+                                                        <FormControl
+                                                          size="small"
+                                                          sx={{
+                                                            minWidth: {
+                                                              xs: 126,
+                                                              sm: 160,
+                                                            },
+                                                          }}
+                                                        >
+                                                          <InputLabel>
+                                                            Status
+                                                          </InputLabel>
+                                                          <Select
+                                                            label="Status"
+                                                            value={
+                                                              product.reservationProductStatus
+                                                            }
+                                                            onChange={(event) =>
+                                                              changeReservationProductStatus(
+                                                                reservation.id,
+                                                                product.id,
+                                                                event.target
+                                                                  .value as ReservationProductStatus
+                                                              )
+                                                            }
+                                                          >
+                                                            {Object.entries(
+                                                              productStatusLabels
+                                                            ).map(
+                                                              ([
+                                                                value,
+                                                                label,
+                                                              ]) => (
+                                                                <MenuItem
+                                                                  key={value}
+                                                                  value={value}
+                                                                >
+                                                                  {label}
+                                                                </MenuItem>
+                                                              )
+                                                            )}
+                                                          </Select>
+                                                        </FormControl>
+                                                      </Stack>
+                                                    </Paper>
+                                                  );
+                                                })}
                                               </Stack>
                                               {reservation.notes ? (
                                                 <Typography
