@@ -1875,6 +1875,11 @@ export default function ReservationsPage() {
                               borderColor: "divider",
                               cursor: "pointer",
                               bgcolor: "background.paper",
+                              transition: "border-color 120ms ease, background-color 120ms ease",
+                              "&:hover": {
+                                borderColor: "primary.main",
+                                bgcolor: "action.hover",
+                              },
                             }}
                           >
                             <Stack
@@ -1925,6 +1930,23 @@ export default function ReservationsPage() {
                                   - {reservedProducts.length} product
                                   {reservedProducts.length === 1 ? "" : "s"}
                                 </Typography>
+                              </Box>
+                              <Box
+                                aria-hidden="true"
+                                sx={{
+                                  width: 28,
+                                  height: 28,
+                                  display: { xs: "grid", sm: "none" },
+                                  placeItems: "center",
+                                  flexShrink: 0,
+                                  borderRadius: "50%",
+                                  color: "primary.main",
+                                  bgcolor: "action.selected",
+                                  border: "1px solid",
+                                  borderColor: "primary.light",
+                                }}
+                              >
+                                <EditIcon sx={{ fontSize: 16 }} />
                               </Box>
                               <Stack
                                 direction="row"
