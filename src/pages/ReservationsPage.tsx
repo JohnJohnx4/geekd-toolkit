@@ -87,6 +87,14 @@ import { TCG_OPTIONS } from "./timerControllerUtils";
 
 const AUTH_SESSION_KEY = "geekd.reservations.authSession";
 const PROFILE_REQUIRED_KEY = "geekd.reservations.profileRequired";
+const QUEUE_SORT_OPTIONS = {
+  urgent: "Urgent first",
+  release_desc: "Release date: newest",
+  release_asc: "Release date: oldest",
+  alpha: "Release name A-Z",
+} as const;
+
+type QueueSortOption = keyof typeof QUEUE_SORT_OPTIONS;
 
 type ReservationProductDetail = ReleaseProductRecord & {
   reservationProductStatus: ReservationProductStatus;
@@ -180,6 +188,8 @@ const getReleaseUrgency = (value: string | null) => {
   if (daysAway <= 7) {
     return {
       label: "Within 1 week",
+      priority: 0,
+      daysAway,
       color: "error" as const,
       bgcolor: "rgba(211, 47, 47, 0.08)",
       borderColor: "rgba(211, 47, 47, 0.35)",
@@ -189,6 +199,8 @@ const getReleaseUrgency = (value: string | null) => {
   if (daysAway <= 14) {
     return {
       label: "Within 2 weeks",
+      priority: 1,
+      daysAway,
       color: "warning" as const,
       bgcolor: "rgba(237, 108, 2, 0.08)",
       borderColor: "rgba(237, 108, 2, 0.35)",
@@ -197,6 +209,8 @@ const getReleaseUrgency = (value: string | null) => {
 
   return {
     label: "This month",
+    priority: 2,
+    daysAway,
     color: "info" as const,
     bgcolor: "rgba(2, 136, 209, 0.08)",
     borderColor: "rgba(2, 136, 209, 0.35)",
@@ -377,6 +391,7 @@ export default function ReservationsPage() {
   const [reservationForms, setReservationForms] = useState<
     Record<string, typeof blankReservationForm>
   >({});
+  const [queueSort, setQueueSort] = useState<QueueSortOption>("urgent");
   const [editingReservationId, setEditingReservationId] = useState("");
   const [editingReservationForm, setEditingReservationForm] =
     useState(blankReservationForm);
@@ -518,10 +533,81 @@ export default function ReservationsPage() {
     [unrequestedActiveReleases]
   );
 
-  const reservationQueueGroups = useMemo(
-    () => groupReleasesByGame(releases),
-    [releases]
-  );
+  const reservationQueueGroups = useMemo(() => {
+    const getReleaseUrgencySort = (release: ReleaseRecord) => {
+      const releaseProducts = productsByRelease[release.id] ?? [];
+      const urgencyItems = releaseProducts
+        .map((product) => getReleaseUrgency(product.release_date))
+        .filter((urgency): urgency is NonNullable<typeof urgency> =>
+          Boolean(urgency)
+        )
+        .sort((left, right) => {
+          const prioritySort = left.priority - right.priority;
+          if (prioritySort !== 0) return prioritySort;
+
+          return left.daysAway - right.daysAway;
+        });
+
+      return urgencyItems[0] ?? null;
+    };
+
+    const sortedReleases = [...releases].sort((left, right) => {
+      if (queueSort === "urgent") {
+        const leftUrgency = getReleaseUrgencySort(left);
+        const rightUrgency = getReleaseUrgencySort(right);
+
+        if (leftUrgency && rightUrgency) {
+          const prioritySort = leftUrgency.priority - rightUrgency.priority;
+          if (prioritySort !== 0) return prioritySort;
+
+          const daySort = leftUrgency.daysAway - rightUrgency.daysAway;
+          if (daySort !== 0) return daySort;
+        }
+
+        if (leftUrgency) return -1;
+        if (rightUrgency) return 1;
+
+        return compareReleasesByDisplayDate(left, right);
+      }
+
+      if (queueSort === "release_asc") {
+        if (left.release_date && !right.release_date) return -1;
+        if (!left.release_date && right.release_date) return 1;
+
+        if (left.release_date && right.release_date) {
+          const dateSort = left.release_date.localeCompare(right.release_date);
+          if (dateSort !== 0) return dateSort;
+        }
+
+        return left.title.localeCompare(right.title, undefined, {
+          sensitivity: "base",
+        });
+      }
+
+      if (queueSort === "alpha") {
+        return left.title.localeCompare(right.title, undefined, {
+          sensitivity: "base",
+        });
+      }
+
+      return compareReleasesByDisplayDate(left, right);
+    });
+
+    const releaseGroups = sortedReleases.reduce<
+      Record<string, { game: string; releases: ReleaseRecord[] }>
+    >((groups, release) => {
+      const game = release.game.trim() || "Other";
+      const groupKey = game.toLowerCase();
+
+      groups[groupKey] = groups[groupKey] ?? { game, releases: [] };
+      groups[groupKey].releases.push(release);
+      return groups;
+    }, {});
+
+    return Object.values(releaseGroups).sort((left, right) =>
+      left.game.localeCompare(right.game, undefined, { sensitivity: "base" })
+    );
+  }, [productsByRelease, queueSort, releases]);
 
   const manageReleaseGameOptions = useMemo(
     () =>
@@ -2320,13 +2406,36 @@ export default function ReservationsPage() {
                         color="primary"
                         size="small"
                       />
+                      <FormControl
+                        size="small"
+                        sx={{
+                          minWidth: { xs: 160, lg: "100%" },
+                          ml: { xs: "auto", lg: 0 },
+                        }}
+                      >
+                        <InputLabel>Sort</InputLabel>
+                        <Select
+                          label="Sort"
+                          value={queueSort}
+                          onChange={(event) =>
+                            setQueueSort(event.target.value as QueueSortOption)
+                          }
+                        >
+                          {Object.entries(QUEUE_SORT_OPTIONS).map(
+                            ([value, label]) => (
+                              <MenuItem key={value} value={value}>
+                                {label}
+                              </MenuItem>
+                            )
+                          )}
+                        </Select>
+                      </FormControl>
                       <Button
                         variant="outlined"
                         size="small"
                         startIcon={<RefreshIcon />}
                         onClick={() => loadData(true)}
                         disabled={loading}
-                        sx={{ ml: { xs: "auto", lg: 0 } }}
                       >
                         Refresh
                       </Button>
