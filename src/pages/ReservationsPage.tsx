@@ -2533,12 +2533,24 @@ export default function ReservationsPage() {
                           label="Release date"
                           type="date"
                           value={releaseForm.release_date}
-                          onChange={(event) =>
+                          onChange={(event) => {
+                            const releaseDate = event.target.value;
+
                             setReleaseForm((prev) => ({
                               ...prev,
-                              release_date: event.target.value,
-                            }))
-                          }
+                              release_date: releaseDate,
+                              products: prev.products.map((product, index) =>
+                                index === 0 &&
+                                (!product.release_date ||
+                                  product.release_date === prev.release_date)
+                                  ? {
+                                      ...product,
+                                      release_date: releaseDate,
+                                    }
+                                  : product
+                              ),
+                            }));
+                          }}
                           InputLabelProps={{ shrink: true }}
                         />
                       </Box>
