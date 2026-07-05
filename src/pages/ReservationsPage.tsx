@@ -99,7 +99,7 @@ const blankReleaseForm = {
   gameIsOther: false,
   release_date: "",
   description: "",
-  products: [{ name: "", release_date: "" }] as ReleaseProductFormItem[],
+  products: [{ name: "Booster Box", release_date: "" }] as ReleaseProductFormItem[],
 };
 
 type ReleaseEditForm = {
