@@ -2999,6 +2999,24 @@ export default function ReservationsPage() {
                                     >
                                       Cancel
                                     </Button>
+                                    <Button
+                                      variant="outlined"
+                                      color={
+                                        release.is_active
+                                          ? "warning"
+                                          : "success"
+                                      }
+                                      onClick={() =>
+                                        setReleaseActive(
+                                          release,
+                                          !release.is_active
+                                        )
+                                      }
+                                    >
+                                      {release.is_active
+                                        ? "Archive"
+                                        : "Reactivate"}
+                                    </Button>
                                   </Stack>
                                 </Stack>
 
@@ -3276,22 +3294,34 @@ export default function ReservationsPage() {
                             ) : null}
                             <Stack
                               direction={{ xs: "column", md: "row" }}
-                              spacing={1.5}
+                              spacing={1}
                               justifyContent="space-between"
                               alignItems={{ xs: "stretch", md: "center" }}
                               sx={{ display: isEditing ? "none" : "flex" }}
                             >
-                              <Box>
+                              <Box sx={{ minWidth: 0 }}>
                                 <Stack
                                   direction="row"
-                                  spacing={1}
+                                  spacing={0.75}
                                   alignItems="center"
                                   flexWrap="wrap"
                                 >
-                                  <Typography variant="h6">
+                                  <Typography
+                                    sx={{
+                                      fontWeight: 900,
+                                      maxWidth: { md: 300, lg: 390 },
+                                    }}
+                                    noWrap
+                                  >
                                     {release.title}
                                   </Typography>
-                                  <GameBadge game={release.game} size="small" />
+                                  <Chip
+                                    label={formatReleaseDate(
+                                      release.release_date
+                                    )}
+                                    size="small"
+                                    variant="outlined"
+                                  />
                                   <Chip
                                     label={
                                       release.is_active ? "Active" : "Archived"
@@ -3299,58 +3329,37 @@ export default function ReservationsPage() {
                                     color={
                                       release.is_active ? "success" : "default"
                                     }
+                                    size="small"
                                   />
-                                </Stack>
-                                <Typography color="text.secondary">
-                                  {formatReleaseDate(release.release_date)} •{" "}
-                                  {reservationsByRelease[release.id]?.length ??
-                                    0}{" "}
-                                  requests
-                                </Typography>
-                                <Stack
-                                  direction="row"
-                                  spacing={0.75}
-                                  flexWrap="wrap"
-                                  useFlexGap
-                                  sx={{ mt: 1 }}
-                                >
-                                  {(productsByRelease[release.id] ?? []).map(
-                                    (product) => (
-                                      <Chip
-                                        key={product.id}
-                                        label={formatProductLabel(product)}
-                                        size="small"
-                                        variant="outlined"
-                                      />
-                                    )
-                                  )}
+                                  <Chip
+                                    label={`${
+                                      reservationsByRelease[release.id]
+                                        ?.length ?? 0
+                                    } requests`}
+                                    size="small"
+                                    variant="outlined"
+                                  />
+                                  <Chip
+                                    label={`${
+                                      productsByRelease[release.id]?.length ?? 0
+                                    } products`}
+                                    size="small"
+                                    variant="outlined"
+                                  />
                                 </Stack>
                               </Box>
 
                               <Stack
                                 direction={{ xs: "column", sm: "row" }}
-                                spacing={1}
+                                spacing={0.75}
                               >
                                 <Button
                                   variant="outlined"
+                                  size="small"
                                   startIcon={<EditIcon />}
                                   onClick={() => startEditingRelease(release)}
                                 >
                                   Edit
-                                </Button>
-                                <Button
-                                  variant="outlined"
-                                  startIcon={<SaveIcon />}
-                                  onClick={() =>
-                                    setReleaseActive(
-                                      release,
-                                      !release.is_active
-                                    )
-                                  }
-                                >
-                                  {release.is_active
-                                    ? "Archive"
-                                    : "Reactivate"}
                                 </Button>
                               </Stack>
                             </Stack>
