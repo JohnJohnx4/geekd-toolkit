@@ -107,6 +107,12 @@ const getQueueGameSortRank = (game: string) => {
   return 3;
 };
 
+const getQueueSectionId = (key: string) =>
+  `queue-section-${key
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")}`;
+
 type ReservationProductDetail = ReleaseProductRecord & {
   reservationProductStatus: ReservationProductStatus;
 };
@@ -665,6 +671,27 @@ export default function ReservationsPage() {
         grouped: group.grouped,
       }));
   }, [productsByRelease, queueSort, releases, reservationsByRelease]);
+
+  const reservationQueueTocItems = useMemo(
+    () =>
+      reservationQueueGroups.map((group) => {
+        const firstRelease = group.releases[0];
+        const releaseReservations = firstRelease
+          ? reservationsByRelease[firstRelease.id] ?? []
+          : [];
+
+        return {
+          id: getQueueSectionId(group.key),
+          label: group.grouped
+            ? group.game
+            : firstRelease?.title ?? group.game,
+          meta: group.grouped
+            ? `${group.releases.length} releases`
+            : `${releaseReservations.length} reservations`,
+        };
+      }),
+    [reservationQueueGroups, reservationsByRelease]
+  );
 
   const manageReleaseGameOptions = useMemo(
     () =>
@@ -2500,13 +2527,85 @@ export default function ReservationsPage() {
                       >
                         Refresh
                       </Button>
+                      {reservationQueueTocItems.length ? (
+                        <Box
+                          sx={{
+                            width: "100%",
+                            display: { xs: "none", lg: "block" },
+                            pt: 1,
+                            borderTop: "1px solid",
+                            borderColor: "divider",
+                          }}
+                        >
+                          <Typography
+                            variant="subtitle2"
+                            sx={{ fontWeight: 900, mb: 0.75 }}
+                          >
+                            Jump To
+                          </Typography>
+                          <Stack
+                            spacing={0.35}
+                            sx={{
+                              maxHeight: "calc(100vh - 330px)",
+                              overflowY: "auto",
+                              pr: 0.5,
+                            }}
+                          >
+                            {reservationQueueTocItems.map((item) => (
+                              <Button
+                                key={item.id}
+                                component="a"
+                                href={`#${item.id}`}
+                                size="small"
+                                variant="text"
+                                sx={{
+                                  justifyContent: "space-between",
+                                  textAlign: "left",
+                                  px: 1,
+                                  py: 0.5,
+                                  minHeight: 0,
+                                  textTransform: "none",
+                                  gap: 1,
+                                }}
+                              >
+                                <Typography
+                                  component="span"
+                                  noWrap
+                                  sx={{
+                                    minWidth: 0,
+                                    fontWeight: 800,
+                                    fontSize: "0.82rem",
+                                  }}
+                                >
+                                  {item.label}
+                                </Typography>
+                                <Typography
+                                  component="span"
+                                  color="text.secondary"
+                                  noWrap
+                                  sx={{
+                                    flexShrink: 0,
+                                    fontSize: "0.72rem",
+                                  }}
+                                >
+                                  {item.meta}
+                                </Typography>
+                              </Button>
+                            ))}
+                          </Stack>
+                        </Box>
+                      ) : null}
                     </Stack>
                   </CardContent>
                 </Card>
 
                 <Stack spacing={{ xs: 1.25, md: 2 }} sx={{ minWidth: 0 }}>
                 {reservationQueueGroups.map((group) => (
-                  <Card key={group.key}>
+                  <Card
+                    key={group.key}
+                    id={getQueueSectionId(group.key)}
+                    sx={{ scrollMarginTop: { xs: 16, lg: 96 } }}
+                  >
                     <CardContent sx={{ p: { xs: 1.25, sm: 2 } }}>
                       <Stack spacing={{ xs: 1.25, md: 2 }}>
                         {group.grouped ? (
