@@ -348,7 +348,6 @@ const getReleaseGameOption = (game: string) =>
   );
 
 const OTHER_GAME_VALUE = "__other__";
-const ALL_RELEASE_GAMES_VALUE = "__all_games__";
 const RELEASE_STATUS_FILTERS = {
   all: "All",
   active: "Active",
@@ -451,9 +450,9 @@ export default function ReservationsPage() {
     null
   );
   const [manageReleaseSearch, setManageReleaseSearch] = useState("");
-  const [manageReleaseGameFilter, setManageReleaseGameFilter] = useState(
-    ALL_RELEASE_GAMES_VALUE
-  );
+  const [manageReleaseGameFilters, setManageReleaseGameFilters] = useState<
+    string[]
+  >([]);
   const [manageReleaseStatusFilter, setManageReleaseStatusFilter] =
     useState<ReleaseStatusFilter>("all");
   const [reservationForms, setReservationForms] = useState<
@@ -770,13 +769,26 @@ export default function ReservationsPage() {
     [releases]
   );
 
+  useEffect(() => {
+    setManageReleaseGameFilters((currentFilters) => {
+      if (!manageReleaseGameOptions.length) return [];
+      if (!currentFilters.length) return manageReleaseGameOptions;
+
+      const nextFilters = currentFilters.filter((game) =>
+        manageReleaseGameOptions.includes(game)
+      );
+
+      return nextFilters.length ? nextFilters : manageReleaseGameOptions;
+    });
+  }, [manageReleaseGameOptions]);
+
   const filteredManageReleases = useMemo(() => {
     const normalizedSearch = manageReleaseSearch.trim().toLowerCase();
 
     return releases.filter((release) => {
       if (
-        manageReleaseGameFilter !== ALL_RELEASE_GAMES_VALUE &&
-        (release.game.trim() || "Other") !== manageReleaseGameFilter
+        manageReleaseGameFilters.length &&
+        !manageReleaseGameFilters.includes(release.game.trim() || "Other")
       ) {
         return false;
       }
@@ -812,7 +824,7 @@ export default function ReservationsPage() {
       return searchText.includes(normalizedSearch);
     });
   }, [
-    manageReleaseGameFilter,
+    manageReleaseGameFilters,
     manageReleaseSearch,
     manageReleaseStatusFilter,
     productsByRelease,
@@ -3463,7 +3475,7 @@ export default function ReservationsPage() {
                           display: "grid",
                           gridTemplateColumns: {
                             xs: "1fr",
-                            md: "minmax(220px, 1fr) 210px 160px",
+                            md: "minmax(220px, 1fr) 160px",
                           },
                           gap: 1,
                         }}
@@ -3487,24 +3499,6 @@ export default function ReservationsPage() {
                         />
                         <TextField
                           select
-                          label="Game"
-                          value={manageReleaseGameFilter}
-                          onChange={(event) =>
-                            setManageReleaseGameFilter(event.target.value)
-                          }
-                          size="small"
-                        >
-                          <MenuItem value={ALL_RELEASE_GAMES_VALUE}>
-                            All Games
-                          </MenuItem>
-                          {manageReleaseGameOptions.map((game) => (
-                            <MenuItem key={game} value={game}>
-                              {game}
-                            </MenuItem>
-                          ))}
-                        </TextField>
-                        <TextField
-                          select
                           label="Status"
                           value={manageReleaseStatusFilter}
                           onChange={(event) =>
@@ -3523,6 +3517,136 @@ export default function ReservationsPage() {
                           )}
                         </TextField>
                       </Box>
+
+                      {manageReleaseGameOptions.length ? (
+                        <Card variant="outlined">
+                          <CardContent
+                            sx={{
+                              p: { xs: 1, sm: 1.25 },
+                              "&:last-child": { pb: { xs: 1, sm: 1.25 } },
+                            }}
+                          >
+                            <Stack spacing={1}>
+                              <Stack
+                                direction="row"
+                                spacing={1}
+                                alignItems="center"
+                                justifyContent="space-between"
+                              >
+                                <Typography
+                                  variant="subtitle2"
+                                  sx={{ fontWeight: 900 }}
+                                >
+                                  TCG Filters
+                                </Typography>
+                                <Stack direction="row" spacing={0.75}>
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    onClick={() =>
+                                      setManageReleaseGameFilters([])
+                                    }
+                                  >
+                                    Clear
+                                  </Button>
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    onClick={() =>
+                                      setManageReleaseGameFilters(
+                                        manageReleaseGameOptions
+                                      )
+                                    }
+                                  >
+                                    All
+                                  </Button>
+                                </Stack>
+                              </Stack>
+                              <Box
+                                sx={{
+                                  display: "grid",
+                                  gridTemplateColumns: {
+                                    xs: "repeat(2, minmax(0, 1fr))",
+                                    sm: "repeat(3, minmax(0, 1fr))",
+                                    lg: "repeat(4, minmax(0, 1fr))",
+                                  },
+                                  gap: 0.75,
+                                }}
+                              >
+                                {manageReleaseGameOptions.map((game) => {
+                                  const isEnabled =
+                                    manageReleaseGameFilters.includes(game);
+
+                                  return (
+                                    <Button
+                                      key={game}
+                                      size="small"
+                                      variant={
+                                        isEnabled ? "contained" : "outlined"
+                                      }
+                                      onClick={() =>
+                                        setManageReleaseGameFilters(
+                                          (currentFilters) =>
+                                            currentFilters.includes(game)
+                                              ? currentFilters.filter(
+                                                  (item) => item !== game
+                                                )
+                                              : [...currentFilters, game]
+                                        )
+                                      }
+                                      sx={{
+                                        justifyContent: "space-between",
+                                        textAlign: "left",
+                                        textTransform: "none",
+                                        px: 1,
+                                        gap: 0.75,
+                                        minWidth: 0,
+                                      }}
+                                    >
+                                      <Typography
+                                        component="span"
+                                        noWrap
+                                        sx={{
+                                          minWidth: 0,
+                                          fontWeight: 800,
+                                          fontSize: {
+                                            xs: "0.76rem",
+                                            sm: "0.82rem",
+                                          },
+                                        }}
+                                      >
+                                        {game}
+                                      </Typography>
+                                      <Typography
+                                        component="span"
+                                        noWrap
+                                        sx={{
+                                          flexShrink: 0,
+                                          fontSize: {
+                                            xs: "0.68rem",
+                                            sm: "0.72rem",
+                                          },
+                                          color: isEnabled
+                                            ? "primary.contrastText"
+                                            : "text.secondary",
+                                        }}
+                                      >
+                                        {
+                                          releases.filter(
+                                            (release) =>
+                                              (release.game.trim() ||
+                                                "Other") === game
+                                          ).length
+                                        }
+                                      </Typography>
+                                    </Button>
+                                  );
+                                })}
+                              </Box>
+                            </Stack>
+                          </CardContent>
+                        </Card>
+                      ) : null}
 
                       <Stack spacing={1.25}>
                         {managedReleaseGroups.map((group) => (
