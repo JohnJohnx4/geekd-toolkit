@@ -2756,6 +2756,81 @@ export default function ReservationsPage() {
                           {group.releases.map((release) => {
                             const releaseReservations =
                               reservationsByRelease[release.id] ?? [];
+                            const hasReservations =
+                              releaseReservations.length > 0;
+
+                            if (!hasReservations) {
+                              return (
+                                <Paper
+                                  key={release.id}
+                                  variant="outlined"
+                                  sx={{
+                                    px: { xs: 0.85, sm: 1 },
+                                    py: { xs: 0.35, sm: 0.45 },
+                                    bgcolor: "action.hover",
+                                    borderColor: "divider",
+                                    opacity: 0.72,
+                                  }}
+                                >
+                                  <Stack
+                                    direction="row"
+                                    spacing={1}
+                                    alignItems="center"
+                                    justifyContent="space-between"
+                                  >
+                                    <Stack
+                                      direction="row"
+                                      spacing={0.75}
+                                      alignItems="baseline"
+                                      sx={{ minWidth: 0 }}
+                                    >
+                                      <Typography
+                                        noWrap
+                                        sx={{
+                                          fontWeight: 800,
+                                          lineHeight: 1.2,
+                                          fontSize: {
+                                            xs: "0.82rem",
+                                            sm: "0.9rem",
+                                          },
+                                        }}
+                                      >
+                                        {release.title}
+                                      </Typography>
+                                      <Typography
+                                        color="text.secondary"
+                                        noWrap
+                                        sx={{
+                                          flex: "0 0 auto",
+                                          lineHeight: 1.2,
+                                          fontSize: {
+                                            xs: "0.7rem",
+                                            sm: "0.76rem",
+                                          },
+                                        }}
+                                      >
+                                        {formatReleaseDate(
+                                          release.release_date
+                                        )}
+                                      </Typography>
+                                    </Stack>
+                                    <Chip
+                                      label="0 reservations"
+                                      size="small"
+                                      variant="outlined"
+                                      sx={{
+                                        height: 20,
+                                        flex: "0 0 auto",
+                                        "& .MuiChip-label": {
+                                          px: 0.75,
+                                          fontSize: "0.68rem",
+                                        },
+                                      }}
+                                    />
+                                  </Stack>
+                                </Paper>
+                              );
+                            }
 
                             return (
                               <Paper
@@ -2794,16 +2869,8 @@ export default function ReservationsPage() {
                                     <Chip
                                       label={`${releaseReservations.length} reservations`}
                                       size="small"
-                                      color={
-                                        releaseReservations.length
-                                          ? "primary"
-                                          : "default"
-                                      }
-                                      variant={
-                                        releaseReservations.length
-                                          ? "filled"
-                                          : "outlined"
-                                      }
+                                      color="primary"
+                                      variant="filled"
                                     />
                                   </Stack>
 
@@ -3057,12 +3124,6 @@ export default function ReservationsPage() {
                                       )
                                     )}
 
-                                    {!releaseReservations.length ? (
-                                      <Typography color="text.secondary">
-                                        No requests have been submitted for this
-                                        release.
-                                      </Typography>
-                                    ) : null}
                                   </Stack>
                                 </Stack>
                               </Paper>
