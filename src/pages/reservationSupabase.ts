@@ -126,6 +126,13 @@ export type InfoArticleInput = {
   sort_order: number;
 };
 
+export type ReservationEmployeeCreateInput = {
+  email: string;
+  password: string;
+  display_name: string;
+  is_admin: boolean;
+};
+
 const OWNER_RESERVATION_NAME = "Linda";
 const OWNER_RESERVATION_NOTE = "Automatically reserved for the owner.";
 
@@ -413,6 +420,30 @@ export const updateReservationProfileAdmin = async (
   );
 
   return rows[0];
+};
+
+export const createReservationEmployeeAccount = async (
+  input: ReservationEmployeeCreateInput
+) => {
+  if (!reservationsAccessToken) {
+    throw new Error("Log in as an admin before creating users.");
+  }
+
+  const response = await fetch("/.netlify/functions/create-reservation-user", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${reservationsAccessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(body || `Unable to create user: ${response.status}`);
+  }
+
+  return response.json() as Promise<ReservationProfileRecord>;
 };
 
 export const fetchReleases = (includeInactive = false) => {

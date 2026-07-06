@@ -24,7 +24,6 @@ import {
   MenuItem,
   Paper,
   Select,
-  Switch,
   Stack,
   Tab,
   Tabs,
@@ -55,7 +54,6 @@ import {
   fetchReleaseProducts,
   fetchReleases,
   fetchReservationProfile,
-  fetchReservationProfiles,
   fetchReservationProducts,
   fetchReservations,
   ensureOwnerReservationProducts,
@@ -77,7 +75,6 @@ import {
   updateReleaseProduct,
   updateReservation,
   updateReservationProductStatus,
-  updateReservationProfileAdmin,
   updateReservationsPassword,
   updateReservationStatus,
   upsertReservationProfile,
@@ -441,7 +438,6 @@ export default function ReservationsPage() {
   const [reservationProducts, setReservationProducts] = useState<
     ReservationProductRecord[]
   >([]);
-  const [profiles, setProfiles] = useState<ReservationProfileRecord[]>([]);
   const [releaseForm, setReleaseForm] = useState(blankReleaseForm);
   const [editingReleaseId, setEditingReleaseId] = useState("");
   const [editReleaseForm, setEditReleaseForm] =
@@ -1001,22 +997,17 @@ export default function ReservationsPage() {
           productRows,
           reservationRows,
           reservationProductRows,
-          profileRows,
         ] = await Promise.all([
           fetchReleases(includeReservations),
           fetchReleaseProducts(),
           fetchReservations(),
           fetchReservationProducts(),
-          includeReservations
-            ? fetchReservationProfiles()
-            : Promise.resolve<ReservationProfileRecord[]>([]),
         ]);
 
         setReleases(releaseRows);
         setProducts(productRows);
         setReservations(reservationRows);
         setReservationProducts(reservationProductRows);
-        setProfiles(profileRows);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unable to load data.");
       } finally {
@@ -1202,7 +1193,6 @@ export default function ReservationsPage() {
     setProducts([]);
     setReservations([]);
     setReservationProducts([]);
-    setProfiles([]);
     setReservationForms({});
 
     if (currentAccessToken) {
@@ -1656,49 +1646,6 @@ export default function ReservationsPage() {
           : form.productIds.filter((id) => id !== productId),
       },
     }));
-  };
-
-  const changeProfileAdmin = async (
-    targetProfile: ReservationProfileRecord,
-    checked: boolean
-  ) => {
-    if (!isAdmin) {
-      setError("Admin access is required to manage profiles.");
-      return;
-    }
-
-    if (targetProfile.id === authSession?.user.id && !checked) {
-      setError("You cannot remove your own admin access.");
-      return;
-    }
-
-    setError("");
-    setMessage("");
-
-    try {
-      const updatedProfile = await updateReservationProfileAdmin(
-        targetProfile.id,
-        checked
-      );
-
-      setProfiles((prev) =>
-        prev.map((item) => (item.id === updatedProfile.id ? updatedProfile : item))
-      );
-
-      if (profile?.id === updatedProfile.id) {
-        setProfile(updatedProfile);
-      }
-
-      setMessage(
-        checked
-          ? `${updatedProfile.display_name} is now an admin.`
-          : `${updatedProfile.display_name} is no longer an admin.`
-      );
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Unable to update profile access."
-      );
-    }
   };
 
   if (!authChecked) {
@@ -3367,79 +3314,6 @@ export default function ReservationsPage() {
                       >
                         Add Release
                       </Button>
-                      </Stack>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardContent>
-                      <Stack spacing={2}>
-                        <Stack
-                          direction={{ xs: "column", sm: "row" }}
-                          spacing={1}
-                          justifyContent="space-between"
-                          alignItems={{ xs: "stretch", sm: "center" }}
-                        >
-                          <Typography variant="h5">Admin Accounts</Typography>
-                          <Button
-                            variant="outlined"
-                            startIcon={<RefreshIcon />}
-                            onClick={() => loadData(true)}
-                            disabled={loading}
-                          >
-                            Refresh
-                          </Button>
-                        </Stack>
-
-                        <Stack spacing={1}>
-                          {profiles.map((item) => (
-                            <Paper
-                              key={item.id}
-                              variant="outlined"
-                              sx={{ p: 1.25 }}
-                            >
-                              <Stack
-                                direction={{ xs: "column", sm: "row" }}
-                                spacing={1}
-                                justifyContent="space-between"
-                                alignItems={{ xs: "stretch", sm: "center" }}
-                              >
-                                <Box sx={{ minWidth: 0 }}>
-                                  <Typography sx={{ fontWeight: 900 }}>
-                                    {item.display_name}
-                                  </Typography>
-                                  <Typography color="text.secondary">
-                                    {item.contact || "No email saved"}
-                                  </Typography>
-                                </Box>
-                                <FormControlLabel
-                                  control={
-                                    <Switch
-                                      checked={item.is_admin}
-                                      onChange={(event) =>
-                                        changeProfileAdmin(
-                                          item,
-                                          event.target.checked
-                                        )
-                                      }
-                                      disabled={
-                                        item.id === authSession.user.id &&
-                                        item.is_admin
-                                      }
-                                    />
-                                  }
-                                  label="Admin"
-                                />
-                              </Stack>
-                            </Paper>
-                          ))}
-
-                          {!profiles.length ? (
-                            <Typography color="text.secondary">
-                              No profiles have been created yet.
-                            </Typography>
-                          ) : null}
-                        </Stack>
                       </Stack>
                     </CardContent>
                   </Card>
