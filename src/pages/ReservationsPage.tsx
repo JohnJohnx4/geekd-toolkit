@@ -268,6 +268,43 @@ const compareReleasesByDisplayDate = (
   });
 };
 
+const getReleaseDateTime = (value: string | null) =>
+  value ? new Date(`${value}T12:00:00`).getTime() : null;
+
+const compareReleasesByUpcomingDate = (
+  left: ReleaseRecord,
+  right: ReleaseRecord
+) => {
+  const now = new Date();
+  const todayStart = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  ).getTime();
+  const leftTime = getReleaseDateTime(left.release_date);
+  const rightTime = getReleaseDateTime(right.release_date);
+  const leftIsUpcoming = leftTime !== null && leftTime >= todayStart;
+  const rightIsUpcoming = rightTime !== null && rightTime >= todayStart;
+
+  if (leftIsUpcoming && rightIsUpcoming && leftTime !== rightTime) {
+    return leftTime - rightTime;
+  }
+
+  if (leftIsUpcoming) return -1;
+  if (rightIsUpcoming) return 1;
+
+  if (leftTime !== null && rightTime !== null && leftTime !== rightTime) {
+    return rightTime - leftTime;
+  }
+
+  if (leftTime !== null) return -1;
+  if (rightTime !== null) return 1;
+
+  return left.title.localeCompare(right.title, undefined, {
+    sensitivity: "base",
+  });
+};
+
 const groupReleasesByGame = (releasesToGroup: ReleaseRecord[]) => {
   const releaseGroups = releasesToGroup.reduce<
     Record<string, { game: string; releases: ReleaseRecord[] }>
@@ -531,7 +568,7 @@ export default function ReservationsPage() {
         const rightRelease = releasesById[right.release_id];
 
         if (leftRelease && rightRelease) {
-          return compareReleasesByDisplayDate(leftRelease, rightRelease);
+          return compareReleasesByUpcomingDate(leftRelease, rightRelease);
         }
 
         if (leftRelease) return -1;
