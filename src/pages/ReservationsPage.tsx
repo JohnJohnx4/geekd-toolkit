@@ -451,8 +451,8 @@ export default function ReservationsPage() {
   );
   const [manageReleaseSearch, setManageReleaseSearch] = useState("");
   const [manageReleaseGameFilters, setManageReleaseGameFilters] = useState<
-    string[]
-  >([]);
+    string[] | null
+  >(null);
   const [manageReleaseStatusFilter, setManageReleaseStatusFilter] =
     useState<ReleaseStatusFilter>("all");
   const [reservationForms, setReservationForms] = useState<
@@ -771,24 +771,24 @@ export default function ReservationsPage() {
 
   useEffect(() => {
     setManageReleaseGameFilters((currentFilters) => {
-      if (!manageReleaseGameOptions.length) return [];
-      if (!currentFilters.length) return manageReleaseGameOptions;
+      if (!manageReleaseGameOptions.length) return currentFilters ?? [];
+      if (currentFilters === null) return manageReleaseGameOptions;
 
-      const nextFilters = currentFilters.filter((game) =>
+      return currentFilters.filter((game) =>
         manageReleaseGameOptions.includes(game)
       );
-
-      return nextFilters.length ? nextFilters : manageReleaseGameOptions;
     });
   }, [manageReleaseGameOptions]);
+
+  const activeManageReleaseGameFilters =
+    manageReleaseGameFilters ?? manageReleaseGameOptions;
 
   const filteredManageReleases = useMemo(() => {
     const normalizedSearch = manageReleaseSearch.trim().toLowerCase();
 
     return releases.filter((release) => {
       if (
-        manageReleaseGameFilters.length &&
-        !manageReleaseGameFilters.includes(release.game.trim() || "Other")
+        !activeManageReleaseGameFilters.includes(release.game.trim() || "Other")
       ) {
         return false;
       }
@@ -824,7 +824,7 @@ export default function ReservationsPage() {
       return searchText.includes(normalizedSearch);
     });
   }, [
-    manageReleaseGameFilters,
+    activeManageReleaseGameFilters,
     manageReleaseSearch,
     manageReleaseStatusFilter,
     productsByRelease,
@@ -3575,7 +3575,9 @@ export default function ReservationsPage() {
                               >
                                 {manageReleaseGameOptions.map((game) => {
                                   const isEnabled =
-                                    manageReleaseGameFilters.includes(game);
+                                    activeManageReleaseGameFilters.includes(
+                                      game
+                                    );
 
                                   return (
                                     <Button
@@ -3586,12 +3588,17 @@ export default function ReservationsPage() {
                                       }
                                       onClick={() =>
                                         setManageReleaseGameFilters(
-                                          (currentFilters) =>
-                                            currentFilters.includes(game)
-                                              ? currentFilters.filter(
+                                          (currentFilters) => {
+                                            const currentEnabled =
+                                              currentFilters ??
+                                              manageReleaseGameOptions;
+
+                                            return currentEnabled.includes(game)
+                                              ? currentEnabled.filter(
                                                   (item) => item !== game
                                                 )
-                                              : [...currentFilters, game]
+                                              : [...currentEnabled, game];
+                                          }
                                         )
                                       }
                                       sx={{
