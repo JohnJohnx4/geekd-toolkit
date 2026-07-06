@@ -113,6 +113,12 @@ const getQueueSectionId = (key: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "")}`;
 
+const getReserveSectionId = (key: string) =>
+  `reserve-section-${key
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")}`;
+
 type ReservationProductDetail = ReleaseProductRecord & {
   reservationProductStatus: ReservationProductStatus;
 };
@@ -548,6 +554,19 @@ export default function ReservationsPage() {
   const unrequestedReleaseGroups = useMemo(
     () => groupReleasesByGame(unrequestedActiveReleases),
     [unrequestedActiveReleases]
+  );
+
+  const reserveTocItems = useMemo(
+    () =>
+      unrequestedReleaseGroups.map((group) => ({
+        id: getReserveSectionId(group.game),
+        label: group.game,
+        meta: `${group.releases.length} release${
+          group.releases.length === 1 ? "" : "s"
+        }`,
+        game: group.game,
+      })),
+    [unrequestedReleaseGroups]
   );
 
   const reservationQueueGroups = useMemo(() => {
@@ -2186,10 +2205,103 @@ export default function ReservationsPage() {
               </Card>
             ) : null}
 
+            {reserveTocItems.length ? (
+              <Card>
+                <CardContent
+                  sx={{
+                    p: { xs: 1.25, sm: 2 },
+                    "&:last-child": { pb: { xs: 1.25, sm: 2 } },
+                  }}
+                >
+                  <Stack spacing={1}>
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      alignItems="center"
+                      justifyContent="space-between"
+                    >
+                      <Typography
+                        variant="h5"
+                        sx={{ fontSize: { xs: "1rem", sm: "1.5rem" } }}
+                      >
+                        Available Releases
+                      </Typography>
+                      <Chip
+                        label={`${unrequestedActiveReleases.length} releases`}
+                        size="small"
+                        variant="outlined"
+                      />
+                    </Stack>
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: {
+                          xs: "repeat(2, minmax(0, 1fr))",
+                          sm: "repeat(3, minmax(0, 1fr))",
+                          lg: "repeat(4, minmax(0, 1fr))",
+                        },
+                        gap: 0.75,
+                      }}
+                    >
+                      {reserveTocItems.map((item) => (
+                        <Button
+                          key={item.id}
+                          component="a"
+                          href={`#${item.id}`}
+                          size="small"
+                          variant={
+                            expandedReleaseGame === item.game
+                              ? "contained"
+                              : "outlined"
+                          }
+                          onClick={() => setExpandedReleaseGame(item.game)}
+                          sx={{
+                            justifyContent: "space-between",
+                            textAlign: "left",
+                            px: 1,
+                            textTransform: "none",
+                            gap: 0.75,
+                            minWidth: 0,
+                          }}
+                        >
+                          <Typography
+                            component="span"
+                            noWrap
+                            sx={{
+                              minWidth: 0,
+                              fontWeight: 800,
+                              fontSize: { xs: "0.76rem", sm: "0.82rem" },
+                            }}
+                          >
+                            {item.label}
+                          </Typography>
+                          <Typography
+                            component="span"
+                            noWrap
+                            sx={{
+                              flexShrink: 0,
+                              fontSize: { xs: "0.68rem", sm: "0.72rem" },
+                              color:
+                                expandedReleaseGame === item.game
+                                  ? "primary.contrastText"
+                                  : "text.secondary",
+                            }}
+                          >
+                            {item.meta}
+                          </Typography>
+                        </Button>
+                      ))}
+                    </Box>
+                  </Stack>
+                </CardContent>
+              </Card>
+            ) : null}
+
             <Stack spacing={1.25}>
               {unrequestedReleaseGroups.map((group) => (
                 <Accordion
                   key={group.game}
+                  id={getReserveSectionId(group.game)}
                   expanded={expandedReleaseGame === group.game}
                   onChange={(_, isExpanded) =>
                     setExpandedReleaseGame(isExpanded ? group.game : null)
@@ -2197,6 +2309,7 @@ export default function ReservationsPage() {
                   sx={{
                     borderRadius: 1,
                     overflow: "hidden",
+                    scrollMarginTop: { xs: 16, md: 96 },
                     "&:before": { display: "none" },
                   }}
                 >
