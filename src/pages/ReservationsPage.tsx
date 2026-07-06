@@ -97,7 +97,7 @@ const QUEUE_SORT_OPTIONS = {
 
 type QueueSortOption = keyof typeof QUEUE_SORT_OPTIONS;
 
-const getQueueGameSortRank = (game: string) => {
+const getTcgSortRank = (game: string) => {
   const normalizedGame = game.toLowerCase();
 
   if (normalizedGame.includes("pokemon")) return 0;
@@ -105,6 +105,16 @@ const getQueueGameSortRank = (game: string) => {
   if (normalizedGame.includes("one piece")) return 2;
 
   return 3;
+};
+
+const compareTcgNames = (left: string, right: string) => {
+  const leftRank = getTcgSortRank(left);
+  const rightRank = getTcgSortRank(right);
+  const rankSort = leftRank - rightRank;
+
+  if (rankSort !== 0) return rankSort;
+
+  return left.localeCompare(right, undefined, { sensitivity: "base" });
 };
 
 const getQueueSectionId = (key: string) =>
@@ -275,9 +285,7 @@ const groupReleasesByGame = (releasesToGroup: ReleaseRecord[]) => {
       ...group,
       releases: group.releases.sort(compareReleasesByDisplayDate),
     }))
-    .sort((left, right) =>
-      left.game.localeCompare(right.game, undefined, { sensitivity: "base" })
-    );
+    .sort((left, right) => compareTcgNames(left.game, right.game));
 };
 
 const formatRequestTime = (value: string) =>
@@ -676,15 +684,13 @@ export default function ReservationsPage() {
 
     return Object.values(releaseGroups)
       .sort((left, right) => {
-        const leftRank = getQueueGameSortRank(left.game);
-        const rightRank = getQueueGameSortRank(right.game);
+        const leftRank = getTcgSortRank(left.game);
+        const rightRank = getTcgSortRank(right.game);
         const rankSort = leftRank - rightRank;
         if (rankSort !== 0) return rankSort;
 
         if (leftRank > 2 && rightRank > 2) {
-          const gameSort = left.game.localeCompare(right.game, undefined, {
-            sensitivity: "base",
-          });
+          const gameSort = compareTcgNames(left.game, right.game);
 
           if (gameSort !== 0) return gameSort;
         }
@@ -723,9 +729,7 @@ export default function ReservationsPage() {
   const manageReleaseGameOptions = useMemo(
     () =>
       [...new Set(releases.map((release) => release.game.trim() || "Other"))]
-        .sort((left, right) =>
-          left.localeCompare(right, undefined, { sensitivity: "base" })
-        ),
+        .sort(compareTcgNames),
     [releases]
   );
 
