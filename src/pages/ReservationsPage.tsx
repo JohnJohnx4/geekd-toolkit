@@ -569,6 +569,14 @@ export default function ReservationsPage() {
     [unrequestedReleaseGroups]
   );
 
+  const selectedReserveGroup = useMemo(
+    () =>
+      unrequestedReleaseGroups.find(
+        (group) => group.game === expandedReleaseGame
+      ) ?? null,
+    [expandedReleaseGame, unrequestedReleaseGroups]
+  );
+
   const reservationQueueGroups = useMemo(() => {
     const getReleaseUrgencySort = (release: ReleaseRecord) => {
       const releaseProducts = productsByRelease[release.id] ?? [];
@@ -2246,8 +2254,6 @@ export default function ReservationsPage() {
                       {reserveTocItems.map((item) => (
                         <Button
                           key={item.id}
-                          component="a"
-                          href={`#${item.id}`}
                           size="small"
                           variant={
                             expandedReleaseGame === item.game
@@ -2297,15 +2303,23 @@ export default function ReservationsPage() {
               </Card>
             ) : null}
 
-            <Stack spacing={1.25}>
-              {unrequestedReleaseGroups.map((group) => (
+            {reserveTocItems.length && !selectedReserveGroup ? (
+              <Card>
+                <CardContent sx={{ p: { xs: 1.25, sm: 2 } }}>
+                  <Typography color="text.secondary">
+                    Choose a TCG above to view available releases.
+                  </Typography>
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {selectedReserveGroup ? (
+              <Stack spacing={1.25}>
+                {[selectedReserveGroup].map((group) => (
                 <Accordion
                   key={group.game}
                   id={getReserveSectionId(group.game)}
-                  expanded={expandedReleaseGame === group.game}
-                  onChange={(_, isExpanded) =>
-                    setExpandedReleaseGame(isExpanded ? group.game : null)
-                  }
+                  expanded
                   sx={{
                     borderRadius: 1,
                     overflow: "hidden",
@@ -2547,6 +2561,8 @@ export default function ReservationsPage() {
                   </AccordionDetails>
                 </Accordion>
               ))}
+              </Stack>
+            ) : null}
 
             {!activeReleases.length ? (
               <Card>
@@ -2564,7 +2580,6 @@ export default function ReservationsPage() {
                 </CardContent>
               </Card>
             ) : null}
-            </Stack>
           </Stack>
         ) : null}
 
