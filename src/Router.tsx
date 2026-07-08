@@ -14,6 +14,16 @@ import TimerControllerPage from "./pages/TimerControllerPage";
 import ReservationsPage from "./pages/ReservationsPage";
 import InfoHubPage from "./pages/InfoHubPage";
 import AccountPage from "./pages/AccountPage";
+import AdminControlsPage from "./pages/AdminControlsPage";
+import LootNewBuyEntryPage from "./pages/LootNewBuyEntryPage";
+import LootBuyLogPage from "./pages/LootBuyLogPage";
+import LootCustomersPage from "./pages/LootCustomersPage";
+import LootDashboardPage from "./pages/LootDashboardPage";
+import LootAwaitingPickupPage from "./pages/LootAwaitingPickupPage";
+import LootSafeCashLogPage from "./pages/LootSafeCashLogPage";
+import LootActivityLogPage from "./pages/LootActivityLogPage";
+import LootWorkInProgressPage from "./pages/LootWorkInProgressPage";
+import LootCustomerPortalPage from "./pages/LootCustomerPortalPage";
 
 // --------------------
 // Root layout
@@ -91,6 +101,66 @@ const accountRoute = createRoute({
   component: AccountPage,
 });
 
+const adminControlsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/admin-controls",
+  component: AdminControlsPage,
+});
+
+const lootTrackerRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/loot-tracker",
+  component: LootDashboardPage,
+});
+
+const lootNewBuyEntryRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/loot-tracker/NewBuyEntry",
+  component: LootNewBuyEntryPage,
+});
+
+const lootCustomerPortalRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/loot-tracker/customer",
+  component: LootCustomerPortalPage,
+});
+
+const lootBuyLogRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/loot-tracker/BuyLog",
+  component: LootBuyLogPage,
+});
+
+const lootWorkInProgressRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/loot-tracker/WorkInProgress",
+  component: LootWorkInProgressPage,
+});
+
+const lootCustomersRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/loot-tracker/Customers",
+  component: LootCustomersPage,
+});
+
+const lootAwaitingPickupRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/loot-tracker/AwaitingPickup",
+  component: LootAwaitingPickupPage,
+});
+
+const lootSafeCashLogRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/loot-tracker/SafeCashLog",
+  component: LootSafeCashLogPage,
+});
+
+const lootActivityLogRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/loot-tracker/ActivityLog",
+  component: LootActivityLogPage,
+});
+
 // --------------------
 // Route tree
 // --------------------
@@ -106,6 +176,16 @@ const routeTree = rootRoute.addChildren([
   reservationsRoute,
   infoHubRoute,
   accountRoute,
+  adminControlsRoute,
+  lootTrackerRoute,
+  lootCustomerPortalRoute,
+  lootNewBuyEntryRoute,
+  lootBuyLogRoute,
+  lootWorkInProgressRoute,
+  lootCustomersRoute,
+  lootAwaitingPickupRoute,
+  lootSafeCashLogRoute,
+  lootActivityLogRoute,
 ]);
 
 export const router = createRouter({ routeTree });

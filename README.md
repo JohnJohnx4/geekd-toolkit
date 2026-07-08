@@ -1,106 +1,120 @@
-# React + TypeScript + Vite
+# Geek'd Toolkit
 
-## Employee Reservations
+React + TypeScript + Vite app for Geek'd store tools. The current branch includes the reservations app plus the toolkit-native buy workflow being migrated from Loot Tracker.
 
-The Reservations tool uses Supabase so employees can submit release requests from their own devices.
+## Requirements
 
-1. Run `supabase/reservation-schema.sql` in the Supabase SQL editor.
-   - If the original reservation schema is already installed, run `supabase/reservation-products-migration.sql` instead to add release products.
-   - Run `supabase/reservation-auth-migration.sql` to require Supabase Auth login for reservation data.
-   - Run `supabase/reservation-profiles-migration.sql` to require each logged-in employee to create a reservation profile.
-   - Run `supabase/reservation-admin-migration.sql` to add admin profiles and lock manager actions to admins.
-2. Set these app environment variables:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_PUBLISHABLE_KEY`
-3. Do not put the Supabase secret key in frontend code or committed env files.
+- Node.js 20.19+ or 22.12+
+- npm
+- Docker Desktop, if running Supabase locally
+- Supabase CLI, or use it through `npx supabase`
 
-Create employee users in Supabase under Authentication. The app currently expects email/password sign-in. After login, employees must save a profile name before they can submit reservation requests.
-Set the Supabase Authentication Site URL and redirect URLs to the deployed app or local dev URL, including `/reservations`, so invitation links open the app. Invite links are handled by the Reservations page and prompt users to set their password.
+## Install
 
-After the first manager creates their profile, bootstrap their admin access in the Supabase SQL editor:
-
-```sql
-update public.reservation_profiles
-set is_admin = true
-where id = (
-  select id
-  from auth.users
-  where email = 'manager@example.com'
-);
-
-notify pgrst, 'reload schema';
+```bash
+npm install
+cp .env.example .env.local
 ```
 
-After that, admins can promote or demote other profiles inside the Reservations manager screen.
+Fill in `.env.local` before starting the app.
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Environment
 
-Currently, two official plugins are available:
+Frontend variables:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+VITE_SUPABASE_URL=
+VITE_SUPABASE_PUBLISHABLE_KEY=
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Server-only variables are only needed when using the local Vite proxy or Netlify function to create employee accounts:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+SUPABASE_URL=
+SUPABASE_PUBLISHABLE_KEY=
+SUPABASE_SECRET_KEY=
 ```
+
+Do not commit `.env`, `.env.local`, or any Supabase secret key.
+
+## Run With Hosted Supabase
+
+Use the hosted project URL and publishable key in `.env.local`, then run:
+
+```bash
+npm run dev
+```
+
+The app runs at `http://127.0.0.1:5173` by default.
+
+## Run With Local Supabase
+
+Start the local Supabase stack:
+
+```bash
+npm run supabase:start
+```
+
+After it starts, copy the local API URL and anon key from `supabase status` into `.env.local`:
+
+```bash
+VITE_SUPABASE_URL=http://127.0.0.1:54321
+VITE_SUPABASE_PUBLISHABLE_KEY=<local anon key>
+SUPABASE_URL=http://127.0.0.1:54321
+SUPABASE_PUBLISHABLE_KEY=<local anon key>
+SUPABASE_SECRET_KEY=<local service_role key>
+```
+
+Apply or reset the local database:
+
+```bash
+npm run supabase:reset
+```
+
+Then start the app:
+
+```bash
+npm run dev
+```
+
+## Database Migrations
+
+Migrations live in `supabase/migrations`.
+
+Useful commands:
+
+```bash
+npm run supabase:push
+npm run supabase:reset
+```
+
+Use `supabase db push` against a linked hosted project only when you are ready to apply the branch migrations to that project.
+
+## Employee Accounts
+
+Employee login uses Supabase Auth. Employee profile/role data is stored in:
+
+- `reservation_profiles`
+- `loot_staff_profiles`
+
+Roles currently include:
+
+- `buy_intake`
+- `staff`
+- `lead`
+- `card_supervisor`
+- `manager`
+- `owner`
+- `admin`
+
+The Admin Controls screen can create/manage employee users when the server-only Supabase variables are configured.
+
+## Verification
+
+Before pushing a branch, run:
+
+```bash
+npm run build
+```
+
+`npm run lint` is available, but the imported legacy Loot Tracker code may still need cleanup as migration work continues.

@@ -14,9 +14,31 @@ type ReservationProfile = {
   display_name: string;
   contact: string | null;
   is_admin: boolean;
+  staff_profile_id?: string | null;
+  role?: EmployeeRole;
+  is_active?: boolean;
   created_at: string;
   updated_at: string;
 };
+
+type EmployeeRole =
+  | "buy_intake"
+  | "staff"
+  | "lead"
+  | "card_supervisor"
+  | "manager"
+  | "owner"
+  | "admin";
+
+const EMPLOYEE_ROLES = new Set<EmployeeRole>([
+  "buy_intake",
+  "staff",
+  "lead",
+  "card_supervisor",
+  "manager",
+  "owner",
+  "admin",
+]);
 
 const jsonResponse = (statusCode: number, body: unknown) => ({
   statusCode,
@@ -48,6 +70,8 @@ const parseBody = (body: string | null) => {
     password?: string;
     display_name?: string;
     is_admin?: boolean;
+    role?: string;
+    is_active?: boolean;
   };
 
   const email = parsed.email?.trim().toLowerCase() ?? "";
@@ -71,6 +95,13 @@ const parseBody = (body: string | null) => {
     password,
     displayName,
     isAdmin: Boolean(parsed.is_admin),
+    role:
+      Boolean(parsed.is_admin) || parsed.role === "admin"
+        ? "admin"
+        : EMPLOYEE_ROLES.has(parsed.role as EmployeeRole)
+          ? (parsed.role as EmployeeRole)
+          : "staff",
+    isActive: parsed.is_active ?? true,
   };
 };
 
@@ -187,6 +218,43 @@ const upsertProfile = async (
   return profiles[0];
 };
 
+const upsertLootStaffProfile = async (
+  supabaseUrl: string,
+  secretKey: string,
+  profile: {
+    user_id: string;
+    display_name: string;
+    role: EmployeeRole;
+    is_active: boolean;
+  }
+) => {
+  const response = await fetch(
+    `${supabaseUrl}/rest/v1/loot_staff_profiles?on_conflict=user_id`,
+    {
+      method: "POST",
+      headers: {
+        apikey: secretKey,
+        Authorization: `Bearer ${secretKey}`,
+        "Content-Type": "application/json",
+        Prefer: "resolution=merge-duplicates,return=representation",
+      },
+      body: JSON.stringify(profile),
+    }
+  );
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(body || "Unable to create loot staff profile.");
+  }
+
+  const profiles = (await response.json()) as Array<{
+    id: string;
+    role: EmployeeRole;
+    is_active: boolean;
+  }>;
+  return profiles[0];
+};
+
 export const handler = async (event: NetlifyEvent) => {
   if (event.httpMethod !== "POST") {
     return textResponse(405, "Method not allowed");
@@ -222,8 +290,19 @@ export const handler = async (event: NetlifyEvent) => {
       contact: user.email ?? input.email,
       is_admin: input.isAdmin,
     });
+    const staffProfile = await upsertLootStaffProfile(supabaseUrl, secretKey, {
+      user_id: user.id,
+      display_name: input.displayName,
+      role: input.role,
+      is_active: input.isActive,
+    });
 
-    return jsonResponse(200, profile);
+    return jsonResponse(200, {
+      ...profile,
+      staff_profile_id: staffProfile.id,
+      role: staffProfile.role,
+      is_active: staffProfile.is_active,
+    });
   } catch (err) {
     return textResponse(
       err instanceof SyntaxError ? 400 : 500,

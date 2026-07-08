@@ -16,6 +16,8 @@ import {
 } from "../pages/reservationSupabase";
 
 export const EMPLOYEE_AUTH_SESSION_KEY = "geekd.reservations.authSession";
+export const EMPLOYEE_AUTH_SESSION_EVENT = "geekd.employeeAuthSessionChanged";
+export const EMPLOYEE_LOGOUT_REDIRECT_PATH = "/loot-tracker/customer";
 
 const readStoredSession = () => {
   const stored = window.localStorage.getItem(EMPLOYEE_AUTH_SESSION_KEY);
@@ -53,6 +55,12 @@ export const useEmployeeAuth = () => {
       window.localStorage.removeItem(EMPLOYEE_AUTH_SESSION_KEY);
       setProfile(null);
     }
+
+    window.dispatchEvent(
+      new CustomEvent(EMPLOYEE_AUTH_SESSION_EVENT, {
+        detail: { session },
+      })
+    );
   }, []);
 
   const loadProfile = useCallback(async (session: ReservationAuthSession) => {
@@ -109,6 +117,34 @@ export const useEmployeeAuth = () => {
     };
   }, [loadProfile, persistSession]);
 
+  useEffect(() => {
+    const handleSessionChange = (event: Event) => {
+      const { session } = (event as CustomEvent<{
+        session: ReservationAuthSession | null;
+      }>).detail;
+
+      setAuthSession(session);
+
+      if (session) {
+        setReservationsAccessToken(session.access_token);
+        void loadProfile(session).catch((err) => {
+          setError(
+            err instanceof Error ? err.message : "Unable to load your profile."
+          );
+        });
+      } else {
+        setReservationsAccessToken("");
+        setProfile(null);
+      }
+    };
+
+    window.addEventListener(EMPLOYEE_AUTH_SESSION_EVENT, handleSessionChange);
+
+    return () => {
+      window.removeEventListener(EMPLOYEE_AUTH_SESSION_EVENT, handleSessionChange);
+    };
+  }, [loadProfile]);
+
   const login = async (email: string, password: string) => {
     setAuthLoading(true);
     setError("");
@@ -163,6 +199,8 @@ export const useEmployeeAuth = () => {
         id: authSession.user.id,
         display_name: displayName.trim(),
         contact: authSession.user.email,
+        role: profile?.role,
+        is_active: profile?.is_active,
       });
       setProfile(savedProfile);
       setMessage("Profile saved.");

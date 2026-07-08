@@ -80,6 +80,10 @@ import {
   upsertReservationProfile,
   verifyReservationsPassword,
 } from "./reservationSupabase";
+import {
+  EMPLOYEE_AUTH_SESSION_EVENT,
+  EMPLOYEE_LOGOUT_REDIRECT_PATH,
+} from "../hooks/useEmployeeAuth";
 import { TCG_OPTIONS } from "./timerControllerUtils";
 
 const AUTH_SESSION_KEY = "geekd.reservations.authSession";
@@ -847,6 +851,12 @@ export default function ReservationsPage() {
         setProfileChecked(false);
         setProfileForm({ display_name: "", contact: "" });
       }
+
+      window.dispatchEvent(
+        new CustomEvent(EMPLOYEE_AUTH_SESSION_EVENT, {
+          detail: { session },
+        })
+      );
     },
     []
   );
@@ -1198,6 +1208,8 @@ export default function ReservationsPage() {
     if (currentAccessToken) {
       await signOutReservationsUser(currentAccessToken).catch(() => {});
     }
+
+    window.location.assign(EMPLOYEE_LOGOUT_REDIRECT_PATH);
   };
 
   const saveProfile = async () => {
