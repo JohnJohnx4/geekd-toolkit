@@ -15,7 +15,9 @@ const theme = createTheme({
   shape: { borderRadius: 12 },
   typography: {
     fontFamily: "'Rubik', 'Helvetica', 'Arial', sans-serif",
-    h1: { fontSize: "2rem", fontWeight: 600 },
+    h1: { fontSize: "1.75rem", fontWeight: 800, lineHeight: 1.2 },
+    h2: { fontSize: "1.15rem", fontWeight: 800, lineHeight: 1.25 },
+    h3: { fontSize: "1rem", fontWeight: 800, lineHeight: 1.3 },
   },
   components: {
     MuiButton: {

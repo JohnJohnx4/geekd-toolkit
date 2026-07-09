@@ -119,55 +119,54 @@ export default function LootCustomerPortalPage() {
             })}
           </Box>
 
-          <Paper sx={{ p: { xs: 2, md: 2.5 } }}>
+          <Box
+            sx={{
+              pt: 1,
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
             {authSession ? (
               <Stack
-                direction={{ xs: "column", sm: "row" }}
-                spacing={2}
-                alignItems={{ xs: "stretch", sm: "center" }}
-                justifyContent="space-between"
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                sx={{ color: "text.secondary" }}
               >
-                <Box>
-                  <Typography variant="h2">Employee access</Typography>
-                  <Typography color="text.secondary">
-                    You are logged in. Open the employee dashboard to manage buys.
-                  </Typography>
-                </Box>
+                <Typography sx={{ fontSize: 12 }}>Employee signed in.</Typography>
                 <Button
-                  variant="contained"
-                  startIcon={<LoginIcon />}
+                  variant="text"
+                  size="small"
                   onClick={() => navigate({ to: "/loot-tracker" })}
+                  sx={{ minHeight: 0, py: 0.25, fontSize: 12 }}
                 >
-                  Employee Dashboard
+                  Open dashboard
                 </Button>
               </Stack>
             ) : (
-              <Stack spacing={2}>
-                <Stack
-                  direction={{ xs: "column", sm: "row" }}
-                  spacing={2}
-                  alignItems={{ xs: "stretch", sm: "center" }}
-                  justifyContent="space-between"
-                >
-                  <Box>
-                    <Typography variant="h2">Employee access</Typography>
-                    <Typography color="text.secondary">
-                      Staff can log in here to return to the employee toolkit.
-                    </Typography>
-                  </Box>
-                  {!loginOpen ? (
+              <Stack spacing={1.25} sx={{ width: "100%", maxWidth: 520 }}>
+                {!loginOpen ? (
+                  <Box sx={{ textAlign: "center" }}>
                     <Button
-                      variant="outlined"
-                      startIcon={<LoginIcon />}
+                      variant="text"
+                      size="small"
+                      startIcon={<LoginIcon fontSize="small" />}
                       onClick={() => setLoginOpen(true)}
+                      sx={{
+                        color: "text.secondary",
+                        fontSize: 12,
+                        minHeight: 0,
+                        py: 0.25,
+                      }}
                     >
-                      Employee Login
+                      Employee login
                     </Button>
-                  ) : null}
-                </Stack>
+                  </Box>
+                ) : null}
 
                 {loginOpen ? (
-                  <Stack spacing={2}>
+                  <Paper variant="outlined" sx={{ p: 1.5 }}>
+                    <Stack spacing={1.25}>
                     {!isConfigured ? (
                       <Alert severity="warning">
                         Supabase is not configured. Add the employee auth
@@ -218,6 +217,7 @@ export default function LootCustomerPortalPage() {
                     <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                       <Button
                         variant="contained"
+                        size="small"
                         startIcon={<LoginIcon />}
                         onClick={handleLogin}
                         disabled={authLoading || !isConfigured}
@@ -226,6 +226,7 @@ export default function LootCustomerPortalPage() {
                       </Button>
                       <Button
                         variant="outlined"
+                        size="small"
                         startIcon={<LockResetIcon />}
                         onClick={() => requestPasswordReset(loginForm.email)}
                         disabled={authLoading || !isConfigured}
@@ -234,6 +235,7 @@ export default function LootCustomerPortalPage() {
                       </Button>
                       <Button
                         variant="text"
+                        size="small"
                         onClick={() => {
                           setLoginOpen(false);
                           setLoginForm({ email: "", password: "" });
@@ -242,11 +244,12 @@ export default function LootCustomerPortalPage() {
                         Cancel
                       </Button>
                     </Stack>
-                  </Stack>
+                    </Stack>
+                  </Paper>
                 ) : null}
               </Stack>
             )}
-          </Paper>
+          </Box>
         </Stack>
       </Container>
     </Box>
