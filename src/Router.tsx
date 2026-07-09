@@ -24,6 +24,7 @@ import LootSafeCashLogPage from "./pages/LootSafeCashLogPage";
 import LootActivityLogPage from "./pages/LootActivityLogPage";
 import LootWorkInProgressPage from "./pages/LootWorkInProgressPage";
 import LootCustomerPortalPage from "./pages/LootCustomerPortalPage";
+import LootLegacyRedirectPage from "./pages/LootLegacyRedirectPage";
 
 // --------------------
 // Root layout
@@ -161,6 +162,12 @@ const lootActivityLogRoute = createRoute({
   component: LootActivityLogPage,
 });
 
+const lootLegacyRedirectRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/loot-tracker/$",
+  component: LootLegacyRedirectPage,
+});
+
 // --------------------
 // Route tree
 // --------------------
@@ -186,6 +193,7 @@ const routeTree = rootRoute.addChildren([
   lootAwaitingPickupRoute,
   lootSafeCashLogRoute,
   lootActivityLogRoute,
+  lootLegacyRedirectRoute,
 ]);
 
 export const router = createRouter({ routeTree });

@@ -33,7 +33,7 @@ const LandingPage = () => {
         {[
           ["Toolkit", "Cash, prizing, timers, set symbols, and employee info."],
           ["Reservations", "Employee release requests and account management."],
-          ["Loot Tracker", "Buys, customers, inventory, card shows, and analytics."],
+          ["Loot Tracker", "Buys, customers, pickup workflow, and activity history."],
         ].map(([title, body]) => (
           <Paper
             key={title}
