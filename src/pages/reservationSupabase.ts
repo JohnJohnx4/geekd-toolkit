@@ -538,7 +538,13 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
     return undefined as T;
   }
 
-  return response.json() as Promise<T>;
+  const body = await response.text();
+
+  if (!body) {
+    return undefined as T;
+  }
+
+  return JSON.parse(body) as T;
 }
 
 async function requestAuthJson<T>(
