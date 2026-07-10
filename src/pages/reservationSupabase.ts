@@ -932,6 +932,18 @@ export const fetchLootBuyLog = () =>
     "loot_buy_transaction_summary?select=*&order=transaction_date.asc,submitted_at.asc&limit=250"
   );
 
+export const fetchLootBuyLogRecord = async (id: string) => {
+  const rows = await requestJson<LootBuyLogRecord[]>(
+    `loot_buy_transaction_summary?id=eq.${encodeFilter(id)}&select=*&limit=1`
+  );
+
+  if (!rows[0]) {
+    throw new Error("Buy transaction was created, but could not be loaded.");
+  }
+
+  return rows[0];
+};
+
 export const fetchLootCustomerSummary = () =>
   requestJson<LootCustomerSummaryRecord[]>(
     "loot_customer_summary?select=*&order=updated_at.desc,name.asc&limit=500"

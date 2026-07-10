@@ -22,9 +22,12 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 
 import { useEmployeeAuth } from "../hooks/useEmployeeAuth";
 import {
+  assignLootBuyForPricing,
   createLootBuyEntry,
   fetchActiveLootBuyCategories,
+  fetchLootBuyLogRecord,
   type LootBuyCategoryRecord,
+  type LootBuyLogRecord,
 } from "./reservationSupabase";
 
 type CustomerType = "existing" | "new";
@@ -68,7 +71,9 @@ export default function LootNewBuyEntryPage() {
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [startingOnTheSpot, setStartingOnTheSpot] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submittedBuy, setSubmittedBuy] = useState<LootBuyLogRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -139,7 +144,7 @@ export default function LootNewBuyEntryPage() {
       .join("\n");
 
     try {
-      await createLootBuyEntry({
+      const created = await createLootBuyEntry({
         customer_name: form.customerName,
         customer_phone: phoneDigits,
         customer_id_number: form.customerIdNumber || null,
@@ -148,10 +153,12 @@ export default function LootNewBuyEntryPage() {
         staff_profile_id: profile?.staff_profile_id || null,
         notes,
       });
+      const createdSummary = await fetchLootBuyLogRecord(created.id);
       setForm({
         ...initialForm,
         buyType: buyTypeOptions[0] || "",
       });
+      setSubmittedBuy(createdSummary);
       setSubmitted(true);
     } catch (saveError) {
       setError(
@@ -159,6 +166,32 @@ export default function LootNewBuyEntryPage() {
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleStartOnTheSpotBuy = async () => {
+    if (!submittedBuy) {
+      setError("The submitted buy could not be loaded. Return to the dashboard instead.");
+      return;
+    }
+
+    setStartingOnTheSpot(true);
+    setError(null);
+
+    try {
+      await assignLootBuyForPricing(submittedBuy, {
+        staff_profile_id: profile?.staff_profile_id || null,
+        actor_label: profile?.display_name || profile?.contact || null,
+      });
+      navigate({ to: "/loot-tracker/WorkInProgress" });
+    } catch (startError) {
+      setError(
+        startError instanceof Error
+          ? startError.message
+          : "Unable to start this buy."
+      );
+    } finally {
+      setStartingOnTheSpot(false);
     }
   };
 
@@ -193,14 +226,22 @@ export default function LootNewBuyEntryPage() {
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                   <Button
                     variant="contained"
+                    onClick={handleStartOnTheSpotBuy}
+                    disabled={startingOnTheSpot || !submittedBuy}
+                  >
+                    {startingOnTheSpot ? "Starting..." : "Start on-the-spot buy"}
+                  </Button>
+                  <Button
+                    variant="outlined"
                     onClick={() => navigate({ to: "/loot-tracker" })}
                   >
                     Return to employee dashboard
                   </Button>
                   <Button
-                    variant="outlined"
+                    variant="text"
                     onClick={() => {
                       setSubmitted(false);
+                      setSubmittedBuy(null);
                       setError(null);
                     }}
                   >
