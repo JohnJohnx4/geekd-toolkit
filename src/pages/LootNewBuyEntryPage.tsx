@@ -7,6 +7,11 @@ import {
   Chip,
   CircularProgress,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   FormControl,
   FormControlLabel,
   FormLabel,
@@ -74,6 +79,7 @@ export default function LootNewBuyEntryPage() {
   const [startingOnTheSpot, setStartingOnTheSpot] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submittedBuy, setSubmittedBuy] = useState<LootBuyLogRecord | null>(null);
+  const [cancelOpen, setCancelOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -166,16 +172,6 @@ export default function LootNewBuyEntryPage() {
       );
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleCancel = () => {
-    const confirmed = window.confirm(
-      "Cancel this buy entry and pass the device back to the Geek'd employee?"
-    );
-
-    if (confirmed) {
-      navigate({ to: "/loot-tracker" });
     }
   };
 
@@ -373,7 +369,7 @@ export default function LootNewBuyEntryPage() {
                     <Button
                       variant="outlined"
                       size="large"
-                      onClick={handleCancel}
+                      onClick={() => setCancelOpen(true)}
                       disabled={saving}
                     >
                       Cancel
@@ -393,6 +389,31 @@ export default function LootNewBuyEntryPage() {
           ) : null}
         </Stack>
       </Container>
+
+      <Dialog
+        open={cancelOpen}
+        onClose={() => setCancelOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Cancel buy entry?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This will discard the current buy entry. Please pass the device back
+            to the Geek&apos;d employee before continuing.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCancelOpen(false)}>Keep editing</Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={() => navigate({ to: "/loot-tracker" })}
+          >
+            Cancel and go back
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
