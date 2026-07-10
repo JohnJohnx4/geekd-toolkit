@@ -169,6 +169,16 @@ export default function LootNewBuyEntryPage() {
     }
   };
 
+  const handleCancel = () => {
+    const confirmed = window.confirm(
+      "Cancel this buy entry and pass the device back to the Geek'd employee?"
+    );
+
+    if (confirmed) {
+      navigate({ to: "/loot-tracker" });
+    }
+  };
+
   const handleStartOnTheSpotBuy = async () => {
     if (!submittedBuy) {
       setError("The submitted buy could not be loaded. Return to the dashboard instead.");
@@ -359,14 +369,24 @@ export default function LootNewBuyEntryPage() {
                 />
 
                 <Stack direction="row" justifyContent="flex-end">
-                  <Button
-                    variant="contained"
-                    size="large"
-                    onClick={handleSubmit}
-                    disabled={!canSave || saving}
-                  >
-                    {saving ? "Submitting..." : "Submit Buy Information"}
-                  </Button>
+                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                    <Button
+                      variant="outlined"
+                      size="large"
+                      onClick={handleCancel}
+                      disabled={saving}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="contained"
+                      size="large"
+                      onClick={handleSubmit}
+                      disabled={!canSave || saving}
+                    >
+                      {saving ? "Submitting..." : "Submit Buy Information"}
+                    </Button>
+                  </Stack>
                 </Stack>
               </Stack>
             </Paper>
