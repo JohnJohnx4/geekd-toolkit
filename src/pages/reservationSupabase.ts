@@ -1133,19 +1133,38 @@ export const updateLootBuyPricingProgress = async (
   input: {
     priced_card_count: number;
     pricing_notes: string | null;
+    appraised_value?: number;
+    cash_offer?: number;
+    bulk_appraised_value?: number;
+    bulk_cash_offer?: number;
     actor_label: string | null;
   }
 ) => {
+  const updateBody: Record<string, unknown> = {
+    priced_card_count: Math.max(0, input.priced_card_count),
+    pricing_notes: input.pricing_notes?.trim() || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (typeof input.appraised_value === "number") {
+    updateBody.appraised_value = Math.max(0, input.appraised_value);
+  }
+  if (typeof input.cash_offer === "number") {
+    updateBody.cash_offer = Math.max(0, input.cash_offer);
+  }
+  if (typeof input.bulk_appraised_value === "number") {
+    updateBody.bulk_appraised_value = Math.max(0, input.bulk_appraised_value);
+  }
+  if (typeof input.bulk_cash_offer === "number") {
+    updateBody.bulk_cash_offer = Math.max(0, input.bulk_cash_offer);
+  }
+
   await requestJson<LootBuyTransactionRecord[]>(
     `loot_buy_transactions?id=eq.${encodeFilter(row.id)}`,
     {
       method: "PATCH",
       headers: getHeaders("return=representation"),
-      body: JSON.stringify({
-        priced_card_count: Math.max(0, input.priced_card_count),
-        pricing_notes: input.pricing_notes?.trim() || null,
-        updated_at: new Date().toISOString(),
-      }),
+      body: JSON.stringify(updateBody),
     }
   );
 
@@ -1165,6 +1184,10 @@ export const updateLootBuyPricingProgress = async (
       after: {
         priced_card_count: Math.max(0, input.priced_card_count),
         pricing_notes: input.pricing_notes?.trim() || null,
+        appraised_value: updateBody.appraised_value,
+        cash_offer: updateBody.cash_offer,
+        bulk_appraised_value: updateBody.bulk_appraised_value,
+        bulk_cash_offer: updateBody.bulk_cash_offer,
       },
     },
   });
@@ -1175,6 +1198,10 @@ export const completeLootBuyPricing = async (
   input: {
     priced_card_count: number;
     pricing_notes: string | null;
+    appraised_value: number;
+    cash_offer: number;
+    bulk_appraised_value: number;
+    bulk_cash_offer: number;
     actor_label: string | null;
   }
 ) => {
@@ -1189,6 +1216,10 @@ export const completeLootBuyPricing = async (
         is_in_progress: false,
         priced_card_count: Math.max(0, input.priced_card_count),
         pricing_notes: input.pricing_notes?.trim() || null,
+        appraised_value: Math.max(0, input.appraised_value),
+        cash_offer: Math.max(0, input.cash_offer),
+        bulk_appraised_value: Math.max(0, input.bulk_appraised_value),
+        bulk_cash_offer: Math.max(0, input.bulk_cash_offer),
         pricing_completed_at: completedAt,
         updated_at: completedAt,
       }),
@@ -1206,6 +1237,10 @@ export const completeLootBuyPricing = async (
     metadata: {
       priced_card_count: Math.max(0, input.priced_card_count),
       pricing_notes: input.pricing_notes?.trim() || null,
+      appraised_value: Math.max(0, input.appraised_value),
+      cash_offer: Math.max(0, input.cash_offer),
+      bulk_appraised_value: Math.max(0, input.bulk_appraised_value),
+      bulk_cash_offer: Math.max(0, input.bulk_cash_offer),
       completed_at: completedAt,
     },
   });

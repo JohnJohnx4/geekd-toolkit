@@ -42,8 +42,20 @@ const formatPhone = (value: string | null) => {
   return value || "No phone";
 };
 
+const toNumber = (value: string | number | null | undefined) =>
+  Number(value ?? 0) || 0;
+
+const formatNumberInput = (value: string | number | null | undefined) => {
+  const numberValue = toNumber(value);
+  return numberValue ? String(numberValue) : "";
+};
+
 type ProgressForm = {
   pricedCardCount: string;
+  marketValueTotal: string;
+  pricedOfferAmount: string;
+  bulkMarketValue: string;
+  bulkOfferAmount: string;
   pricingNotes: string;
 };
 
@@ -62,8 +74,16 @@ function ProgressCard({
 }) {
   const [form, setForm] = useState<ProgressForm>({
     pricedCardCount: String(row.priced_card_count ?? 0),
+    marketValueTotal: formatNumberInput(row.appraised_value),
+    pricedOfferAmount: formatNumberInput(row.cash_offer),
+    bulkMarketValue: formatNumberInput(row.bulk_appraised_value),
+    bulkOfferAmount: formatNumberInput(row.bulk_cash_offer),
     pricingNotes: row.pricing_notes || "",
   });
+  const hasPricingTotals =
+    toNumber(form.marketValueTotal) > 0 || toNumber(form.bulkMarketValue) > 0;
+  const hasOfferTotals =
+    toNumber(form.pricedOfferAmount) > 0 || toNumber(form.bulkOfferAmount) > 0;
 
   return (
     <Paper sx={{ p: { xs: 2, md: 2.5 } }}>
@@ -111,7 +131,16 @@ function ProgressCard({
           </Stack>
         </Stack>
 
-        <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "1fr",
+              md: "repeat(3, minmax(0, 1fr))",
+            },
+            gap: 2,
+          }}
+        >
           <TextField
             label="Cards priced"
             type="number"
@@ -122,9 +151,61 @@ function ProgressCard({
                 pricedCardCount: event.target.value,
               }))
             }
-            sx={{ maxWidth: { md: 220 } }}
             fullWidth
           />
+          <TextField
+            label="Market value total"
+            type="number"
+            value={form.marketValueTotal}
+            onChange={(event) =>
+              setForm((previous) => ({
+                ...previous,
+                marketValueTotal: event.target.value,
+              }))
+            }
+            fullWidth
+          />
+          <TextField
+            label="Priced offer amount"
+            type="number"
+            value={form.pricedOfferAmount}
+            onChange={(event) =>
+              setForm((previous) => ({
+                ...previous,
+                pricedOfferAmount: event.target.value,
+              }))
+            }
+            fullWidth
+          />
+          <TextField
+            label="Bulk market value"
+            type="number"
+            value={form.bulkMarketValue}
+            onChange={(event) =>
+              setForm((previous) => ({
+                ...previous,
+                bulkMarketValue: event.target.value,
+              }))
+            }
+            helperText="Optional"
+            fullWidth
+          />
+          <TextField
+            label="Bulk offer amount"
+            type="number"
+            value={form.bulkOfferAmount}
+            onChange={(event) =>
+              setForm((previous) => ({
+                ...previous,
+                bulkOfferAmount: event.target.value,
+              }))
+            }
+            helperText="Optional"
+            fullWidth
+          />
+        </Box>
+
+        <Stack spacing={1}>
           <TextField
             label="Pricing notes"
             value={form.pricingNotes}
@@ -138,6 +219,11 @@ function ProgressCard({
             minRows={2}
             fullWidth
           />
+          {!hasPricingTotals || !hasOfferTotals ? (
+            <Typography color="text.secondary" fontSize={12}>
+              Enter market value and offer totals before marking pricing complete.
+            </Typography>
+          ) : null}
         </Stack>
       </Stack>
     </Paper>
@@ -200,6 +286,10 @@ export default function LootWorkInProgressPage() {
       await updateLootBuyPricingProgress(row, {
         priced_card_count: Number(form.pricedCardCount) || 0,
         pricing_notes: form.pricingNotes,
+        appraised_value: Number(form.marketValueTotal) || 0,
+        cash_offer: Number(form.pricedOfferAmount) || 0,
+        bulk_appraised_value: Number(form.bulkMarketValue) || 0,
+        bulk_cash_offer: Number(form.bulkOfferAmount) || 0,
         actor_label: profile?.display_name || profile?.contact || null,
       });
       setMessage(`Progress saved for ${row.customer_name}.`);
@@ -216,6 +306,21 @@ export default function LootWorkInProgressPage() {
   };
 
   const handleComplete = async (row: LootBuyLogRecord, form: ProgressForm) => {
+    const appraisedValue = Number(form.marketValueTotal) || 0;
+    const cashOffer = Number(form.pricedOfferAmount) || 0;
+    const bulkAppraisedValue = Number(form.bulkMarketValue) || 0;
+    const bulkCashOffer = Number(form.bulkOfferAmount) || 0;
+
+    if (appraisedValue + bulkAppraisedValue <= 0) {
+      setError("Enter the market value total before completing pricing.");
+      return;
+    }
+
+    if (cashOffer + bulkCashOffer <= 0) {
+      setError("Enter the offer amount before completing pricing.");
+      return;
+    }
+
     setSavingId(row.id);
     setError(null);
     setMessage(null);
@@ -224,6 +329,10 @@ export default function LootWorkInProgressPage() {
       await completeLootBuyPricing(row, {
         priced_card_count: Number(form.pricedCardCount) || 0,
         pricing_notes: form.pricingNotes,
+        appraised_value: appraisedValue,
+        cash_offer: cashOffer,
+        bulk_appraised_value: bulkAppraisedValue,
+        bulk_cash_offer: bulkCashOffer,
         actor_label: profile?.display_name || profile?.contact || null,
       });
       setMessage(`${row.customer_name}'s buy was marked pricing complete.`);
