@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import {
   Alert,
   Box,
@@ -65,12 +66,14 @@ function ProgressCard({
   onSave,
   onComplete,
   onNotify,
+  onOpen,
 }: {
   row: LootBuyLogRecord;
   saving: boolean;
   onSave: (row: LootBuyLogRecord, form: ProgressForm) => Promise<void>;
   onComplete: (row: LootBuyLogRecord, form: ProgressForm) => Promise<void>;
   onNotify: (row: LootBuyLogRecord) => Promise<void>;
+  onOpen: (row: LootBuyLogRecord) => void;
 }) {
   const [form, setForm] = useState<ProgressForm>({
     pricedCardCount: String(row.priced_card_count ?? 0),
@@ -104,6 +107,14 @@ function ProgressCard({
             </Typography>
           </Box>
           <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent="flex-end">
+            <Button
+              variant="contained"
+              startIcon={<AssignmentIndIcon />}
+              onClick={() => onOpen(row)}
+              disabled={saving}
+            >
+              Open Workspace
+            </Button>
             <Button
               variant="outlined"
               startIcon={<NotificationsActiveIcon />}
@@ -231,6 +242,7 @@ function ProgressCard({
 }
 
 export default function LootWorkInProgressPage() {
+  const navigate = useNavigate();
   const { profile } = useEmployeeAuth();
   const [rows, setRows] = useState<LootBuyLogRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -370,6 +382,10 @@ export default function LootWorkInProgressPage() {
     }
   };
 
+  const openWorkspace = (row: LootBuyLogRecord) => {
+    navigate({ to: `/loot-tracker/WorkInProgress/${row.id}` });
+  };
+
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "#f4f6f8" }}>
       <Container maxWidth="xl" sx={{ py: { xs: 2.5, md: 4 } }}>
@@ -414,6 +430,7 @@ export default function LootWorkInProgressPage() {
                   onSave={handleSave}
                   onComplete={handleComplete}
                   onNotify={handleNotify}
+                  onOpen={openWorkspace}
                 />
               ))}
             </Stack>

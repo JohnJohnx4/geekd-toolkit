@@ -224,7 +224,7 @@ export default function LootDashboardPage() {
       });
       setMessage(`${row.customer_name}'s buy has been started.`);
       await loadRows();
-      navigate({ to: "/loot-tracker/WorkInProgress" });
+      navigate({ to: `/loot-tracker/WorkInProgress/${row.id}` });
     } catch (startError) {
       setError(
         startError instanceof Error

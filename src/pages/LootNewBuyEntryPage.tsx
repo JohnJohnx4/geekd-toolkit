@@ -183,7 +183,7 @@ export default function LootNewBuyEntryPage() {
         staff_profile_id: profile?.staff_profile_id || null,
         actor_label: profile?.display_name || profile?.contact || null,
       });
-      navigate({ to: "/loot-tracker/WorkInProgress" });
+      navigate({ to: `/loot-tracker/WorkInProgress/${submittedBuy.id}` });
     } catch (startError) {
       setError(
         startError instanceof Error

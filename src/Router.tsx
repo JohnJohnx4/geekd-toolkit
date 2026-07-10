@@ -23,6 +23,7 @@ import LootAwaitingPickupPage from "./pages/LootAwaitingPickupPage";
 import LootSafeCashLogPage from "./pages/LootSafeCashLogPage";
 import LootActivityLogPage from "./pages/LootActivityLogPage";
 import LootWorkInProgressPage from "./pages/LootWorkInProgressPage";
+import LootBuyWorkspacePage from "./pages/LootBuyWorkspacePage";
 import LootCustomerPortalPage from "./pages/LootCustomerPortalPage";
 import LootLegacyRedirectPage from "./pages/LootLegacyRedirectPage";
 
@@ -138,6 +139,12 @@ const lootWorkInProgressRoute = createRoute({
   component: LootWorkInProgressPage,
 });
 
+const lootBuyWorkspaceRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/loot-tracker/WorkInProgress/$buyId",
+  component: LootBuyWorkspacePage,
+});
+
 const lootCustomersRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/loot-tracker/Customers",
@@ -189,6 +196,7 @@ const routeTree = rootRoute.addChildren([
   lootNewBuyEntryRoute,
   lootBuyLogRoute,
   lootWorkInProgressRoute,
+  lootBuyWorkspaceRoute,
   lootCustomersRoute,
   lootAwaitingPickupRoute,
   lootSafeCashLogRoute,

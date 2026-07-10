@@ -104,6 +104,7 @@ const nativeLootRoutes = new Set([
   "/loot-tracker/NewBuyEntry",
   "/loot-tracker/BuyLog",
   "/loot-tracker/WorkInProgress",
+  "/loot-tracker/WorkInProgress/$buyId",
   "/loot-tracker/Customers",
   "/loot-tracker/AwaitingPickup",
   "/loot-tracker/SafeCashLog",
