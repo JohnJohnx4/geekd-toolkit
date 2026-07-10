@@ -12,12 +12,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
-  FormControl,
-  FormControlLabel,
-  FormLabel,
   Paper,
-  Radio,
-  RadioGroup,
   Stack,
   TextField,
   Typography,
@@ -30,8 +25,10 @@ import {
   assignLootBuyForPricing,
   createLootBuyEntry,
   fetchActiveLootBuyCategories,
+  fetchLootCustomerByPhone,
   fetchLootBuyLogRecord,
   type LootBuyCategoryRecord,
+  type LootCustomerRecord,
   type LootBuyLogRecord,
 } from "./reservationSupabase";
 
@@ -74,8 +71,13 @@ export default function LootNewBuyEntryPage() {
   const { profile } = useEmployeeAuth();
   const [categories, setCategories] = useState<LootBuyCategoryRecord[]>([]);
   const [form, setForm] = useState(initialForm);
+  const [lookupPhone, setLookupPhone] = useState("");
+  const [matchedCustomer, setMatchedCustomer] = useState<LootCustomerRecord | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [lookupLoading, setLookupLoading] = useState(false);
   const [startingOnTheSpot, setStartingOnTheSpot] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submittedBuy, setSubmittedBuy] = useState<LootBuyLogRecord | null>(null);
@@ -133,6 +135,60 @@ export default function LootNewBuyEntryPage() {
     value: BuyEntryForm[Key]
   ) => {
     setForm((previous) => ({ ...previous, [key]: value }));
+  };
+
+  const setCustomerType = (customerType: CustomerType) => {
+    setError(null);
+    setMatchedCustomer(null);
+    setForm((previous) => ({
+      ...previous,
+      customerType,
+      customerName: customerType === "new" ? "" : previous.customerName,
+      customerPhone: customerType === "new" ? "" : previous.customerPhone,
+      customerIdNumber:
+        customerType === "new" ? "" : previous.customerIdNumber,
+    }));
+  };
+
+  const handleLookupCustomer = async () => {
+    const lookupDigits = normalizePhone(lookupPhone);
+
+    if (lookupDigits.length !== 10) {
+      setError("Enter a 10 digit phone number to look up your profile.");
+      return;
+    }
+
+    setLookupLoading(true);
+    setError(null);
+    setMatchedCustomer(null);
+
+    try {
+      const customer = await fetchLootCustomerByPhone(lookupDigits);
+
+      if (!customer) {
+        setError(
+          "We could not find that phone number. Please choose New seller to continue."
+        );
+        return;
+      }
+
+      setMatchedCustomer(customer);
+      setForm((previous) => ({
+        ...previous,
+        customerType: "existing",
+        customerName: customer.name,
+        customerPhone: formatPhoneInput(customer.phone || lookupDigits),
+        customerIdNumber: customer.government_id_number || "",
+      }));
+    } catch (lookupError) {
+      setError(
+        lookupError instanceof Error
+          ? lookupError.message
+          : "Unable to look up that phone number."
+      );
+    } finally {
+      setLookupLoading(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -268,41 +324,97 @@ export default function LootNewBuyEntryPage() {
           ) : !submitted ? (
             <Paper sx={{ p: { xs: 2, md: 3 } }}>
               <Stack spacing={2.5}>
-                <FormControl>
-                  <FormLabel>Have you sold cards to Geek'd before?</FormLabel>
-                  <RadioGroup
-                    row
-                    value={form.customerType}
-                    onChange={(event) =>
-                      updateForm("customerType", event.target.value as CustomerType)
-                    }
+                <Stack spacing={1}>
+                  <Typography fontWeight={800}>
+                    Have you sold cards to Geek&apos;d before?
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                      gap: 1,
+                    }}
                   >
-                    <FormControlLabel
-                      value="existing"
-                      control={<Radio />}
-                      label="Yes"
-                    />
-                    <FormControlLabel
-                      value="new"
-                      control={<Radio />}
-                      label="No"
-                    />
-                  </RadioGroup>
-                </FormControl>
+                    <Button
+                      variant={form.customerType === "existing" ? "contained" : "outlined"}
+                      onClick={() => setCustomerType("existing")}
+                      size="large"
+                    >
+                      Existing seller
+                    </Button>
+                    <Button
+                      variant={form.customerType === "new" ? "contained" : "outlined"}
+                      onClick={() => setCustomerType("new")}
+                      size="large"
+                    >
+                      New seller
+                    </Button>
+                  </Box>
+                </Stack>
 
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-                    gap: 2,
-                  }}
-                >
+                {form.customerType === "existing" ? (
+                  <Paper variant="outlined" sx={{ p: 2 }}>
+                    <Stack spacing={2}>
+                      <Box>
+                        <Typography variant="h2">Find your profile</Typography>
+                        <Typography color="text.secondary">
+                          Enter the phone number you used the last time you sold
+                          cards to us.
+                        </Typography>
+                      </Box>
+                      <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                        <TextField
+                          label="Phone number"
+                          value={lookupPhone}
+                          onChange={(event) =>
+                            setLookupPhone(formatPhoneInput(event.target.value))
+                          }
+                          placeholder="(407) 555-1234"
+                          fullWidth
+                        />
+                        <Button
+                          variant="contained"
+                          onClick={handleLookupCustomer}
+                          disabled={lookupLoading}
+                        >
+                          {lookupLoading ? "Searching..." : "Search"}
+                        </Button>
+                      </Stack>
+                      {matchedCustomer ? (
+                        <Alert severity="success">
+                          Found {matchedCustomer.name}. Please confirm what you
+                          are selling below.
+                        </Alert>
+                      ) : null}
+                    </Stack>
+                  </Paper>
+                ) : null}
+
+                {form.customerType === "existing" && !matchedCustomer ? (
+                  <Paper variant="outlined" sx={{ p: 2, textAlign: "center" }}>
+                    <Typography color="text.secondary">
+                      Search for your phone number before entering the buy
+                      details, or choose New seller.
+                    </Typography>
+                  </Paper>
+                ) : null}
+
+                {form.customerType === "new" || matchedCustomer ? (
+                  <>
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                      gap: 2,
+                    }}
+                  >
                   <TextField
                     label="Your name"
                     value={form.customerName}
                     onChange={(event) =>
                       updateForm("customerName", event.target.value)
                     }
+                    disabled={form.customerType === "existing"}
                     required
                     fullWidth
                   />
@@ -320,6 +432,7 @@ export default function LootNewBuyEntryPage() {
                         ? "Enter a 10 digit phone number."
                         : "Stored as digits only."
                     }
+                    disabled={form.customerType === "existing"}
                     fullWidth
                   />
                   <TextField
@@ -353,37 +466,39 @@ export default function LootNewBuyEntryPage() {
                     onChange={(event) => updateForm("cardCount", event.target.value)}
                     fullWidth
                   />
-                </Box>
+                  </Box>
 
-                <TextField
-                  label="Anything else we should know?"
-                  value={form.notes}
-                  onChange={(event) => updateForm("notes", event.target.value)}
-                  multiline
-                  minRows={4}
-                  fullWidth
-                />
+                  <TextField
+                    label="Anything else we should know?"
+                    value={form.notes}
+                    onChange={(event) => updateForm("notes", event.target.value)}
+                    multiline
+                    minRows={4}
+                    fullWidth
+                  />
 
-                <Stack direction="row" justifyContent="flex-end">
-                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                    <Button
-                      variant="outlined"
-                      size="large"
-                      onClick={() => setCancelOpen(true)}
-                      disabled={saving}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="contained"
-                      size="large"
-                      onClick={handleSubmit}
-                      disabled={!canSave || saving}
-                    >
-                      {saving ? "Submitting..." : "Submit Buy Information"}
-                    </Button>
+                  <Stack direction="row" justifyContent="flex-end">
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                      <Button
+                        variant="outlined"
+                        size="large"
+                        onClick={() => setCancelOpen(true)}
+                        disabled={saving}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="contained"
+                        size="large"
+                        onClick={handleSubmit}
+                        disabled={!canSave || saving}
+                      >
+                        {saving ? "Submitting..." : "Submit Buy Information"}
+                      </Button>
+                    </Stack>
                   </Stack>
-                </Stack>
+                  </>
+                ) : null}
               </Stack>
             </Paper>
           ) : null}

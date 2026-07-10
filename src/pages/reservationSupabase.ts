@@ -949,6 +949,20 @@ export const fetchLootCustomerSummary = () =>
     "loot_customer_summary?select=*&order=updated_at.desc,name.asc&limit=500"
   );
 
+export const fetchLootCustomerByPhone = async (phone: string) => {
+  const normalizedPhone = normalizePhoneNumber(phone);
+
+  if (!normalizedPhone) {
+    throw new Error("Enter a 10 digit phone number.");
+  }
+
+  const rows = await requestJson<LootCustomerRecord[]>(
+    `loot_customers?phone=eq.${encodeFilter(normalizedPhone)}&select=*&limit=1`
+  );
+
+  return rows[0] ?? null;
+};
+
 export const fetchLootSafeCashEntries = () =>
   requestJson<LootSafeCashEntryRecord[]>(
     "loot_safe_cash_entries?select=*&order=entry_at.desc,created_at.desc&limit=500"
