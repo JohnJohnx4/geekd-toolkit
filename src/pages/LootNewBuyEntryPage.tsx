@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import {
   Alert,
   Box,
   Button,
+  Chip,
   CircularProgress,
   Container,
   FormControl,
@@ -16,6 +18,7 @@ import {
   Typography,
 } from "@mui/material";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 
 import { useEmployeeAuth } from "../hooks/useEmployeeAuth";
 import {
@@ -59,13 +62,14 @@ const formatPhoneInput = (value: string) => {
 };
 
 export default function LootNewBuyEntryPage() {
+  const navigate = useNavigate();
   const { profile } = useEmployeeAuth();
   const [categories, setCategories] = useState<LootBuyCategoryRecord[]>([]);
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -125,7 +129,6 @@ export default function LootNewBuyEntryPage() {
 
     setSaving(true);
     setError(null);
-    setMessage(null);
 
     const notes = [
       form.notes.trim(),
@@ -149,7 +152,7 @@ export default function LootNewBuyEntryPage() {
         ...initialForm,
         buyType: buyTypeOptions[0] || "",
       });
-      setMessage("Buy entry created and added to the queue.");
+      setSubmitted(true);
     } catch (saveError) {
       setError(
         saveError instanceof Error ? saveError.message : "Unable to create buy entry."
@@ -161,36 +164,65 @@ export default function LootNewBuyEntryPage() {
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "#f4f6f8" }}>
-      <Container maxWidth="lg" sx={{ py: { xs: 2.5, md: 4 } }}>
+      <Container maxWidth="md" sx={{ py: { xs: 2.5, md: 5 } }}>
         <Stack spacing={3}>
-          <Paper sx={{ p: { xs: 2, md: 3 } }}>
-            <Stack direction="row" spacing={1.5} alignItems="center">
-              <AddCircleIcon color="primary" sx={{ fontSize: 36 }} />
+          <Paper sx={{ p: { xs: 2.5, md: 4 } }}>
+            <Stack spacing={1.5} alignItems="center" textAlign="center">
+              <AddCircleIcon color="primary" sx={{ fontSize: 42 }} />
+              <Chip label="Geek'd Buy Intake" color="primary" variant="outlined" />
               <Box>
-                <Typography variant="h1">New Buy Entry</Typography>
-                <Typography color="text.secondary">
-                  Capture the customer details and what they are selling, then add
-                  the buy to the pricing queue.
+                <Typography variant="h1">Tell us about your cards</Typography>
+                <Typography color="text.secondary" sx={{ maxWidth: 620, mt: 1 }}>
+                  Please enter your information so our card supervisor can review
+                  the items you want to sell.
                 </Typography>
               </Box>
             </Stack>
           </Paper>
 
           {error ? <Alert severity="error">{error}</Alert> : null}
-          {message ? <Alert severity="success">{message}</Alert> : null}
+          {submitted ? (
+            <Paper sx={{ p: { xs: 3, md: 5 }, textAlign: "center" }}>
+              <Stack spacing={2} alignItems="center">
+                <CheckCircleIcon color="success" sx={{ fontSize: 58 }} />
+                <Typography variant="h1">You're all set.</Typography>
+                <Typography color="text.secondary" sx={{ maxWidth: 560 }}>
+                  Please pass the device back to the Geek'd employee. They will
+                  confirm your buy entry and let you know the next step.
+                </Typography>
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                  <Button
+                    variant="contained"
+                    onClick={() => navigate({ to: "/loot-tracker" })}
+                  >
+                    Return to employee dashboard
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={() => {
+                      setSubmitted(false);
+                      setError(null);
+                    }}
+                  >
+                    Start another buy entry
+                  </Button>
+                </Stack>
+              </Stack>
+            </Paper>
+          ) : null}
 
-          {loading ? (
+          {loading && !submitted ? (
             <Paper sx={{ p: 3 }}>
               <Stack direction="row" spacing={2} alignItems="center">
                 <CircularProgress size={24} />
                 <Typography>Loading buy options...</Typography>
               </Stack>
             </Paper>
-          ) : (
+          ) : !submitted ? (
             <Paper sx={{ p: { xs: 2, md: 3 } }}>
               <Stack spacing={2.5}>
                 <FormControl>
-                  <FormLabel>Customer flow</FormLabel>
+                  <FormLabel>Have you sold cards to Geek'd before?</FormLabel>
                   <RadioGroup
                     row
                     value={form.customerType}
@@ -201,12 +233,12 @@ export default function LootNewBuyEntryPage() {
                     <FormControlLabel
                       value="existing"
                       control={<Radio />}
-                      label="Existing customer"
+                      label="Yes"
                     />
                     <FormControlLabel
                       value="new"
                       control={<Radio />}
-                      label="New customer"
+                      label="No"
                     />
                   </RadioGroup>
                 </FormControl>
@@ -219,7 +251,7 @@ export default function LootNewBuyEntryPage() {
                   }}
                 >
                   <TextField
-                    label="Customer name"
+                    label="Your name"
                     value={form.customerName}
                     onChange={(event) =>
                       updateForm("customerName", event.target.value)
@@ -228,7 +260,7 @@ export default function LootNewBuyEntryPage() {
                     fullWidth
                   />
                   <TextField
-                    label="Phone number"
+                    label="Your phone number"
                     value={form.customerPhone}
                     onChange={(event) =>
                       updateForm("customerPhone", formatPhoneInput(event.target.value))
@@ -244,17 +276,17 @@ export default function LootNewBuyEntryPage() {
                     fullWidth
                   />
                   <TextField
-                    label="ID number"
+                    label="Driver's license or ID number"
                     value={form.customerIdNumber}
                     onChange={(event) =>
                       updateForm("customerIdNumber", event.target.value)
                     }
-                    helperText="Optional for now."
+                    helperText="A Geek'd employee may verify this before finalizing the buy."
                     fullWidth
                   />
                   <TextField
                     select
-                    label="What are they selling?"
+                    label="What are you selling?"
                     value={form.buyType}
                     onChange={(event) => updateForm("buyType", event.target.value)}
                     SelectProps={{ native: true }}
@@ -268,7 +300,7 @@ export default function LootNewBuyEntryPage() {
                     ))}
                   </TextField>
                   <TextField
-                    label="Estimated card count"
+                    label="About how many cards or items?"
                     type="number"
                     value={form.cardCount}
                     onChange={(event) => updateForm("cardCount", event.target.value)}
@@ -277,7 +309,7 @@ export default function LootNewBuyEntryPage() {
                 </Box>
 
                 <TextField
-                  label="Notes"
+                  label="Anything else we should know?"
                   value={form.notes}
                   onChange={(event) => updateForm("notes", event.target.value)}
                   multiline
@@ -292,12 +324,12 @@ export default function LootNewBuyEntryPage() {
                     onClick={handleSubmit}
                     disabled={!canSave || saving}
                   >
-                    {saving ? "Creating..." : "Create Buy Entry"}
+                    {saving ? "Submitting..." : "Submit Buy Information"}
                   </Button>
                 </Stack>
               </Stack>
             </Paper>
-          )}
+          ) : null}
         </Stack>
       </Container>
     </Box>

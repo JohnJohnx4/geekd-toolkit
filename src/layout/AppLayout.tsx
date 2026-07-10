@@ -118,6 +118,7 @@ export default function AppLayout() {
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
   const hadEmployeeSession = useRef(false);
   const isCustomerPortal = location.pathname.startsWith("/loot-tracker/customer");
+  const isCustomerHandoffFlow = location.pathname === "/loot-tracker/NewBuyEntry";
   const {
     authSession,
     profile,
@@ -561,7 +562,7 @@ export default function AppLayout() {
     </Box>
   );
 
-  if (isCustomerPortal && !authSession) {
+  if ((isCustomerPortal && !authSession) || (isCustomerHandoffFlow && authSession)) {
     return (
       <Box sx={{ minHeight: "100vh", bgcolor: "#f4f6f8" }}>
         <Box component="main" sx={{ minHeight: "100vh" }}>
