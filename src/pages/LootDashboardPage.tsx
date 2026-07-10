@@ -24,6 +24,7 @@ import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import PercentIcon from "@mui/icons-material/Percent";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
+import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 
 import { useEmployeeAuth } from "../hooks/useEmployeeAuth";
 import {
@@ -78,6 +79,19 @@ const isPricingQueueBuy = (row: LootBuyLogRecord) =>
 const getQueueTime = (row: LootBuyLogRecord) =>
   new Date(row.submitted_at || `${row.transaction_date}T00:00:00`).getTime();
 
+const formatWaitDuration = (startedAt: number | null) => {
+  if (!startedAt) return "None";
+
+  const minutes = Math.max(0, Math.floor((Date.now() - startedAt) / 60000));
+  if (minutes < 60) return `${minutes}m`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ${minutes % 60}m`;
+
+  const days = Math.floor(hours / 24);
+  return `${days}d ${hours % 24}h`;
+};
+
 function StatCard({
   title,
   value,
@@ -127,6 +141,10 @@ export default function LootDashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [startingId, setStartingId] = useState<string | null>(null);
+  const showFinancialStats =
+    profile?.role === "manager" ||
+    profile?.role === "owner" ||
+    profile?.role === "admin";
 
   const loadRows = async () => {
     setLoading(true);
@@ -151,6 +169,7 @@ export default function LootDashboardPage() {
   }, []);
 
   const stats = useMemo(() => {
+    const staffProfileId = profile?.staff_profile_id;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const weekStart = startOfWeek(today);
@@ -207,10 +226,23 @@ export default function LootDashboardPage() {
         .slice(0, 8),
       pricingQueueRows: [...rows]
         .filter(isPricingQueueBuy)
-        .sort((left, right) => getQueueTime(left) - getQueueTime(right))
-        .slice(0, 8),
+        .sort((left, right) => getQueueTime(left) - getQueueTime(right)),
+      myActiveRows: staffProfileId
+        ? rows.filter(
+            (row) =>
+              isOpenBuy(row) &&
+              row.is_in_progress &&
+              row.priced_by_staff_ids.includes(staffProfileId)
+          )
+        : [],
+      readyForPickupRows: rows.filter(
+        (row) =>
+          isOpenBuy(row) &&
+          (row.cash_ready ||
+            row.contact_status === "contacted_awaiting_pickup")
+      ),
     };
-  }, [rows]);
+  }, [profile?.staff_profile_id, rows]);
 
   const startBuy = async (row: LootBuyLogRecord) => {
     setStartingId(row.id);
@@ -275,30 +307,65 @@ export default function LootDashboardPage() {
                   gap: 2,
                 }}
               >
-                <StatCard
-                  title="Today's Buys"
-                  value={formatMoney(stats.todayTotal)}
-                  detail={`${stats.todayRows.length} transactions`}
-                  icon={TodayIcon}
-                />
-                <StatCard
-                  title="This Week"
-                  value={formatMoney(stats.weekTotal)}
-                  detail={`${stats.weekRows.length} transactions`}
-                  icon={TrendingUpIcon}
-                />
-                <StatCard
-                  title="This Month"
-                  value={formatMoney(stats.monthTotal)}
-                  detail={`${stats.monthRows.length} transactions`}
-                  icon={CalendarMonthIcon}
-                />
-                <StatCard
-                  title="Avg Payout"
-                  value={`${stats.avgPayout.toFixed(1)}%`}
-                  detail="Of market value"
-                  icon={PercentIcon}
-                />
+                {showFinancialStats ? (
+                  <>
+                    <StatCard
+                      title="Today's Buys"
+                      value={formatMoney(stats.todayTotal)}
+                      detail={`${stats.todayRows.length} transactions`}
+                      icon={TodayIcon}
+                    />
+                    <StatCard
+                      title="This Week"
+                      value={formatMoney(stats.weekTotal)}
+                      detail={`${stats.weekRows.length} transactions`}
+                      icon={TrendingUpIcon}
+                    />
+                    <StatCard
+                      title="This Month"
+                      value={formatMoney(stats.monthTotal)}
+                      detail={`${stats.monthRows.length} transactions`}
+                      icon={CalendarMonthIcon}
+                    />
+                    <StatCard
+                      title="Avg Payout"
+                      value={`${stats.avgPayout.toFixed(1)}%`}
+                      detail="Of market value"
+                      icon={PercentIcon}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <StatCard
+                      title="Waiting in Queue"
+                      value={String(stats.pricingQueueRows.length)}
+                      detail="Not yet assigned"
+                      icon={InventoryIcon}
+                    />
+                    <StatCard
+                      title="Oldest Waiting"
+                      value={formatWaitDuration(
+                        stats.pricingQueueRows[0]
+                          ? getQueueTime(stats.pricingQueueRows[0])
+                          : null
+                      )}
+                      detail="Oldest unassigned buy"
+                      icon={TodayIcon}
+                    />
+                    <StatCard
+                      title="My Active Buys"
+                      value={String(stats.myActiveRows.length)}
+                      detail="Assigned to you"
+                      icon={AssignmentIndIcon}
+                    />
+                    <StatCard
+                      title="Ready for Pickup"
+                      value={String(stats.readyForPickupRows.length)}
+                      detail="Cash ready or contacted"
+                      icon={LocalShippingIcon}
+                    />
+                  </>
+                )}
               </Box>
 
               <Paper sx={{ p: { xs: 2, md: 3 } }}>
@@ -352,7 +419,7 @@ export default function LootDashboardPage() {
                       </TableHead>
                       <TableBody>
                         {stats.pricingQueueRows.length ? (
-                          stats.pricingQueueRows.map((row) => (
+                          stats.pricingQueueRows.slice(0, 8).map((row) => (
                             <TableRow key={row.id} hover>
                               <TableCell sx={{ fontWeight: 800 }}>
                                 {row.customer_name}
