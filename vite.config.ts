@@ -1,4 +1,5 @@
-import { defineConfig, loadEnv, type Plugin } from "vite";
+import { defineConfig } from "vitest/config";
+import { loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 
 type EmployeeRole =
@@ -268,5 +269,11 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), createReservationUserDevPlugin(env)],
+    test: {
+      css: true,
+      environment: "jsdom",
+      globals: true,
+      setupFiles: "./src/test/setup.ts",
+    },
   };
 });
