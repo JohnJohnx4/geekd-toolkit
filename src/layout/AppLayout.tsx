@@ -31,7 +31,6 @@ import InventoryIcon from "@mui/icons-material/Inventory2";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import ListAltIcon from "@mui/icons-material/ListAlt";
 import GroupsIcon from "@mui/icons-material/Groups";
-import StorefrontIcon from "@mui/icons-material/Storefront";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import HistoryIcon from "@mui/icons-material/History";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
@@ -72,7 +71,6 @@ const toolkitItems: NavItem[] = [
 
 const lootItems: NavItem[] = [
   { label: "Loot Dashboard", path: "/loot-tracker", icon: InventoryIcon, end: true },
-  { label: "Customer Portal", path: "/loot-tracker/customer", icon: StorefrontIcon },
   { label: "New Buy Entry", path: "/loot-tracker/NewBuyEntry", icon: AddCircleIcon },
   { label: "Buy Log", path: "/loot-tracker/BuyLog", icon: ListAltIcon },
   {
