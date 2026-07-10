@@ -164,7 +164,7 @@ const lootActivityLogRoute = createRoute({
 
 const lootLegacyRedirectRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/loot-tracker/$",
+  path: "/loot-tracker/$legacyPath",
   component: LootLegacyRedirectPage,
 });
 
