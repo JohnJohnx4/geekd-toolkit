@@ -310,7 +310,7 @@ export default function LootDashboardPage() {
                     alignItems={{ xs: "stretch", md: "center" }}
                   >
                     <Box>
-                      <Typography variant="h2">Longest Waiting Buys</Typography>
+                      <Typography variant="h2">Buy Queue</Typography>
                       <Typography color="text.secondary">
                         Oldest buys that still need pricing work.
                       </Typography>
