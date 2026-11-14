@@ -41,6 +41,7 @@ export type ReservationRecord = {
 };
 
 export type ReservationProductRecord = {
+  quantity?: number;
   reservation_id: string;
   product_id: string;
   status: ReservationProductStatus;
@@ -133,15 +134,6 @@ export type ReservationEmployeeCreateInput = {
   is_admin: boolean;
 };
 
-const OWNER_RESERVATION_NAME = "Linda";
-const OWNER_RESERVATION_NOTE = "Automatically reserved for the owner.";
-
-const isOwnerReservationGame = (game: string) =>
-  game
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") === "pokemon";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
 const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -558,13 +550,12 @@ export const fetchReservationProducts = () =>
     "reservation_products?select=*&order=created_at.asc"
   );
 
-export const ensureOwnerReservationProducts = async (
+const ensureAutomaticReservation = async (
   releaseId: string,
-  releaseGame: string,
-  productIds: string[]
+  productIds: string[],
+  name: string,
+  quantity: number
 ) => {
-  if (!isOwnerReservationGame(releaseGame)) return null;
-
   const uniqueProductIds = [...new Set(productIds)].filter(Boolean);
 
   if (!uniqueProductIds.length) return null;
@@ -572,7 +563,7 @@ export const ensureOwnerReservationProducts = async (
   const ownerRows = await requestJson<ReservationRecord[]>(
     `reservations?release_id=eq.${encodeFilter(
       releaseId
-    )}&employee_name=eq.${encodeFilter(OWNER_RESERVATION_NAME)}&select=*`
+    )}&employee_name=eq.${encodeFilter(name)}&user_id=is.null&employee_contact=is.null&select=*`
   );
 
   let ownerReservation = ownerRows[0];
@@ -584,9 +575,9 @@ export const ensureOwnerReservationProducts = async (
       body: JSON.stringify({
         user_id: null,
         release_id: releaseId,
-        employee_name: OWNER_RESERVATION_NAME,
+        employee_name: name,
         employee_contact: null,
-        notes: OWNER_RESERVATION_NOTE,
+        notes: name === "Linda" ? "Automatically reserved for the owner." : "Automatic product reservation.",
         status: "pending",
       }),
     });
@@ -615,12 +606,28 @@ export const ensureOwnerReservationProducts = async (
           reservation_id: ownerReservation.id,
           product_id: productId,
           status: "pending",
+          ...(quantity > 1 && { quantity }),
         }))
       ),
     });
   }
 
   return ownerReservation;
+};
+
+export const ensureOwnerReservationProducts = async (
+  releaseId: string,
+  releaseGame: string,
+  productIds: string[],
+  newProductIds = productIds
+) => {
+  const game = releaseGame.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (game === "pokemon") {
+    await ensureAutomaticReservation(releaseId, productIds, "Linda", 1);
+    await ensureAutomaticReservation(releaseId, newProductIds, "Nicole", 1);
+  } else if (game === "union arena") {
+    await ensureAutomaticReservation(releaseId, newProductIds, "John", 2);
+  }
 };
 
 export const createReservation = async (reservation: ReservationInput) => {

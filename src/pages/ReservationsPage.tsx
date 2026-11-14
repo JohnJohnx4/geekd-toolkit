@@ -32,8 +32,8 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
-import CancelIcon from "@mui/icons-material/Cancel";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import EditIcon from "@mui/icons-material/Edit";
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -79,7 +79,6 @@ import {
   updateReservationsPassword,
   updateReservationStatus,
   upsertReservationProfile,
-  verifyReservationsPassword,
 } from "./reservationSupabase";
 import { TCG_OPTIONS } from "./timerControllerUtils";
 
@@ -128,6 +127,7 @@ const getReserveSectionId = (key: string) =>
     .replace(/(^-|-$)/g, "")}`;
 
 type ReservationProductDetail = ReleaseProductRecord & {
+  quantity: number;
   reservationProductStatus: ReservationProductStatus;
 };
 
@@ -143,6 +143,7 @@ const blankReleaseForm = {
   gameIsOther: false,
   release_date: "",
   description: "",
+  image_url: "",
   products: [{ name: "Booster Box", release_date: "" }] as ReleaseProductFormItem[],
 };
 
@@ -152,7 +153,18 @@ type ReleaseEditForm = {
   gameIsOther: boolean;
   release_date: string;
   description: string;
+  image_url: string;
   products: ReleaseProductFormItem[];
+};
+
+const getReleasePhotoUrl = (value: string | null) => {
+  if (!value?.trim()) return null;
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "https:" || url.protocol === "http:" ? url.href : null;
+  } catch {
+    return null;
+  }
 };
 
 const blankReservationForm = {
@@ -163,11 +175,6 @@ const blankReservationForm = {
 const blankPasswordForm = {
   password: "",
   confirmPassword: "",
-};
-
-const blankChangePasswordForm = {
-  currentPassword: "",
-  ...blankPasswordForm,
 };
 
 const statusLabels: Record<ReservationStatus, string> = {
@@ -422,10 +429,6 @@ export default function ReservationsPage() {
   });
   const [passwordSetupForm, setPasswordSetupForm] =
     useState(blankPasswordForm);
-  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
-  const [changePasswordForm, setChangePasswordForm] =
-    useState(blankChangePasswordForm);
-  const [changePasswordError, setChangePasswordError] = useState("");
   const [profile, setProfile] = useState<ReservationProfileRecord | null>(null);
   const [profileChecked, setProfileChecked] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
@@ -440,7 +443,11 @@ export default function ReservationsPage() {
     ReservationProductRecord[]
   >([]);
   const [releaseForm, setReleaseForm] = useState(blankReleaseForm);
+  const [addReleaseOpen, setAddReleaseOpen] = useState(false);
+  const [addReleaseError, setAddReleaseError] = useState("");
   const [editingReleaseId, setEditingReleaseId] = useState("");
+  const [editReleaseError, setEditReleaseError] = useState("");
+  const releaseBeingEdited = releases.find((release) => release.id === editingReleaseId);
   const [editReleaseForm, setEditReleaseForm] =
     useState<ReleaseEditForm | null>(null);
   const [expandedReleaseGame, setExpandedReleaseGame] = useState<string | null>(
@@ -542,6 +549,7 @@ export default function ReservationsPage() {
           ...(groups[reservationProduct.reservation_id] ?? []),
           {
             ...product,
+            quantity: reservationProduct.quantity ?? 1,
             reservationProductStatus: reservationProduct.status,
           },
         ];
@@ -1129,56 +1137,6 @@ export default function ReservationsPage() {
     }
   };
 
-  const changeLoggedInPassword = async () => {
-    if (!authSession) {
-      return;
-    }
-
-    const accountEmail = authSession.user.email;
-
-    if (!accountEmail) {
-      setChangePasswordError("Your account email is required to change your password.");
-      return;
-    }
-
-    if (!changePasswordForm.currentPassword) {
-      setChangePasswordError("Enter your current password first.");
-      return;
-    }
-
-    if (!validatePasswordForm(changePasswordForm, setChangePasswordError)) {
-      return;
-    }
-
-    setAuthLoading(true);
-    setChangePasswordError("");
-    setMessage("");
-
-    try {
-      await verifyReservationsPassword(
-        accountEmail,
-        changePasswordForm.currentPassword
-      );
-      const user = await updateReservationsPassword(
-        authSession.access_token,
-        changePasswordForm.password
-      );
-      persistAuthSession({
-        ...authSession,
-        user,
-      });
-      setChangePasswordForm(blankChangePasswordForm);
-      setChangePasswordOpen(false);
-      setMessage("Password changed.");
-    } catch (err) {
-      setChangePasswordError(
-        err instanceof Error ? err.message : "Unable to change password."
-      );
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
   const logout = async () => {
     const currentAccessToken = authSession?.access_token;
 
@@ -1238,7 +1196,7 @@ export default function ReservationsPage() {
 
   const saveRelease = async () => {
     if (!isAdmin) {
-      setError("Admin access is required to manage releases.");
+      setAddReleaseError("Admin access is required to manage releases.");
       return;
     }
 
@@ -1250,17 +1208,23 @@ export default function ReservationsPage() {
       .filter((product) => product.name);
 
     if (!releaseForm.title.trim() || !releaseForm.game.trim()) {
-      setError("Release name and game are required.");
+      setAddReleaseError("Release name and game are required.");
       return;
     }
 
     if (!productItems.length) {
-      setError("Add at least one product for this release.");
+      setAddReleaseError("Add at least one product for this release.");
+      return;
+    }
+
+    const photoUrl = getReleasePhotoUrl(releaseForm.image_url);
+    if (releaseForm.image_url.trim() && !photoUrl) {
+      setAddReleaseError("Enter a valid HTTP or HTTPS photo URL.");
       return;
     }
 
     setSavingRelease(true);
-    setError("");
+    setAddReleaseError("");
     setMessage("");
 
     try {
@@ -1270,22 +1234,24 @@ export default function ReservationsPage() {
           game: releaseForm.game.trim(),
           release_date: releaseForm.release_date || null,
           description: releaseForm.description.trim() || null,
-          image_url: null,
+          image_url: photoUrl,
           is_active: true,
         },
         productItems
       );
       setReleaseForm(blankReleaseForm);
+      setAddReleaseOpen(false);
       setMessage("Release added.");
       await loadData(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to add release.");
+      setAddReleaseError(err instanceof Error ? err.message : "Unable to add release.");
     } finally {
       setSavingRelease(false);
     }
   };
 
   const startEditingRelease = (release: ReleaseRecord) => {
+    setEditReleaseError("");
     const releaseProducts = productsByRelease[release.id] ?? [];
 
     setEditingReleaseId(release.id);
@@ -1295,6 +1261,7 @@ export default function ReservationsPage() {
       gameIsOther: !getReleaseGameOption(release.game),
       release_date: release.release_date ?? "",
       description: release.description ?? "",
+      image_url: release.image_url ?? "",
       products: releaseProducts.length
         ? releaseProducts.map((product) => ({
             id: product.id,
@@ -1312,7 +1279,7 @@ export default function ReservationsPage() {
 
   const saveEditedRelease = async (release: ReleaseRecord) => {
     if (!isAdmin) {
-      setError("Admin access is required to manage releases.");
+      setEditReleaseError("Admin access is required to manage releases.");
       return;
     }
 
@@ -1327,17 +1294,23 @@ export default function ReservationsPage() {
       .filter((product) => product.name);
 
     if (!editReleaseForm.title.trim() || !editReleaseForm.game.trim()) {
-      setError("Release name and game are required.");
+      setEditReleaseError("Release name and game are required.");
       return;
     }
 
     if (!productItems.length) {
-      setError("At least one product is required for each release.");
+      setEditReleaseError("At least one product is required for each release.");
+      return;
+    }
+
+    const photoUrl = getReleasePhotoUrl(editReleaseForm.image_url);
+    if (editReleaseForm.image_url.trim() && !photoUrl) {
+      setEditReleaseError("Enter a valid HTTP or HTTPS photo URL.");
       return;
     }
 
     setSavingRelease(true);
-    setError("");
+    setEditReleaseError("");
     setMessage("");
 
     try {
@@ -1346,7 +1319,7 @@ export default function ReservationsPage() {
         game: editReleaseForm.game.trim(),
         release_date: editReleaseForm.release_date || null,
         description: editReleaseForm.description.trim() || null,
-        image_url: release.image_url,
+        image_url: photoUrl,
       });
 
       const existingProducts = productsByRelease[release.id] ?? [];
@@ -1394,14 +1367,15 @@ export default function ReservationsPage() {
             .map((product) => product.id)
             .filter((id): id is string => Boolean(id)),
           ...createdProducts.map((product) => product.id),
-        ]
+        ],
+        createdProducts.map((product) => product.id)
       );
 
       cancelEditingRelease();
       setMessage("Release updated.");
       await loadData(true);
     } catch (err) {
-      setError(
+      setEditReleaseError(
         err instanceof Error ? err.message : "Unable to update release."
       );
     } finally {
@@ -1478,19 +1452,22 @@ export default function ReservationsPage() {
 
   const setReleaseActive = async (release: ReleaseRecord, isActive: boolean) => {
     if (!isAdmin) {
-      setError("Admin access is required to manage releases.");
+      setEditReleaseError("Admin access is required to manage releases.");
       return;
     }
 
-    setError("");
+    setEditReleaseError("");
     setMessage("");
+    setSavingRelease(true);
 
     try {
       await updateRelease(release.id, { is_active: isActive });
       setMessage(isActive ? "Release reactivated." : "Release archived.");
       await loadData(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to update release.");
+      setEditReleaseError(err instanceof Error ? err.message : "Unable to update release.");
+    } finally {
+      setSavingRelease(false);
     }
   };
 
@@ -1962,17 +1939,6 @@ export default function ReservationsPage() {
               />
               <Button
                 variant="outlined"
-                startIcon={<LockResetIcon />}
-                onClick={() => {
-                  setChangePasswordForm(blankChangePasswordForm);
-                  setChangePasswordError("");
-                  setChangePasswordOpen(true);
-                }}
-              >
-                Change Password
-              </Button>
-              <Button
-                variant="outlined"
                 startIcon={<LogoutIcon />}
                 onClick={logout}
               >
@@ -2255,7 +2221,12 @@ export default function ReservationsPage() {
                               ? "contained"
                               : "outlined"
                           }
-                          onClick={() => setExpandedReleaseGame(item.game)}
+                          onClick={() =>
+                            setExpandedReleaseGame((current) =>
+                              current === item.game ? null : item.game
+                            )
+                          }
+                          aria-pressed={expandedReleaseGame === item.game}
                           sx={{
                             justifyContent: "space-between",
                             textAlign: "left",
@@ -2263,13 +2234,30 @@ export default function ReservationsPage() {
                             textTransform: "none",
                             gap: 0.75,
                             minWidth: 0,
+                            minHeight: 44,
+                            borderRadius: 2,
+                            boxShadow: 1,
+                            ...(expandedReleaseGame !== item.game && {
+                              bgcolor: "action.hover",
+                              borderColor: "divider",
+                              "&:hover": {
+                                bgcolor: "action.selected",
+                                borderColor: "primary.main",
+                                boxShadow: 2,
+                              },
+                            }),
+                            "&.Mui-focusVisible": {
+                              outline: "2px solid",
+                              outlineColor: "primary.main",
+                              outlineOffset: 2,
+                            },
                           }}
                         >
                           <Typography
                             component="span"
-                            noWrap
                             sx={{
                               minWidth: 0,
+                              overflowWrap: "anywhere",
                               fontWeight: 800,
                               fontSize: { xs: "0.76rem", sm: "0.82rem" },
                             }}
@@ -2290,6 +2278,7 @@ export default function ReservationsPage() {
                           >
                             {item.meta}
                           </Typography>
+                          <ChevronRightIcon aria-hidden="true" fontSize="small" sx={{ flexShrink: 0 }} />
                         </Button>
                       ))}
                     </Box>
@@ -2364,6 +2353,8 @@ export default function ReservationsPage() {
                         const isSavingReservation =
                           savingReservationReleaseId === release.id;
 
+                        const photoUrl = getReleasePhotoUrl(release.image_url);
+
                         return (
                           <Card
                             key={release.id}
@@ -2374,9 +2365,20 @@ export default function ReservationsPage() {
                               overflow: "hidden",
                             }}
                           >
+                            {photoUrl ? (
+                              <Box
+                                key={release.image_url}
+                                component="img"
+                                src={photoUrl}
+                                alt=""
+                                loading="lazy"
+                                referrerPolicy="no-referrer"
+                                onError={(event) => { event.currentTarget.style.display = "none"; }}
+                                sx={{ display: "block", width: "100%", height: { xs: 140, sm: 180 }, objectFit: "cover" }}
+                              />
+                            ) : null}
                             <CardContent
                               sx={{
-                                height: "100%",
                                 p: { xs: 1.25, sm: 1.5 },
                                 "&:last-child": { pb: { xs: 1.25, sm: 1.5 } },
                               }}
@@ -2450,8 +2452,22 @@ export default function ReservationsPage() {
                                         borderRadius: 1,
                                         p: 0.75,
                                         "& .MuiFormControlLabel-root": {
-                                          mr: 0,
-                                          alignItems: "flex-start",
+                                          m: 0,
+                                          px: 0.5,
+                                          minHeight: 44,
+                                          alignItems: "center",
+                                          cursor: "pointer",
+                                          border: "1px solid transparent",
+                                          borderRadius: 1,
+                                          "&:hover": { bgcolor: "action.hover" },
+                                          "&[data-selected='true']": {
+                                            bgcolor: "action.selected",
+                                            borderColor: "primary.main",
+                                            color: "primary.main",
+                                            "& .MuiFormControlLabel-label": {
+                                              fontWeight: 700,
+                                            },
+                                          },
                                         },
                                         "& .MuiFormControlLabel-label": {
                                           fontSize: "0.9rem",
@@ -2465,6 +2481,7 @@ export default function ReservationsPage() {
                                       {releaseProducts.map((product) => (
                                         <FormControlLabel
                                           key={product.id}
+                                          data-selected={form.productIds.includes(product.id)}
                                           control={
                                             <Checkbox
                                               size="small"
@@ -2999,6 +3016,7 @@ export default function ReservationsPage() {
                                                             {formatProductLabel(
                                                               product
                                                             )}
+                                                            {product.quantity > 1 ? ` (×${product.quantity})` : null}
                                                           </Typography>
                                                           {releaseUrgency ? (
                                                             <Chip
@@ -3144,32 +3162,31 @@ export default function ReservationsPage() {
         ) : null}
 
         {tab === 2 ? (
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr", xl: "minmax(420px, 520px) 1fr" },
-              gap: 2,
-              alignItems: "start",
-            }}
-          >
-                <Stack spacing={2} sx={{ position: { xl: "sticky" }, top: { xl: 88 } }}>
-                  <Card>
-                    <CardContent>
+          <Box>
+                <Dialog
+                  open={isAdmin && addReleaseOpen}
+                  onClose={() => { if (!savingRelease) setAddReleaseOpen(false); }}
+                  fullWidth
+                  maxWidth="sm"
+                  aria-labelledby="add-release-title"
+                >
+                  <DialogTitle id="add-release-title">Add Release</DialogTitle>
+                  <DialogContent dividers>
                       <Stack spacing={2}>
-                      <Typography variant="h5">Add Release</Typography>
+                      {addReleaseError ? <Alert severity="error">{addReleaseError}</Alert> : null}
                       <Box
                         sx={{
                           display: "grid",
                           gridTemplateColumns: {
                             xs: "1fr",
-                            md: "repeat(2, minmax(0, 1fr))",
-                            xl: "1fr",
+                            sm: "repeat(2, minmax(0, 1fr))",
                           },
                           gap: 1.5,
                         }}
                       >
                         <TextField
                           label="Release name"
+                          autoFocus
                           value={releaseForm.title}
                           onChange={(event) =>
                             setReleaseForm((prev) => ({
@@ -3260,6 +3277,14 @@ export default function ReservationsPage() {
                           InputLabelProps={{ shrink: true }}
                         />
                       </Box>
+                      <TextField
+                        label="Release photo URL (optional)"
+                        type="url"
+                        value={releaseForm.image_url}
+                        onChange={(event) =>
+                          setReleaseForm((prev) => ({ ...prev, image_url: event.target.value }))
+                        }
+                      />
                       <TextField
                         label="Notes"
                         value={releaseForm.description}
@@ -3362,18 +3387,20 @@ export default function ReservationsPage() {
                           </Button>
                         </Stack>
                       </Box>
+                      </Stack>
+                  </DialogContent>
+                  <DialogActions>
+                      <Button disabled={savingRelease} onClick={() => setAddReleaseOpen(false)}>Cancel</Button>
                       <Button
                         variant="contained"
                         startIcon={<AddIcon />}
                         onClick={saveRelease}
                         disabled={savingRelease}
                       >
-                        Add Release
+                        {savingRelease ? "Saving..." : "Add Release"}
                       </Button>
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                </Stack>
+                  </DialogActions>
+                </Dialog>
 
                 <Card>
                   <CardContent>
@@ -3390,6 +3417,17 @@ export default function ReservationsPage() {
                             {filteredManageReleases.length} of {releases.length} shown
                           </Typography>
                         </Box>
+                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                          {isAdmin ? <Button
+                            variant="contained"
+                            startIcon={<AddIcon />}
+                            onClick={() => {
+                              setAddReleaseError("");
+                              setAddReleaseOpen(true);
+                            }}
+                          >
+                            Add Release
+                          </Button> : null}
                         <Button
                           variant="outlined"
                           startIcon={<RefreshIcon />}
@@ -3398,6 +3436,7 @@ export default function ReservationsPage() {
                         >
                           Refresh
                         </Button>
+                        </Stack>
                       </Stack>
 
                       <Box
@@ -3516,6 +3555,7 @@ export default function ReservationsPage() {
                                       variant={
                                         isEnabled ? "contained" : "outlined"
                                       }
+                                      aria-pressed={isEnabled}
                                       onClick={() =>
                                         setManageReleaseGameFilters(
                                           (currentFilters) => {
@@ -3538,13 +3578,30 @@ export default function ReservationsPage() {
                                         px: 1,
                                         gap: 0.75,
                                         minWidth: 0,
+                                        minHeight: 44,
+                                        borderRadius: 2,
+                                        boxShadow: 1,
+                                        ...(!isEnabled && {
+                                          bgcolor: "action.hover",
+                                          borderColor: "divider",
+                                          "&:hover": {
+                                            bgcolor: "action.selected",
+                                            borderColor: "primary.main",
+                                            boxShadow: 2,
+                                          },
+                                        }),
+                                        "&.Mui-focusVisible": {
+                                          outline: "2px solid",
+                                          outlineColor: "primary.main",
+                                          outlineOffset: 2,
+                                        },
                                       }}
                                     >
                                       <Typography
                                         component="span"
-                                        noWrap
                                         sx={{
                                           minWidth: 0,
+                                          overflowWrap: "anywhere",
                                           fontWeight: 800,
                                           fontSize: {
                                             xs: "0.76rem",
@@ -3607,412 +3664,56 @@ export default function ReservationsPage() {
                                 />
                               </Stack>
 
-                              <Stack spacing={0.75}>
+                              <Box
+                                sx={{
+                                  display: "grid",
+                                  gridTemplateColumns: {
+                                    xs: "minmax(0, 1fr)",
+                                    sm: "repeat(2, minmax(0, 1fr))",
+                                    lg: "repeat(3, minmax(0, 1fr))",
+                                  },
+                                  gap: 1.5,
+                                }}
+                              >
                                 {group.releases.map((release) => {
-                                  const isEditing =
-                                    editingReleaseId === release.id;
+                                  const photoUrl = getReleasePhotoUrl(release.image_url);
 
                                   return (
-                          <Paper
-                            key={release.id}
-                            variant="outlined"
-                            sx={{ p: { xs: 1, sm: 1.25 } }}
-                          >
-                            {isEditing && editReleaseForm ? (
-                              <Stack spacing={2}>
-                                <Stack
-                                  direction={{ xs: "column", sm: "row" }}
-                                  spacing={1}
-                                  justifyContent="space-between"
-                                  alignItems={{ xs: "stretch", sm: "center" }}
-                                >
-                                  <Typography variant="h6">
-                                    Edit Release
-                                  </Typography>
-                                  <Stack direction="row" spacing={1}>
-                                    <Button
-                                      variant="contained"
-                                      startIcon={<SaveIcon />}
-                                      onClick={() => saveEditedRelease(release)}
-                                      disabled={savingRelease}
-                                    >
-                                      Save
-                                    </Button>
-                                    <Button
-                                      variant="outlined"
-                                      startIcon={<CancelIcon />}
-                                      onClick={cancelEditingRelease}
-                                    >
-                                      Cancel
-                                    </Button>
-                                    <Button
-                                      variant="outlined"
-                                      color={
-                                        release.is_active
-                                          ? "warning"
-                                          : "success"
-                                      }
-                                      onClick={() =>
-                                        setReleaseActive(
-                                          release,
-                                          !release.is_active
-                                        )
-                                      }
-                                    >
-                                      {release.is_active
-                                        ? "Archive"
-                                        : "Reactivate"}
-                                    </Button>
-                                  </Stack>
-                                </Stack>
-
-                                <Box
-                                  sx={{
-                                    display: "grid",
-                                    gridTemplateColumns: {
-                                      xs: "1fr",
-                                      lg: "repeat(2, minmax(0, 1fr))",
-                                    },
-                                    gap: 1.25,
-                                  }}
-                                >
-                                  <TextField
-                                    label="Release name"
-                                    value={editReleaseForm.title}
-                                    onChange={(event) =>
-                                      setEditReleaseForm((prev) =>
-                                        prev
-                                          ? {
-                                              ...prev,
-                                              title: event.target.value,
-                                            }
-                                          : prev
-                                      )
-                                    }
-                                  />
-                                  <TextField
-                                    select
-                                    label="Game / category"
-                                    value={getGameSelectValue(
-                                      editReleaseForm.game,
-                                      editReleaseForm.gameIsOther
-                                    )}
-                                    onChange={(event) => {
-                                      const value = event.target.value;
-                                      setEditReleaseForm((prev) =>
-                                        prev
-                                          ? {
-                                              ...prev,
-                                              game:
-                                                value === OTHER_GAME_VALUE
-                                                  ? ""
-                                                  : value,
-                                              gameIsOther:
-                                                value === OTHER_GAME_VALUE,
-                                            }
-                                          : prev
-                                      );
-                                    }}
-                                  >
-                                    <MenuItem value="" disabled>
-                                      Select a game
-                                    </MenuItem>
-                                    {TCG_OPTIONS.map((option) => (
-                                      <MenuItem
-                                        key={option.key}
-                                        value={option.name}
-                                      >
-                                        <Stack
-                                          direction="row"
-                                          spacing={1}
-                                          alignItems="center"
-                                        >
-                                          <Box
-                                            component="img"
-                                            src={option.logoImage}
-                                            alt=""
-                                            sx={{
-                                              width: 42,
-                                              height: 24,
-                                              objectFit: "contain",
-                                              bgcolor: option.background,
-                                              borderRadius: 0.75,
-                                              p: 0.35,
-                                            }}
-                                          />
-                                          <span>{option.name}</span>
-                                        </Stack>
-                                      </MenuItem>
-                                    ))}
-                                    <MenuItem value={OTHER_GAME_VALUE}>
-                                      Other
-                                    </MenuItem>
-                                  </TextField>
-                                  {editReleaseForm.gameIsOther ? (
-                                    <TextField
-                                      label="Custom game name"
-                                      value={editReleaseForm.game}
-                                      onChange={(event) =>
-                                        setEditReleaseForm((prev) =>
-                                          prev
-                                            ? {
-                                                ...prev,
-                                                game: event.target.value,
-                                              }
-                                            : prev
-                                        )
-                                      }
-                                    />
-                                  ) : null}
-                                  <TextField
-                                    label="Release date"
-                                    type="date"
-                                    value={editReleaseForm.release_date}
-                                    onChange={(event) =>
-                                      setEditReleaseForm((prev) =>
-                                        prev
-                                          ? {
-                                              ...prev,
-                                              release_date: event.target.value,
-                                            }
-                                          : prev
-                                      )
-                                    }
-                                    InputLabelProps={{ shrink: true }}
-                                  />
-                                </Box>
-
-                                <TextField
-                                  label="Notes"
-                                  value={editReleaseForm.description}
-                                  onChange={(event) =>
-                                    setEditReleaseForm((prev) =>
-                                      prev
-                                        ? {
-                                            ...prev,
-                                            description: event.target.value,
-                                          }
-                                        : prev
-                                    )
-                                  }
-                                  multiline
-                                  minRows={2}
-                                />
-
-                                <Box>
-                                  <Typography sx={{ fontWeight: 900, mb: 1 }}>
-                                    Products
-                                  </Typography>
-                                  <Stack spacing={1}>
-                                    {editReleaseForm.products.map(
-                                      (product, index) => (
-                                        <Stack
-                                          key={product.id ?? index}
-                                          direction={{
-                                            xs: "column",
-                                            sm: "row",
-                                          }}
-                                          spacing={1}
-                                        >
-                                          <TextField
-                                            label={`Product ${index + 1}`}
-                                            value={product.name}
-                                            onChange={(event) =>
-                                              setEditReleaseForm((prev) =>
-                                                prev
-                                                  ? {
-                                                      ...prev,
-                                                      products:
-                                                        prev.products.map(
-                                                          (
-                                                            currentProduct,
-                                                            productIndex
-                                                          ) =>
-                                                            productIndex ===
-                                                            index
-                                                              ? {
-                                                                  ...currentProduct,
-                                                                  name: event
-                                                                    .target
-                                                                    .value,
-                                                                }
-                                                              : currentProduct
-                                                        ),
-                                                    }
-                                                  : prev
-                                              )
-                                            }
-                                            fullWidth
-                                          />
-                                          <TextField
-                                            label="Product date"
-                                            type="date"
-                                            value={product.release_date}
-                                            onChange={(event) =>
-                                              setEditReleaseForm((prev) =>
-                                                prev
-                                                  ? {
-                                                      ...prev,
-                                                      products:
-                                                        prev.products.map(
-                                                          (
-                                                            currentProduct,
-                                                            productIndex
-                                                          ) =>
-                                                            productIndex ===
-                                                            index
-                                                              ? {
-                                                                  ...currentProduct,
-                                                                  release_date:
-                                                                    event.target
-                                                                      .value,
-                                                                }
-                                                              : currentProduct
-                                                        ),
-                                                    }
-                                                  : prev
-                                              )
-                                            }
-                                            InputLabelProps={{ shrink: true }}
-                                            sx={{ minWidth: { sm: 180 } }}
-                                          />
-                                          <Button
-                                            variant="outlined"
-                                            color="warning"
-                                            onClick={() =>
-                                              setEditReleaseForm((prev) =>
-                                                prev
-                                                  ? {
-                                                      ...prev,
-                                                      products:
-                                                        prev.products.length <=
-                                                        1
-                                                          ? [
-                                                              {
-                                                                name: "",
-                                                                release_date:
-                                                                  prev.release_date,
-                                                              },
-                                                            ]
-                                                          : prev.products.filter(
-                                                              (
-                                                                _,
-                                                                productIndex
-                                                              ) =>
-                                                                productIndex !==
-                                                                index
-                                                            ),
-                                                    }
-                                                  : prev
-                                              )
-                                            }
-                                          >
-                                            Remove
+                                    <Card key={release.id} variant="outlined" sx={{ borderRadius: 2, minWidth: 0 }}>
+                                      {photoUrl ? (
+                                        <Box
+                                          key={photoUrl}
+                                          component="img"
+                                          src={photoUrl}
+                                          alt=""
+                                          loading="lazy"
+                                          referrerPolicy="no-referrer"
+                                          onError={(event) => { event.currentTarget.style.display = "none"; }}
+                                          sx={{ display: "block", width: "100%", height: 135, objectFit: "cover" }}
+                                        />
+                                      ) : null}
+                                      <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
+                                        <Stack spacing={1}>
+                                          <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 800, overflowWrap: "anywhere" }}>
+                                            {release.title}
+                                          </Typography>
+                                          <Typography variant="body2" color="text.secondary">
+                                            {formatReleaseDate(release.release_date)}
+                                          </Typography>
+                                          <Stack direction="row" useFlexGap flexWrap="wrap" spacing={0.5}>
+                                            <Chip size="small" label={release.is_active ? "Active" : "Archived"} color={release.is_active ? "success" : "default"} />
+                                            <Chip size="small" variant="outlined" label={`${reservationsByRelease[release.id]?.length ?? 0} requests`} />
+                                            <Chip size="small" variant="outlined" label={`${productsByRelease[release.id]?.length ?? 0} products`} />
+                                          </Stack>
+                                          <Button variant="outlined" size="small" startIcon={<EditIcon />} sx={{ alignSelf: "flex-start" }} onClick={() => startEditingRelease(release)}>
+                                            Edit
                                           </Button>
                                         </Stack>
-                                      )
-                                    )}
-                                    <Button
-                                      variant="outlined"
-                                      onClick={() =>
-                                        setEditReleaseForm((prev) =>
-                                          prev
-                                            ? {
-                                                ...prev,
-                                                products: [
-                                                  ...prev.products,
-                                                  {
-                                                    name: "",
-                                                    release_date:
-                                                      prev.release_date,
-                                                  },
-                                                ],
-                                              }
-                                            : prev
-                                        )
-                                      }
-                                    >
-                                      Add Product
-                                    </Button>
-                                  </Stack>
-                                </Box>
-                              </Stack>
-                            ) : null}
-                            <Stack
-                              direction={{ xs: "column", md: "row" }}
-                              spacing={1}
-                              justifyContent="space-between"
-                              alignItems={{ xs: "stretch", md: "center" }}
-                              sx={{ display: isEditing ? "none" : "flex" }}
-                            >
-                              <Box sx={{ minWidth: 0 }}>
-                                <Stack
-                                  direction="row"
-                                  spacing={0.75}
-                                  alignItems="center"
-                                  flexWrap="wrap"
-                                >
-                                  <Typography
-                                    sx={{
-                                      fontWeight: 900,
-                                      maxWidth: { md: 300, lg: 390 },
-                                    }}
-                                    noWrap
-                                  >
-                                    {release.title}
-                                  </Typography>
-                                  <Chip
-                                    label={formatReleaseDate(
-                                      release.release_date
-                                    )}
-                                    size="small"
-                                    variant="outlined"
-                                  />
-                                  <Chip
-                                    label={
-                                      release.is_active ? "Active" : "Archived"
-                                    }
-                                    color={
-                                      release.is_active ? "success" : "default"
-                                    }
-                                    size="small"
-                                  />
-                                  <Chip
-                                    label={`${
-                                      reservationsByRelease[release.id]
-                                        ?.length ?? 0
-                                    } requests`}
-                                    size="small"
-                                    variant="outlined"
-                                  />
-                                  <Chip
-                                    label={`${
-                                      productsByRelease[release.id]?.length ?? 0
-                                    } products`}
-                                    size="small"
-                                    variant="outlined"
-                                  />
-                                </Stack>
+                                      </CardContent>
+                                    </Card>
+                                  );
+                                })}
                               </Box>
-
-                              <Stack
-                                direction={{ xs: "column", sm: "row" }}
-                                spacing={0.75}
-                              >
-                                <Button
-                                  variant="outlined"
-                                  size="small"
-                                  startIcon={<EditIcon />}
-                                  onClick={() => startEditingRelease(release)}
-                                >
-                                  Edit
-                                </Button>
-                              </Stack>
-                            </Stack>
-                          </Paper>
-                          );
-                        })}
-                              </Stack>
                             </Stack>
                           </Paper>
                         ))}
@@ -4035,88 +3736,322 @@ export default function ReservationsPage() {
         ) : null}
       </Stack>
 
-      <Dialog
-        open={changePasswordOpen}
-        onClose={() => {
-          if (!authLoading) {
-            setChangePasswordOpen(false);
-            setChangePasswordForm(blankChangePasswordForm);
-            setChangePasswordError("");
-          }
-        }}
-        fullWidth
-        maxWidth="xs"
-      >
-        <DialogTitle>Change Password</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={2}>
-            {changePasswordError ? (
-              <Alert severity="error">{changePasswordError}</Alert>
-            ) : null}
-            <TextField
-              label="Current password"
-              type="password"
-              value={changePasswordForm.currentPassword}
-              onChange={(event) =>
-                setChangePasswordForm((prev) => ({
-                  ...prev,
-                  currentPassword: event.target.value,
-                }))
-              }
-              fullWidth
-            />
-            <TextField
-              label="New password"
-              type="password"
-              value={changePasswordForm.password}
-              onChange={(event) =>
-                setChangePasswordForm((prev) => ({
-                  ...prev,
-                  password: event.target.value,
-                }))
-              }
-              fullWidth
-            />
-            <TextField
-              label="Confirm password"
-              type="password"
-              value={changePasswordForm.confirmPassword}
-              onChange={(event) =>
-                setChangePasswordForm((prev) => ({
-                  ...prev,
-                  confirmPassword: event.target.value,
-                }))
-              }
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  changeLoggedInPassword();
+      {isAdmin && releaseBeingEdited && editReleaseForm ? (
+        <Dialog
+          open
+          onClose={() => { if (!savingRelease) cancelEditingRelease(); }}
+          fullWidth
+          maxWidth="sm"
+          aria-labelledby="edit-release-title"
+        >
+          <DialogTitle id="edit-release-title">Edit Release</DialogTitle>
+          <DialogContent dividers>
+            <Stack spacing={2}>
+              {editReleaseError ? <Alert severity="error">{editReleaseError}</Alert> : null}
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    sm: "repeat(2, minmax(0, 1fr))",
+                  },
+                  gap: 1.25,
+                }}
+              >
+                <TextField
+                  label="Release name"
+                  autoFocus
+                  value={editReleaseForm.title}
+                  onChange={(event) =>
+                    setEditReleaseForm((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            title: event.target.value,
+                          }
+                        : prev
+                    )
+                  }
+                />
+                <TextField
+                  select
+                  label="Game / category"
+                  value={getGameSelectValue(
+                    editReleaseForm.game,
+                    editReleaseForm.gameIsOther
+                  )}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setEditReleaseForm((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            game:
+                              value === OTHER_GAME_VALUE
+                                ? ""
+                                : value,
+                            gameIsOther:
+                              value === OTHER_GAME_VALUE,
+                          }
+                        : prev
+                    );
+                  }}
+                >
+                  <MenuItem value="" disabled>
+                    Select a game
+                  </MenuItem>
+                  {TCG_OPTIONS.map((option) => (
+                    <MenuItem
+                      key={option.key}
+                      value={option.name}
+                    >
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        alignItems="center"
+                      >
+                        <Box
+                          component="img"
+                          src={option.logoImage}
+                          alt=""
+                          sx={{
+                            width: 42,
+                            height: 24,
+                            objectFit: "contain",
+                            bgcolor: option.background,
+                            borderRadius: 0.75,
+                            p: 0.35,
+                          }}
+                        />
+                        <span>{option.name}</span>
+                      </Stack>
+                    </MenuItem>
+                  ))}
+                  <MenuItem value={OTHER_GAME_VALUE}>
+                    Other
+                  </MenuItem>
+                </TextField>
+                {editReleaseForm.gameIsOther ? (
+                  <TextField
+                    label="Custom game name"
+                    value={editReleaseForm.game}
+                    onChange={(event) =>
+                      setEditReleaseForm((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              game: event.target.value,
+                            }
+                          : prev
+                      )
+                    }
+                  />
+                ) : null}
+                <TextField
+                  label="Release date"
+                  type="date"
+                  value={editReleaseForm.release_date}
+                  onChange={(event) =>
+                    setEditReleaseForm((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            release_date: event.target.value,
+                          }
+                        : prev
+                    )
+                  }
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Box>
+
+              <TextField
+                label="Release photo URL (optional)"
+                type="url"
+                fullWidth
+                value={editReleaseForm.image_url}
+                onChange={(event) =>
+                  setEditReleaseForm((prev) =>
+                    prev ? { ...prev, image_url: event.target.value } : prev
+                  )
                 }
-              }}
-              fullWidth
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() => {
-              setChangePasswordOpen(false);
-              setChangePasswordForm(blankChangePasswordForm);
-              setChangePasswordError("");
-            }}
-            disabled={authLoading}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<LockResetIcon />}
-            onClick={changeLoggedInPassword}
-            disabled={authLoading}
-          >
-            {authLoading ? "Saving..." : "Change Password"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+              />
+              <TextField
+                label="Notes"
+                value={editReleaseForm.description}
+                onChange={(event) =>
+                  setEditReleaseForm((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          description: event.target.value,
+                        }
+                      : prev
+                  )
+                }
+                multiline
+                minRows={2}
+              />
+
+              <Box>
+                <Typography sx={{ fontWeight: 900, mb: 1 }}>
+                  Products
+                </Typography>
+                <Stack spacing={1}>
+                  {editReleaseForm.products.map(
+                    (product, index) => (
+                      <Stack
+                        key={product.id ?? index}
+                        direction={{
+                          xs: "column",
+                          sm: "row",
+                        }}
+                        spacing={1}
+                      >
+                        <TextField
+                          label={`Product ${index + 1}`}
+                          value={product.name}
+                          onChange={(event) =>
+                            setEditReleaseForm((prev) =>
+                              prev
+                                ? {
+                                    ...prev,
+                                    products:
+                                      prev.products.map(
+                                        (
+                                          currentProduct,
+                                          productIndex
+                                        ) =>
+                                          productIndex ===
+                                          index
+                                            ? {
+                                                ...currentProduct,
+                                                name: event
+                                                  .target
+                                                  .value,
+                                              }
+                                            : currentProduct
+                                      ),
+                                  }
+                                : prev
+                            )
+                          }
+                          fullWidth
+                        />
+                        <TextField
+                          label="Product date"
+                          type="date"
+                          value={product.release_date}
+                          onChange={(event) =>
+                            setEditReleaseForm((prev) =>
+                              prev
+                                ? {
+                                    ...prev,
+                                    products:
+                                      prev.products.map(
+                                        (
+                                          currentProduct,
+                                          productIndex
+                                        ) =>
+                                          productIndex ===
+                                          index
+                                            ? {
+                                                ...currentProduct,
+                                                release_date:
+                                                  event.target
+                                                    .value,
+                                              }
+                                            : currentProduct
+                                      ),
+                                  }
+                                : prev
+                            )
+                          }
+                          InputLabelProps={{ shrink: true }}
+                          sx={{ minWidth: { sm: 180 } }}
+                        />
+                        <Button
+                          variant="outlined"
+                          color="warning"
+                          onClick={() =>
+                            setEditReleaseForm((prev) =>
+                              prev
+                                ? {
+                                    ...prev,
+                                    products:
+                                      prev.products.length <=
+                                      1
+                                        ? [
+                                            {
+                                              name: "",
+                                              release_date:
+                                                prev.release_date,
+                                            },
+                                          ]
+                                        : prev.products.filter(
+                                            (
+                                              _,
+                                              productIndex
+                                            ) =>
+                                              productIndex !==
+                                              index
+                                          ),
+                                  }
+                                : prev
+                            )
+                          }
+                        >
+                          Remove
+                        </Button>
+                      </Stack>
+                    )
+                  )}
+                  <Button
+                    variant="outlined"
+                    onClick={() =>
+                      setEditReleaseForm((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              products: [
+                                ...prev.products,
+                                {
+                                  name: "",
+                                  release_date:
+                                    prev.release_date,
+                                },
+                              ],
+                            }
+                          : prev
+                      )
+                    }
+                  >
+                    Add Product
+                  </Button>
+                </Stack>
+              </Box>
+            </Stack>
+          </DialogContent>
+          <DialogActions sx={{ flexWrap: "wrap" }}>
+            <Button
+              color={releaseBeingEdited.is_active ? "warning" : "success"}
+              disabled={savingRelease}
+              onClick={() => setReleaseActive(releaseBeingEdited, !releaseBeingEdited.is_active)}
+            >
+              {releaseBeingEdited.is_active ? "Archive" : "Reactivate"}
+            </Button>
+            <Button disabled={savingRelease} onClick={cancelEditingRelease}>Cancel</Button>
+            <Button
+              variant="contained"
+              startIcon={<SaveIcon />}
+              disabled={savingRelease}
+              onClick={() => saveEditedRelease(releaseBeingEdited)}
+            >
+              {savingRelease ? "Saving..." : "Save"}
+            </Button>
+          </DialogActions>
+        </Dialog>
+      ) : null}
 
       <Dialog
         open={Boolean(editingReservation)}
