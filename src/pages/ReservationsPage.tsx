@@ -44,6 +44,7 @@ import LockResetIcon from "@mui/icons-material/LockReset";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SaveIcon from "@mui/icons-material/Save";
 import SearchIcon from "@mui/icons-material/Search";
+import { clearPasswordCallback, passwordCallback } from "./passwordCallback";
 
 import {
   createReservationsSession,
@@ -853,23 +854,19 @@ export default function ReservationsPage() {
 
   useEffect(() => {
     const restoreSession = async () => {
-      const authParams = new URLSearchParams(
-        window.location.hash.startsWith("#")
-          ? window.location.hash.slice(1)
-          : window.location.hash
-      );
+      const authParams = passwordCallback ?? new URLSearchParams();
       const inviteAccessToken = authParams.get("access_token");
       const inviteRefreshToken = authParams.get("refresh_token");
       const inviteExpiresIn = Number(authParams.get("expires_in") ?? 3600);
       const inviteType = authParams.get("type");
 
       if (
+        !authParams.has("error_code") &&
         inviteAccessToken &&
         inviteRefreshToken &&
         (inviteType === "invite" || inviteType === "recovery")
       ) {
         try {
-          setReservationsAccessToken(inviteAccessToken);
           const user = await fetchReservationsAuthUser(inviteAccessToken);
           const session = createReservationsSession(
             inviteAccessToken,
@@ -879,21 +876,18 @@ export default function ReservationsPage() {
           );
 
           setPasswordSetupSession(session);
-          window.history.replaceState(
-            null,
-            document.title,
-            `${window.location.pathname}${window.location.search}`
-          );
-        } catch (err) {
-          setError(
-            err instanceof Error
-              ? err.message
-              : "Unable to read invitation link."
-          );
+        } catch {
+          setError("Unable to verify this link. Request a new password reset email.");
         } finally {
           setAuthChecked(true);
         }
 
+        return;
+      }
+
+      if (passwordCallback) {
+        setError("This password link is invalid or expired. Request a new password reset email.");
+        setAuthChecked(true);
         return;
       }
 
@@ -1122,6 +1116,7 @@ export default function ReservationsPage() {
       };
 
       persistAuthSession(session);
+      clearPasswordCallback();
       setPasswordSetupSession(null);
       setPasswordSetupForm(blankPasswordForm);
       setMessage("Password saved. You are logged in.");

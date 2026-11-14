@@ -15,6 +15,7 @@ import ReservationsPage from "./pages/ReservationsPage";
 import InfoHubPage from "./pages/InfoHubPage";
 import AccountPage from "./pages/AccountPage";
 import EventRegistrationPage from "./pages/EventRegistrationPage";
+import "./pages/passwordCallback";
 
 // --------------------
 // Root layout
@@ -115,17 +116,6 @@ const routeTree = rootRoute.addChildren([
   accountRoute,
   eventRegistrationRoute,
 ]);
-
-// Supabase can return to the site root when a redirect URL is not allowlisted.
-const recoveryParams = new URLSearchParams(window.location.hash.slice(1));
-if (
-  window.location.pathname !== "/reservations" &&
-  recoveryParams.get("type") === "recovery" &&
-  recoveryParams.has("access_token") &&
-  recoveryParams.has("refresh_token")
-) {
-  window.history.replaceState(null, "", `/reservations${window.location.hash}`);
-}
 
 export const router = createRouter({ routeTree });
 
