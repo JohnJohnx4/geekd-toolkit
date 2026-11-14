@@ -226,9 +226,8 @@ export const useEmployeeAuth = () => {
 
   const requestPasswordReset = async (email: string) => {
     if (!email.trim()) {
-      const nextError = "Enter your email first, then request a reset link.";
-      setError(nextError);
-      throw new Error(nextError);
+      setError("Enter your email first, then request a reset link.");
+      return;
     }
 
     setAuthLoading(true);
@@ -238,16 +237,17 @@ export const useEmployeeAuth = () => {
     try {
       await sendReservationsPasswordReset(
         email.trim(),
-        `${window.location.origin}${window.location.pathname}${window.location.search}`
+        `${window.location.origin}/reservations`
       );
       setMessage("Password reset link sent. Check your email.");
     } catch (err) {
-      const nextError =
-        err instanceof Error
-          ? err.message
-          : "Unable to send password reset link.";
-      setError(nextError);
-      throw new Error(nextError);
+      setError(
+        err instanceof TypeError
+          ? "Could not reach the authentication server. Check that Supabase is running and try again."
+          : err instanceof Error
+            ? err.message
+            : "Unable to send password reset link."
+      );
     } finally {
       setAuthLoading(false);
     }

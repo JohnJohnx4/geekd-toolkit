@@ -11,6 +11,7 @@ import MoneyIcon from "@mui/icons-material/Money";
 import PriceCheckIcon from "@mui/icons-material/PriceCheck";
 import TimerIcon from "@mui/icons-material/Timer";
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
+import EventNoteIcon from "@mui/icons-material/EventNote";
 import ArticleIcon from "@mui/icons-material/Article";
 import PersonIcon from "@mui/icons-material/Person";
 import { useNavigate } from "@tanstack/react-router";
@@ -55,6 +56,14 @@ const tools = [
     icon: EventAvailableIcon,
     color: "#166534",
     background: "#dcfce7",
+  },
+  {
+    label: "Event Registration",
+    description: "Create and print event sign-up sheets",
+    path: "/event-registration",
+    icon: EventNoteIcon,
+    color: "#9a3412",
+    background: "#ffedd5",
   },
   {
     label: "Info Hub",

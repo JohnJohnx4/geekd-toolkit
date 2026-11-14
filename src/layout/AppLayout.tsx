@@ -12,7 +12,7 @@ import {
   Toolbar,
 } from "@mui/material";
 
-import GeekLogo from "../assets/GEEKD-Logo.png";
+import GeekLogo from "../assets/GEEKD-Logo-Primary.png";
 import MenuIcon from "@mui/icons-material/Menu";
 import HomeIcon from "@mui/icons-material/Home";
 import PrizingIcon from "@mui/icons-material/EmojiEvents";
@@ -22,6 +22,7 @@ import TimerIcon from "@mui/icons-material/Timer";
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import ArticleIcon from "@mui/icons-material/Article";
 import PersonIcon from "@mui/icons-material/Person";
+import EventNoteIcon from "@mui/icons-material/EventNote";
 
 const RESERVATION_PROFILE_REQUIRED_KEY =
   "geekd.reservations.profileRequired";
@@ -130,6 +131,12 @@ export default function AppLayout() {
                   <EventAvailableIcon fontSize="small" />
                 </ListItemIcon>
                 <ListItemText>Reservations</ListItemText>
+              </MenuItem>
+              <MenuItem onClick={() => handleNavigation("/event-registration")}>
+                <ListItemIcon>
+                  <EventNoteIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Event Registration</ListItemText>
               </MenuItem>
               <MenuItem onClick={() => handleNavigation("/info-hub")}>
                 <ListItemIcon>

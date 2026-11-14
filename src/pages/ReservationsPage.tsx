@@ -1088,7 +1088,7 @@ export default function ReservationsPage() {
     try {
       await sendReservationsPasswordReset(
         email,
-        `${window.location.origin}${window.location.pathname}${window.location.search}`
+        `${window.location.origin}/reservations`
       );
       setMessage("Password reset link sent. Check your email.");
     } catch (err) {

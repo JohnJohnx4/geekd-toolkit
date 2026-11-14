@@ -14,6 +14,7 @@ import TimerControllerPage from "./pages/TimerControllerPage";
 import ReservationsPage from "./pages/ReservationsPage";
 import InfoHubPage from "./pages/InfoHubPage";
 import AccountPage from "./pages/AccountPage";
+import EventRegistrationPage from "./pages/EventRegistrationPage";
 
 // --------------------
 // Root layout
@@ -91,6 +92,12 @@ const accountRoute = createRoute({
   component: AccountPage,
 });
 
+const eventRegistrationRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/event-registration",
+  component: EventRegistrationPage,
+});
+
 // --------------------
 // Route tree
 // --------------------
@@ -106,7 +113,19 @@ const routeTree = rootRoute.addChildren([
   reservationsRoute,
   infoHubRoute,
   accountRoute,
+  eventRegistrationRoute,
 ]);
+
+// Supabase can return to the site root when a redirect URL is not allowlisted.
+const recoveryParams = new URLSearchParams(window.location.hash.slice(1));
+if (
+  window.location.pathname !== "/reservations" &&
+  recoveryParams.get("type") === "recovery" &&
+  recoveryParams.has("access_token") &&
+  recoveryParams.has("refresh_token")
+) {
+  window.history.replaceState(null, "", `/reservations${window.location.hash}`);
+}
 
 export const router = createRouter({ routeTree });
 
