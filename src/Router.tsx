@@ -15,6 +15,7 @@ import ReservationsPage from "./pages/ReservationsPage";
 import InfoHubPage from "./pages/InfoHubPage";
 import AccountPage from "./pages/AccountPage";
 import EventRegistrationPage from "./pages/EventRegistrationPage";
+import CardShowDealDeskPage from "./pages/CardShowDealDeskPage";
 import "./pages/passwordCallback";
 
 // --------------------
@@ -49,6 +50,12 @@ const cashCalculatorRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/cash-calculator",
   component: CashCalculator,
+});
+
+const cardShowDealDeskRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/card-show-deal-desk",
+  component: CardShowDealDeskPage,
 });
 
 const pokemonSetSymbolsRoute = createRoute({
@@ -107,6 +114,7 @@ const routeTree = rootRoute.addChildren([
   optionsRoute,
   prizingRoute,
   cashCalculatorRoute,
+  cardShowDealDeskRoute,
   setSymbolsRoute,
   pokemonSetSymbolsRoute,
   mtgSetSymbolsRoute,

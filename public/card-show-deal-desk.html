@@ -1,0 +1,275 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Card Show Deal Desk</title><style>
+:root{color-scheme:light;--ink:#142b25;--muted:#52645f;--line:#dce6e0;--mint:#dcf3e5;--green:#18573f}*{box-sizing:border-box}body{margin:0;background:#f3f7f4;color:var(--ink);font:16px system-ui,sans-serif}header{background:#112e25;color:white;padding:30px max(20px,calc((100vw - 1180px)/2))}h1,h2,p{margin:0}header p{margin-top:8px;color:#d0e9da}main{max-width:1220px;margin:auto;padding:24px 20px;display:grid;grid-template-columns:minmax(0,1.7fr) minmax(290px,1fr);gap:20px;align-items:start}.panel{background:white;border:1px solid var(--line);border-radius:16px;padding:20px}aside{position:sticky;top:16px}.bar,.card,.line,.actions{display:flex;gap:12px;align-items:center;justify-content:space-between}.actions{justify-content:flex-start;flex-wrap:wrap}button,input{font:inherit}button,.button{border:1px solid var(--line);border-radius:9px;background:white;color:var(--ink);padding:9px 12px;cursor:pointer}.primary{background:var(--green);color:white;border-color:var(--green)}input:not([type=checkbox]){width:100%;border:1px solid #9eafa5;border-radius:8px;padding:9px;background:white;color:var(--ink)}input[type=checkbox]{width:21px;height:21px;accent-color:var(--green);flex:none}label{display:block;font-weight:600;font-size:.9rem}label input{margin-top:5px}a{color:var(--green)}.card{padding:14px 0;border-bottom:1px solid var(--line);justify-content:start}.card label{flex:1;min-width:0}.price{white-space:nowrap;font-weight:700}.meta,.note{font-size:.875rem;color:var(--muted);margin-top:5px}.search{margin:14px 0 3px}.summary{background:var(--mint);padding:14px;border-radius:10px;margin:16px 0}.line{margin:8px 0}.big{font-size:1.6rem;font-weight:750}.fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}.tiers{display:grid;grid-template-columns:repeat(4,1fr);text-align:center;gap:5px;margin-top:14px}.tier{padding:8px 0;background:#f3f7f4;border-radius:6px;font-size:.84rem}.tier strong{display:block;margin-top:4px}.footer{margin-top:15px}.warn{color:#8a3619}.editor{max-width:480px;width:calc(100% - 28px);border:1px solid var(--line);border-radius:16px;padding:20px;color:var(--ink)}.editor form{display:grid;gap:12px}.editor::backdrop{background:#142b2580}@media(max-width:780px){main{display:flex;flex-direction:column;padding:14px 12px}main>*{width:100%}aside{position:static}.panel{padding:14px}.card{gap:8px}.mobile{display:inline-block}}@media(min-width:781px){.mobile{display:none}}:focus-visible{outline:3px solid #31865e;outline-offset:2px}
+select{font:inherit;min-height:44px;max-width:100%;width:100%;border:1px solid #9eafa5;border-radius:8px;padding:9px;background:white;color:var(--ink);margin-top:5px}
+.binder-tools{margin-top:12px;align-items:flex-end}
+.binder-view{flex:1 1 200px;min-width:0}
+.binder-tools button{min-height:44px}
+button:disabled{opacity:.5;cursor:default}
+#binderError:empty{display:none}
+.editor [hidden]{display:none!important}
+@media(max-width:780px){
+ main{padding-bottom:160px}
+ #offer{position:fixed;z-index:10;inset:auto 0 0;width:100%;max-height:80dvh;overflow-y:auto;overscroll-behavior:contain;border-radius:12px 12px 0 0;box-shadow:0 -4px 20px #142b2526;padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
+ .offer-heading{gap:8px;flex-wrap:wrap}
+ .offer-heading h2{font-size:1.05rem}
+ .offer-heading .actions{gap:6px}
+ .offer-heading button{min-height:44px;font-size:.875rem}
+ #offer .summary{margin:8px 0 0;padding:8px 10px}
+ #offer .summary .line{margin:2px 0}
+ #offer[data-expanded="false"] #offerDetails,#offer[data-expanded="false"] #offerPercent{display:none}
+ #offerDetails{padding-top:12px}
+ #warning:empty{display:none}
+}
+</style><header><h1>Card Show Deal Desk</h1><p>Inventory, market prices, and vendor offers</p></header>
+<main><section class="panel"><div class="bar"><h2>Inventory</h2><button class="primary" id="add">Add card</button></div><div class="actions binder-tools"><label class="binder-view">View binder<select id="binderView"></select></label><button id="newBinder">New binder</button><button id="renameBinder">Rename</button><button id="deleteBinder">Remove binder</button></div><div class="actions binder-tools"><label class="binder-view">Move selected to<select id="binderDestination" aria-label="Move selected to"></select></label><button id="moveCards" disabled>Move selected</button></div><input class="search" id="filter" type="search" aria-label="Search inventory" placeholder="Search inventory"><p class="note">Check the cards the vendor wants. Use one row per copy.</p><div class="actions"><label for="selectAll" style="display:flex;align-items:center;gap:8px;min-height:44px"><input id="selectAll" type="checkbox"><span id="selectAllLabel">Select all</span></label></div><div id="cards"></div><div class="actions footer"><button id="export">Export backup</button><button id="csvImport">Import CSV</button><input id="csvFile" type="file" accept=".csv,text/csv" hidden><button id="import">Import backup</button><input id="file" type="file" accept=".json,application/json" hidden></div><p class="note" id="storage" role="status">Inventory is saved in this browser.</p></section>
+<aside class="panel" id="offer" data-expanded="false"><div class="bar offer-heading"><h2>Vendor offer</h2><div class="actions"><button class="mobile" id="toggleOffer" aria-expanded="false" aria-controls="offerDetails offerPercent">Expand</button><button id="reset">Clear offer</button></div></div><div class="summary" aria-live="polite"><div class="line"><span id="count"></span><strong id="total"></strong></div><div class="line" id="offerPercent"><span>Offer % of market</span><strong class="big" id="percent"></strong></div><p id="warning" class="note warn"></p></div><div id="offerDetails"><div class="fields"><label>Offer amount ($)<input id="amount" type="number" min="0" step=".01" inputmode="decimal" placeholder="0.00"></label><label>Target (%)<input id="target" type="number" min="0" max="100" step=".1" inputmode="decimal" value="80"></label></div><div class="line"><span>Target offer</span><strong id="targetValue"></strong></div><div class="line"><span>Compared with target</span><strong id="delta"></strong></div><div class="tiers" id="tiers"></div></div></aside></main>
+<dialog class="editor" id="editor"><form id="form"><h2 id="editorTitle">Add card</h2><label>Card name and printing<input name="name" required maxlength="180" placeholder="e.g. Miroku (071) (SR**)"></label><div class="fields"><label>TCG<input name="game" required maxlength="80" value="Union Arena"></label><label>Condition<input name="condition" maxlength="60" value="Near Mint"></label></div><div class="actions"><a id="lookup" target="_blank" rel="noopener noreferrer">Find on TCGplayer</a></div><label>TCGplayer product URL<input name="url" type="url" placeholder="https://www.tcgplayer.com/product/…"></label><label>Market price ($)<input name="market" type="number" min="0" step=".01" inputmode="decimal"></label><p class="note">Open the listing, match the condition and printing, then enter its Market Price.</p><div class="actions"><button class="primary">Save card</button><button type="button" id="cancel">Cancel</button><button type="button" id="remove">Remove card</button></div></form></dialog>
+<dialog class="editor" id="binderEditor" aria-labelledby="binderTitle"><form id="binderForm"><h2 id="binderTitle">New binder</h2><label>Binder name<input id="binderName" required maxlength="80"></label><label id="moveNewBinderLabel" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="moveToNewBinder">Move selected cards into this binder</label><p id="binderError" class="warn" role="alert"></p><div class="actions"><button class="primary" id="saveBinder">Create binder</button><button type="button" id="cancelBinder">Cancel</button></div></form></dialog>
+<script>
+const el=id=>document.getElementById(id);
+const form=el('form'), fields=form.elements;
+const money=new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'});
+const usd=cents=>cents===null?'—':money.format(cents/100);
+const key='card-show-deal-desk-v1';
+const uid=()=>crypto.randomUUID?.() ?? Date.now().toString(36)+Math.random().toString(36).slice(2);
+const seed=[];
+el('toggleOffer').onclick=()=>{
+ const expanded=el('offer').dataset.expanded!=='true';
+ el('offer').dataset.expanded=String(expanded);
+ el('toggleOffer').setAttribute('aria-expanded',String(expanded));
+ el('toggleOffer').textContent=expanded?'Collapse':'Expand';
+};
+const mobileOffer=matchMedia('(max-width:780px)');
+function reserveOfferSpace(){
+ document.querySelector('main').style.paddingBottom=mobileOffer.matches?(el('offer').offsetHeight+14)+'px':'';
+}
+new ResizeObserver(reserveOfferSpace).observe(el('offer'));
+mobileOffer.addEventListener('change',reserveOfferSpace);
+function normalizeInventory(data){
+ const source=Array.isArray(data)?{cards:data,binders:[]}:data;
+ if(!source||!Array.isArray(source.cards)||!source.cards.every(c=>c&&typeof c.name==='string'&&c.name.trim()&&typeof c.game==='string'&&(c.market===null||Number.isSafeInteger(c.market)&&c.market>=0)))throw Error('Invalid inventory.');
+ const seen=new Set();
+ const binders=(Array.isArray(source.binders)?source.binders:[]).filter(b=>{
+  if(!b||typeof b.id!=='string'||!b.id||b.id==='*'||seen.has(b.id)||typeof b.name!=='string'||!b.name.trim())return false;
+  seen.add(b.id);return true;
+ }).map(b=>({id:b.id,name:b.name.trim().slice(0,80)}));
+ return {cards:source.cards.map(card=>({...card,binderId:seen.has(card.binderId)?card.binderId:null})),binders};
+}
+function read(){try{return normalizeInventory(JSON.parse(localStorage.getItem(key))??seed)}catch{return {cards:seed,binders:[]}}}
+let {cards,binders}=read(), selected=new Set(), editing=null, activeBinder='', editingBinder=null;
+function inventoryBackup(){return {version:2,cards,binders}}
+function persist(){try{localStorage.setItem(key,JSON.stringify(inventoryBackup()));el('storage').textContent='Inventory and binders saved in this browser.'}catch{el('storage').textContent='Browser storage unavailable. Export a backup to keep your changes.'}}
+function renderBinders(){
+ const destination=el('binderDestination').value;
+ const options=[{id:'',name:'Card Pool'},...binders];
+ const option=(binder,counts)=>{
+  const node=make('option',binder.name+(counts?' ('+cards.filter(card=>(card.binderId||'')===binder.id).length+')':''));
+  node.value=binder.id;return node;
+ };
+ const all=make('option','All cards ('+cards.length+')');all.value='*';
+ el('binderView').replaceChildren(...options.map(b=>option(b,true)),all);
+ el('binderView').value=activeBinder;
+ el('binderDestination').replaceChildren(...options.map(b=>option(b,false)));
+ el('binderDestination').value=options.some(b=>b.id===destination)?destination:'';
+ el('renameBinder').disabled=!activeBinder||activeBinder==='*';
+ el('deleteBinder').disabled=!activeBinder||activeBinder==='*';
+}
+function product(url){try{const link=new URL(url);return link.protocol==='https:'&&['tcgplayer.com','www.tcgplayer.com'].includes(link.hostname)&&/^\/product\/\d+(\/|$)/.test(link.pathname)?link.href:''}catch{return ''}}
+function make(tag,value,cls){const node=document.createElement(tag);node.textContent=value;if(cls)node.className=cls;return node}
+function visibleCards(){
+ const query=el('filter').value.trim().toLowerCase();
+ return cards.filter(c=>(activeBinder==='*'||(c.binderId||'')===activeBinder)&&[c.name,c.game,c.set,c.condition].join(' ').toLowerCase().includes(query));
+}
+function updateSelectAll(){
+ const visible=visibleCards(), count=visible.filter(card=>selected.has(card.id)).length;
+ el('selectAll').checked=visible.length>0&&count===visible.length;
+ el('selectAll').indeterminate=count>0&&count<visible.length;
+ el('selectAll').disabled=!visible.length;
+ el('selectAllLabel').textContent=el('filter').value.trim()?'Select all matches':'Select all';
+}
+function render(){
+ renderBinders();
+ const list=el('cards'), query=el('filter').value.trim().toLowerCase();
+ list.replaceChildren();
+ for(const card of visibleCards()){
+  const row=make('div','','card'), check=make('input',''), label=make('label',card.name);
+  check.type='checkbox';check.checked=selected.has(card.id);check.id='select-'+card.id;label.htmlFor=check.id;
+  check.onchange=()=>{if(check.checked)selected.add(card.id);else selected.delete(card.id);quote()};
+  const info=make('div',[card.game,card.set,card.condition,card.date&&'priced '+card.date].filter(Boolean).join(' · '),'meta');label.append(info);
+  if(product(card.url)){const a=make('a','Listing');a.href=card.url;a.target='_blank';a.rel='noopener noreferrer';a.className='meta';label.append(a)}
+  const edit=make('button','Edit');edit.setAttribute('aria-label','Edit '+card.name);edit.onclick=()=>openEditor(card);
+  row.append(check,label,make('span',usd(card.market),'price'),edit);list.append(row);
+ }
+ if(!list.childElementCount)list.append(make('p',query?'No matching cards.':activeBinder&&activeBinder!=='*'?'This binder is empty.':'Add a card to start your inventory.','note'));
+ quote();
+}
+function quote(){
+ updateSelectAll();
+ el('moveCards').disabled=!selected.size;
+ el('moveCards').textContent='Move selected'+(selected.size?' ('+selected.size+')':'');
+ const picks=cards.filter(c=>selected.has(c.id));
+ const missing=picks.filter(c=>c.market===null).length;
+ const total=picks.length&&!missing?picks.reduce((sum,c)=>sum+c.market,0):null;
+ const offer=el('amount').valueAsNumber, target=el('target').valueAsNumber;
+ const goal=total!==null&&target>=0&&target<=100?Math.round(total*target/100):null;
+ const valid=Number.isFinite(offer)&&offer>=0;
+ el('count').textContent=picks.length+' selected · market total';
+ el('total').textContent=usd(total);
+ el('percent').textContent=valid&&total>0?(offer*10000/total).toFixed(2)+'%':'—';
+ el('targetValue').textContent=usd(goal);
+ const delta=valid&&goal!==null?Math.round(offer*100)-goal:null;
+ el('delta').textContent=delta===null?'—':delta===0?'At target':usd(Math.abs(delta))+(delta>0?' above':' below');
+ el('warning').textContent=missing?missing+' selected card(s) need a market price.':'';
+ el('tiers').replaceChildren(...[90,80,70,60].map(p=>{const t=make('div',p+'%','tier');t.append(make('strong',usd(total===null?null:Math.round(total*p/100))));return t}));
+}
+function updateLookup(){
+ const q=[fields.name.value,fields.game.value].join(' ').trim();
+ const listing=product(fields.url.value);
+ el('lookup').textContent=listing?'Open TCGplayer listing':'Find on TCGplayer';
+ el('lookup').href=listing||'https://www.tcgplayer.com/search/all/product?q='+encodeURIComponent(q);
+}
+function openEditor(card){
+ editing=card;form.reset();fields.url.setCustomValidity('');
+ if(card){for(const k of ['name','game','condition','url'])fields[k].value=card[k]||'';fields.market.value=card.market===null?'':(card.market/100).toFixed(2)}
+ el('editorTitle').textContent=card?'Edit card':'Add card';
+ el('remove').hidden=!card;updateLookup();el('editor').showModal();
+}
+form.oninput=()=>{fields.url.setCustomValidity('');updateLookup()};
+form.onsubmit=event=>{
+ event.preventDefault();
+ const url=fields.url.value.trim();if(url&&!product(url)){fields.url.setCustomValidity('Enter a TCGplayer product URL.');fields.url.reportValidity();return}
+ const name=fields.name.value.trim(),game=fields.game.value.trim();if(!name||!game)return;
+ const market=fields.market.value===''?null:Math.round(fields.market.valueAsNumber*100);
+ const condition=fields.condition.value.trim();
+ const same=editing?.market===market&&editing?.url===url&&editing?.condition===condition&&editing?.name===name;
+ const card={id:editing?.id??uid(),name,game,condition,url,market,binderId:editing?.binderId??null,set:editing?.set??'',date:market===null?'':same?editing.date:new Date().toLocaleDateString('en-CA')};
+ cards=editing?cards.map(c=>c.id===card.id?card:c):[...cards,card];
+ if(!editing)activeBinder='';
+ persist();el('editor').close();render();
+};
+el('remove').onclick=()=>{if(editing&&confirm('Remove '+editing.name+' from inventory?')){selected.delete(editing.id);cards=cards.filter(c=>c.id!==editing.id);persist();el('editor').close();render()}};
+el('add').onclick=()=>openEditor(null);el('cancel').onclick=()=>el('editor').close();
+el('filter').oninput=render;el('amount').oninput=quote;el('target').oninput=quote;
+el('reset').onclick=()=>{selected.clear();el('amount').value='';render()};
+el('selectAll').onchange=()=>{
+ const checked=el('selectAll').checked;
+ for(const card of visibleCards()){if(checked)selected.add(card.id);else selected.delete(card.id)}
+ render();
+};
+el('binderView').onchange=()=>{activeBinder=el('binderView').value;render()};
+function moveSelected(binderId){
+ cards=cards.map(card=>selected.has(card.id)?{...card,binderId:binderId||null}:card);
+}
+el('moveCards').onclick=()=>{moveSelected(el('binderDestination').value);persist();render()};
+function openBinderEditor(binder){
+ editingBinder=binder;
+ el('binderForm').reset();el('binderError').textContent='';
+ el('binderName').value=binder?.name||'';
+ el('binderTitle').textContent=binder?'Rename binder':'New binder';
+ el('saveBinder').textContent=binder?'Save name':'Create binder';
+ el('moveNewBinderLabel').hidden=!!binder||!selected.size;
+ el('moveToNewBinder').checked=!binder&&selected.size>0;
+ el('binderEditor').showModal();el('binderName').focus();
+}
+el('newBinder').onclick=()=>openBinderEditor(null);
+el('renameBinder').onclick=()=>{const binder=binders.find(b=>b.id===activeBinder);if(binder)openBinderEditor(binder)};
+el('cancelBinder').onclick=()=>el('binderEditor').close();
+el('binderForm').onsubmit=event=>{
+ event.preventDefault();
+ const name=el('binderName').value.trim();
+ if(!name){el('binderError').textContent='Enter a binder name.';return}
+ if(['card pool','all cards'].includes(name.toLowerCase())||binders.some(b=>b.id!==editingBinder?.id&&b.name.toLowerCase()===name.toLowerCase())){el('binderError').textContent='Choose a different binder name.';return}
+ if(editingBinder)binders=binders.map(b=>b.id===editingBinder.id?{...b,name}:b);
+ else{
+  const id=uid();binders=[...binders,{id,name}];
+  if(el('moveToNewBinder').checked)moveSelected(id);
+  activeBinder=id;
+ }
+ persist();el('binderEditor').close();render();
+};
+el('deleteBinder').onclick=()=>{
+ const binder=binders.find(b=>b.id===activeBinder);if(!binder)return;
+ if(!confirm('Remove '+binder.name+'? Its cards will return to the Card Pool.'))return;
+ cards=cards.map(card=>card.binderId===binder.id?{...card,binderId:null}:card);
+ binders=binders.filter(b=>b.id!==binder.id);activeBinder='';persist();render();
+};
+el('export').onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(inventoryBackup(),null,2)],{type:'application/json'}));const a=make('a','');a.href=url;a.download='card-show-inventory.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
+el('import').onclick=()=>el('file').click();
+el('file').onchange=async()=>{
+ const file=el('file').files[0];if(!file)return;
+ try{
+  const data=normalizeInventory(JSON.parse(await file.text()));
+  if(confirm('Replace the inventory and binders in this browser with '+data.cards.length+' cards from this backup?')){
+   const string=v=>typeof v==='string'?v:'';
+   cards=data.cards.map(c=>({id:uid(),name:c.name,game:c.game,market:c.market,url:product(c.url),set:string(c.set),condition:string(c.condition),date:string(c.date),binderId:c.binderId}));binders=data.binders;activeBinder='';selected.clear();el('amount').value='';persist();render();
+  }
+ }catch{el('storage').textContent='Could not read that inventory backup.'}
+ el('file').value='';
+};
+
+function csvRows(input){
+ const rows=[];
+ const source=input.replace(/^\uFEFF/,'');
+ let row=[], field='', quoted=false, closed=false;
+ for(let i=0;i<source.length;i++){
+  const ch=source[i];
+  if(quoted){
+   if(ch==='"'&&source[i+1]==='"'){field+='"';i++}
+   else if(ch==='"'){quoted=false;closed=true}
+   else field+=ch;
+   continue;
+  }
+  if(ch===','||ch==='\n'||ch==='\r'){
+   row.push(field);field='';closed=false;
+   if(ch!==','){
+    rows.push(row);row=[];
+    if(ch==='\r'&&source[i+1]==='\n')i++;
+   }
+  }else if(ch==='"'&&!field&&!closed)quoted=true;
+  else if(closed||ch==='"')throw Error('Invalid CSV quoting.');
+  else field+=ch;
+ }
+ if(quoted)throw Error('A quoted CSV field is missing its closing quote.');
+ row.push(field);rows.push(row);
+ return rows;
+}
+function inventoryCsv(input){
+ const rows=csvRows(input);
+ const heading=rows.findIndex(row=>row.some(value=>value.trim()));
+ if(heading<0)throw Error('The CSV is empty.');
+ const columns=rows[heading].map(value=>value.trim().toLowerCase());
+ const indexes=Object.fromEntries(['card name','tcg','market price','tcgplayer listing','condition'].map(name=>[name,columns.indexOf(name)]));
+ if(['card name','tcg','market price'].some(name=>indexes[name]<0))throw Error('Use the Card Name, TCG, and Market Price headers from your inventory sheet.');
+ let missingLinks=0;
+ const imported=[];
+ for(let i=heading+1;i<rows.length;i++){
+  const value=key=>(rows[i][indexes[key]]??'').trim();
+  const name=value('card name'), game=value('tcg'), price=value('market price'), listing=value('tcgplayer listing');
+  if(!name&&!game&&!price&&!listing)continue;
+  if(!name||!game)throw Error('CSV row '+(i+1)+' needs a Card Name and TCG.');
+  const normalized=price.replace(/^\$\s*/,'').replaceAll(',','');
+  const market=price?Math.round(Number(normalized)*100):null;
+  if(price&&(!/^\d+(\.\d{1,2})?$/.test(normalized)||!Number.isSafeInteger(market)))throw Error('CSV row '+(i+1)+' has an invalid Market Price.');
+  const url=product(listing);
+  if(listing&&!url)missingLinks++;
+  imported.push({id:uid(),name,game,market,url,condition:value('condition'),set:'',date:''});
+ }
+ if(!imported.length)throw Error('The CSV has headers but no cards.');
+ return {imported,missingLinks};
+}
+el('csvImport').onclick=()=>el('csvFile').click();
+el('csvFile').onchange=async()=>{
+ const input=el('csvFile'), file=input.files[0];
+ if(!file)return;
+ try{
+  const {imported,missingLinks}=inventoryCsv(await file.text());
+  const message=missingLinks?' '+missingLinks+' listing cell(s) contained display text without a TCGplayer product URL.':'';
+  if(confirm('Add '+imported.length+' card(s) to your inventory? Existing cards will be kept.'+message)){
+   cards=[...cards,...imported];activeBinder='';persist();render();
+   el('storage').textContent+=' Imported '+imported.length+' card(s).'+message;
+  }
+ }catch(error){el('storage').textContent=error.message||'Could not read that CSV.'}
+ finally{input.value=''}
+};
+render();
+</script></html>

@@ -16,6 +16,7 @@ import GeekLogo from "../assets/GEEKD-Logo-Primary.png";
 import MenuIcon from "@mui/icons-material/Menu";
 import HomeIcon from "@mui/icons-material/Home";
 import PrizingIcon from "@mui/icons-material/EmojiEvents";
+import SellOutlinedIcon from "@mui/icons-material/SellOutlined";
 import MoneyIcon from "@mui/icons-material/Money";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 import TimerIcon from "@mui/icons-material/Timer";
@@ -107,6 +108,12 @@ export default function AppLayout() {
                   <MoneyIcon fontSize="small" />
                 </ListItemIcon>
                 <ListItemText>Cash Calculator</ListItemText>
+              </MenuItem>
+              <MenuItem onClick={() => handleNavigation("/card-show-deal-desk")}>
+                <ListItemIcon>
+                  <SellOutlinedIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Card Show Deal Desk</ListItemText>
               </MenuItem>
               <MenuItem onClick={() => handleNavigation("/prizing")}>
                 <ListItemIcon>

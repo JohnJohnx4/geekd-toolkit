@@ -7,6 +7,7 @@ import {
   Typography,
 } from "@mui/material";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
+import SellOutlinedIcon from "@mui/icons-material/SellOutlined";
 import MoneyIcon from "@mui/icons-material/Money";
 import PriceCheckIcon from "@mui/icons-material/PriceCheck";
 import TimerIcon from "@mui/icons-material/Timer";
@@ -17,6 +18,14 @@ import PersonIcon from "@mui/icons-material/Person";
 import { useNavigate } from "@tanstack/react-router";
 
 const tools = [
+  {
+    label: "Card Show Deal Desk",
+    description: "Import inventory and compare vendor offers to market prices",
+    path: "/card-show-deal-desk",
+    icon: SellOutlinedIcon,
+    color: "#18573f",
+    background: "#dcf3e5",
+  },
   {
     label: "Cashout / Deposit",
     description: "Count drawers, safe cash, and deposits",
