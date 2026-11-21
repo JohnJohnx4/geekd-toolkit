@@ -4,6 +4,32 @@ select{font:inherit;min-height:44px;max-width:100%;width:100%;border:1px solid #
 .binder-tools{margin-top:12px;align-items:flex-end}
 .binder-view{flex:1 1 200px;min-width:0}
 .binder-tools button{min-height:44px}
+.panel{min-width:0}
+.binder-navigation{display:flex;align-items:center;gap:10px;margin-top:14px;min-width:0}
+.binder-tabs{display:flex;flex:1;min-width:0;gap:4px;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin;padding:3px 2px 7px;border-bottom:1px solid var(--line)}
+.binder-tab{flex:none;max-width:220px;min-height:44px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:0;border-radius:0;border-bottom:3px solid transparent;color:var(--muted);background:transparent}
+.binder-tab[aria-selected="true"]{color:var(--green);font-weight:700;border-bottom-color:var(--green);background:#f3f7f4}
+.binder-tab:hover{background:var(--mint)}
+.sell-button{width:100%;min-height:44px;margin-top:14px}
+.sold-section{margin-top:24px;border-top:2px solid var(--line);padding-top:16px}
+.sold-section[hidden]{display:none}
+.sold-section h2{font-size:1.1rem}
+.sold-card{flex-wrap:wrap}
+.sold-card .sold-info{flex:1;min-width:140px;overflow-wrap:anywhere}
+.sold-card button{min-height:44px}
+.sold-price{text-align:right}
+#saleItems{max-height:40dvh;overflow:auto}
+#saleItems p{padding:8px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.binder-icon{width:44px;height:44px;padding:10px;flex:none;display:grid;place-items:center}
+.binder-icon svg{width:24px;height:24px;fill:currentColor}
+.binder-icon[aria-expanded="true"]{background:var(--mint);border-color:var(--green)}
+#binderMenu{position:fixed;inset:auto;margin:0;width:340px;max-width:calc(100vw - 24px);overflow:auto;overscroll-behavior:contain;padding:16px;border:1px solid var(--line);border-radius:8px;color:var(--ink);background:white;box-shadow:0 8px 28px #142b252b}
+#binderMenu h2,#binderMenu h3{font-size:1rem;margin:0}
+#binderMenu .binder-tools{align-items:stretch}
+#binderMenu .binder-view{flex-basis:100%}
+#binderEditor{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
+#binderForm{display:grid;gap:12px}
+#binderMenu [hidden]{display:none!important}
 button:disabled{opacity:.5;cursor:default}
 #binderError:empty{display:none}
 .editor [hidden]{display:none!important}
@@ -21,10 +47,11 @@ button:disabled{opacity:.5;cursor:default}
  #warning:empty{display:none}
 }
 </style><header><h1>Card Show Deal Desk</h1><p>Inventory, market prices, and vendor offers</p></header>
-<main><section class="panel"><div class="bar"><h2>Inventory</h2><button class="primary" id="add">Add card</button></div><div class="actions binder-tools"><label class="binder-view">View binder<select id="binderView"></select></label><button id="newBinder">New binder</button><button id="renameBinder">Rename</button><button id="deleteBinder">Remove binder</button></div><div class="actions binder-tools"><label class="binder-view">Move selected to<select id="binderDestination" aria-label="Move selected to"></select></label><button id="moveCards" disabled>Move selected</button></div><input class="search" id="filter" type="search" aria-label="Search inventory" placeholder="Search inventory"><p class="note">Check the cards the vendor wants. Use one row per copy.</p><div class="actions"><label for="selectAll" style="display:flex;align-items:center;gap:8px;min-height:44px"><input id="selectAll" type="checkbox"><span id="selectAllLabel">Select all</span></label></div><div id="cards"></div><div class="actions footer"><button id="export">Export backup</button><button id="csvImport">Import CSV</button><input id="csvFile" type="file" accept=".csv,text/csv" hidden><button id="import">Import backup</button><input id="file" type="file" accept=".json,application/json" hidden></div><p class="note" id="storage" role="status">Inventory is saved in this browser.</p></section>
-<aside class="panel" id="offer" data-expanded="false"><div class="bar offer-heading"><h2>Vendor offer</h2><div class="actions"><button class="mobile" id="toggleOffer" aria-expanded="false" aria-controls="offerDetails offerPercent">Expand</button><button id="reset">Clear offer</button></div></div><div class="summary" aria-live="polite"><div class="line"><span id="count"></span><strong id="total"></strong></div><div class="line" id="offerPercent"><span>Offer % of market</span><strong class="big" id="percent"></strong></div><p id="warning" class="note warn"></p></div><div id="offerDetails"><div class="fields"><label>Offer amount ($)<input id="amount" type="number" min="0" step=".01" inputmode="decimal" placeholder="0.00"></label><label>Target (%)<input id="target" type="number" min="0" max="100" step=".1" inputmode="decimal" value="80"></label></div><div class="line"><span>Target offer</span><strong id="targetValue"></strong></div><div class="line"><span>Compared with target</span><strong id="delta"></strong></div><div class="tiers" id="tiers"></div></div></aside></main>
+<main><section class="panel"><div class="bar"><h2>Inventory</h2><button class="primary" id="add">Add card</button></div><div class="binder-navigation"><div id="binderView" class="binder-tabs" role="tablist" aria-label="Binders"></div><button class="binder-icon" id="binderMenuButton" popovertarget="binderMenu" aria-label="Manage binders" title="Manage binders" aria-expanded="false" aria-controls="binderMenu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2m-1 9h-4v4h-2v-4H9V9h4V5h2v4h4z"/></svg></button></div><input class="search" id="filter" type="search" aria-label="Search inventory" placeholder="Search inventory"><p class="note">Check the cards the vendor wants. Use one row per copy.</p><div class="actions"><label for="selectAll" style="display:flex;align-items:center;gap:8px;min-height:44px"><input id="selectAll" type="checkbox"><span id="selectAllLabel">Select all</span></label></div><div id="cards" role="tabpanel"></div><section id="soldSection" class="sold-section" hidden aria-labelledby="soldHeading"><div class="bar"><h2 id="soldHeading">Sold cards</h2><strong id="soldTotal"></strong></div><div id="soldCards"></div></section><div class="actions footer"><button id="export">Export backup</button><button id="csvImport">Import CSV</button><input id="csvFile" type="file" accept=".csv,text/csv" hidden><button id="import">Import backup</button><input id="file" type="file" accept=".json,application/json" hidden></div><p class="note" id="storage" role="status">Inventory is saved in this browser.</p></section>
+<aside class="panel" id="offer" data-expanded="false"><div class="bar offer-heading"><h2>Vendor offer</h2><div class="actions"><button class="mobile" id="toggleOffer" aria-expanded="false" aria-controls="offerDetails offerPercent">Expand</button><button id="reset">Clear offer</button></div></div><div class="summary" aria-live="polite"><div class="line"><span id="count"></span><strong id="total"></strong></div><div class="line" id="offerPercent"><span>Offer % of market</span><strong class="big" id="percent"></strong></div><p id="warning" class="note warn"></p></div><div id="offerDetails"><div class="fields"><label>Offer amount ($)<input id="amount" type="number" min="0" step=".01" inputmode="decimal" placeholder="0.00"></label><label>Offer percentage (%)<input id="salePercent" type="number" min="0" step=".01" inputmode="decimal" placeholder="0.00"></label><label>Target (%)<input id="target" type="number" min="0" max="100" step=".1" inputmode="decimal" value="80"></label></div><div class="line"><span>Target offer</span><strong id="targetValue"></strong></div><div class="line"><span>Compared with target</span><strong id="delta"></strong></div><div class="tiers" id="tiers"></div><button class="primary sell-button" id="sellCards" disabled>Mark selected as sold</button></div></aside></main>
 <dialog class="editor" id="editor"><form id="form"><h2 id="editorTitle">Add card</h2><label>Card name and printing<input name="name" required maxlength="180" placeholder="e.g. Miroku (071) (SR**)"></label><div class="fields"><label>TCG<input name="game" required maxlength="80" value="Union Arena"></label><label>Condition<input name="condition" maxlength="60" value="Near Mint"></label></div><div class="actions"><a id="lookup" target="_blank" rel="noopener noreferrer">Find on TCGplayer</a></div><label>TCGplayer product URL<input name="url" type="url" placeholder="https://www.tcgplayer.com/product/…"></label><label>Market price ($)<input name="market" type="number" min="0" step=".01" inputmode="decimal"></label><p class="note">Open the listing, match the condition and printing, then enter its Market Price.</p><div class="actions"><button class="primary">Save card</button><button type="button" id="cancel">Cancel</button><button type="button" id="remove">Remove card</button></div></form></dialog>
-<dialog class="editor" id="binderEditor" aria-labelledby="binderTitle"><form id="binderForm"><h2 id="binderTitle">New binder</h2><label>Binder name<input id="binderName" required maxlength="80"></label><label id="moveNewBinderLabel" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="moveToNewBinder">Move selected cards into this binder</label><p id="binderError" class="warn" role="alert"></p><div class="actions"><button class="primary" id="saveBinder">Create binder</button><button type="button" id="cancelBinder">Cancel</button></div></form></dialog>
+<div id="binderMenu" popover role="dialog" aria-labelledby="binderMenuTitle"><h2 id="binderMenuTitle">Manage binders</h2><div class="actions binder-tools"><button id="newBinder">New binder</button><button id="renameBinder">Rename</button><button id="deleteBinder">Remove binder</button></div><div class="actions binder-tools"><label class="binder-view">Move selected to<select id="binderDestination" aria-label="Move selected to"></select></label><button id="moveCards" disabled>Move selected</button></div><section id="binderEditor" hidden><form id="binderForm"><h3 id="binderTitle">New binder</h3><label>Binder name<input id="binderName" required maxlength="80"></label><label id="moveNewBinderLabel" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="moveToNewBinder">Move selected cards into this binder</label><p id="binderError" class="warn" role="alert"></p><div class="actions"><button class="primary" id="saveBinder">Create binder</button><button type="button" id="cancelBinder">Cancel</button></div></form></section></div>
+<dialog class="editor" id="saleEditor" aria-labelledby="saleTitle"><form id="saleForm"><h2 id="saleTitle">Confirm sale</h2><p id="saleSummary"></p><div id="saleItems"></div><div class="actions"><button class="primary">Mark as sold</button><button type="button" id="cancelSale">Cancel</button></div></form></dialog>
 <script>
 const el=id=>document.getElementById(id);
 const form=el('form'), fields=form.elements;
@@ -33,6 +60,17 @@ const usd=cents=>cents===null?'—':money.format(cents/100);
 const key='card-show-deal-desk-v1';
 const uid=()=>crypto.randomUUID?.() ?? Date.now().toString(36)+Math.random().toString(36).slice(2);
 const seed=[];
+function positionBinderMenu(){
+ const rect=el('binderMenuButton').getBoundingClientRect(), menu=el('binderMenu');
+ const width=Math.min(340,innerWidth-24), top=Math.max(12,Math.min(rect.bottom+8,innerHeight-260));
+ menu.style.left=Math.max(12,Math.min(rect.right-width,innerWidth-width-12))+'px';
+ menu.style.top=top+'px';menu.style.maxHeight=Math.max(120,innerHeight-top-12)+'px';
+}
+el('binderMenu').addEventListener('beforetoggle',event=>{
+ if(event.newState==='open'){el('binderEditor').hidden=true;positionBinderMenu()}
+});
+el('binderMenu').addEventListener('toggle',event=>el('binderMenuButton').setAttribute('aria-expanded',String(event.newState==='open')));
+addEventListener('resize',positionBinderMenu);
 el('toggleOffer').onclick=()=>{
  const expanded=el('offer').dataset.expanded!=='true';
  el('offer').dataset.expanded=String(expanded);
@@ -53,11 +91,12 @@ function normalizeInventory(data){
   if(!b||typeof b.id!=='string'||!b.id||b.id==='*'||seen.has(b.id)||typeof b.name!=='string'||!b.name.trim())return false;
   seen.add(b.id);return true;
  }).map(b=>({id:b.id,name:b.name.trim().slice(0,80)}));
+ for(const card of source.cards)if(card.sale&&(!Number.isSafeInteger(card.sale.amount)||card.sale.amount<0||!Number.isSafeInteger(card.sale.market)||card.sale.market<0||!Number.isFinite(card.sale.percent)||card.sale.percent<0||!Number.isFinite(Date.parse(card.sale.soldAt))))throw Error('Invalid sale record.');
  return {cards:source.cards.map(card=>({...card,binderId:seen.has(card.binderId)?card.binderId:null})),binders};
 }
 function read(){try{return normalizeInventory(JSON.parse(localStorage.getItem(key))??seed)}catch{return {cards:seed,binders:[]}}}
-let {cards,binders}=read(), selected=new Set(), editing=null, activeBinder='', editingBinder=null;
-function inventoryBackup(){return {version:2,cards,binders}}
+let {cards,binders}=read(), selected=new Set(), editing=null, activeBinder='', editingBinder=null, renderedBinder=null;
+function inventoryBackup(){return {version:3,cards,binders}}
 function persist(){try{localStorage.setItem(key,JSON.stringify(inventoryBackup()));el('storage').textContent='Inventory and binders saved in this browser.'}catch{el('storage').textContent='Browser storage unavailable. Export a backup to keep your changes.'}}
 function renderBinders(){
  const destination=el('binderDestination').value;
@@ -66,9 +105,26 @@ function renderBinders(){
   const node=make('option',binder.name+(counts?' ('+cards.filter(card=>(card.binderId||'')===binder.id).length+')':''));
   node.value=binder.id;return node;
  };
- const all=make('option','All cards ('+cards.length+')');all.value='*';
- el('binderView').replaceChildren(...options.map(b=>option(b,true)),all);
- el('binderView').value=activeBinder;
+ const focused=document.activeElement?.closest('#binderView [role=tab]')?.dataset.binderId;
+ const tabs=[...options,{id:'*',name:'All cards'}].map((binder,index)=>{
+  const count=cards.filter(card=>!card.sale&&(binder.id==='*'||(card.binderId||'')===binder.id)).length;
+  const tab=make('button',binder.name+' ('+count+')','binder-tab');
+  tab.type='button';tab.id='binder-tab-'+index;tab.dataset.binderId=binder.id;
+  tab.setAttribute('role','tab');tab.setAttribute('aria-controls','cards');tab.title=binder.name;
+  tab.setAttribute('aria-selected',String(binder.id===activeBinder));tab.tabIndex=binder.id===activeBinder?0:-1;
+  tab.onclick=()=>selectBinder(binder.id);
+  return tab;
+ });
+ el('binderView').replaceChildren(...tabs);
+ const active=tabs.find(tab=>tab.dataset.binderId===activeBinder);
+ el('cards').setAttribute('aria-labelledby',active.id);
+ if(focused!==undefined)tabs.find(tab=>tab.dataset.binderId===focused)?.focus({preventScroll:true});
+ if(renderedBinder!==activeBinder){
+  const list=el('binderView'), left=active.getBoundingClientRect().left-list.getBoundingClientRect().left+list.scrollLeft;
+  if(left<list.scrollLeft||left+active.offsetWidth>list.scrollLeft+list.clientWidth)
+   list.scrollLeft=left;
+  renderedBinder=activeBinder;
+ }
  el('binderDestination').replaceChildren(...options.map(b=>option(b,false)));
  el('binderDestination').value=options.some(b=>b.id===destination)?destination:'';
  el('renameBinder').disabled=!activeBinder||activeBinder==='*';
@@ -76,9 +132,9 @@ function renderBinders(){
 }
 function product(url){try{const link=new URL(url);return link.protocol==='https:'&&['tcgplayer.com','www.tcgplayer.com'].includes(link.hostname)&&/^\/product\/\d+(\/|$)/.test(link.pathname)?link.href:''}catch{return ''}}
 function make(tag,value,cls){const node=document.createElement(tag);node.textContent=value;if(cls)node.className=cls;return node}
-function visibleCards(){
+function visibleCards(sold=false){
  const query=el('filter').value.trim().toLowerCase();
- return cards.filter(c=>(activeBinder==='*'||(c.binderId||'')===activeBinder)&&[c.name,c.game,c.set,c.condition].join(' ').toLowerCase().includes(query));
+ return cards.filter(c=>!!c.sale===sold&&(activeBinder==='*'||(c.binderId||'')===activeBinder)&&[c.name,c.game,c.set,c.condition].join(' ').toLowerCase().includes(query));
 }
 function updateSelectAll(){
  const visible=visibleCards(), count=visible.filter(card=>selected.has(card.id)).length;
@@ -100,19 +156,64 @@ function render(){
   const edit=make('button','Edit');edit.setAttribute('aria-label','Edit '+card.name);edit.onclick=()=>openEditor(card);
   row.append(check,label,make('span',usd(card.market),'price'),edit);list.append(row);
  }
- if(!list.childElementCount)list.append(make('p',query?'No matching cards.':activeBinder&&activeBinder!=='*'?'This binder is empty.':'Add a card to start your inventory.','note'));
- quote();
+ if(!list.childElementCount)list.append(make('p',query?'No matching available cards.':activeBinder&&activeBinder!=='*'?'No available cards in this binder.':cards.length?'No available cards.':'Add a card to start your inventory.','note'));
+ renderSold();quote();
 }
+function renderSold(){
+ const sold=visibleCards(true), list=el('soldCards');
+ el('soldSection').hidden=!sold.length;
+ el('soldHeading').textContent='Sold cards ('+sold.length+')';
+ el('soldTotal').textContent=usd(sold.reduce((sum,c)=>sum+c.sale.amount,0));
+ list.replaceChildren();
+ for(const card of sold){
+  const row=make('div','','card sold-card'),info=make('div',card.name,'sold-info'),price=make('div',usd(card.sale.amount),'price sold-price');
+  info.append(make('div',new Date(card.sale.soldAt).toLocaleDateString()+' · Market at sale '+usd(card.sale.market),'meta'));
+  price.append(make('div',card.sale.percent.toFixed(2)+'% of market','meta'));
+  const undo=make('button','Undo sale');undo.setAttribute('aria-label','Undo sale of '+card.name);
+  undo.onclick=()=>{if(confirm('Return '+card.name+' to available cards?')){cards=cards.map(c=>{if(c.id!==card.id)return c;const {sale,...available}=c;return available});persist();render()}};
+  row.append(info,price,undo);list.append(row);
+ }
+}
+function saleQuote(){
+ const picks=cards.filter(c=>!c.sale&&selected.has(c.id)), total=picks.reduce((sum,c)=>sum+(c.market??0),0),amount=Math.round(el('amount').valueAsNumber*100);
+ return {picks,total,amount,valid:picks.length>0&&picks.every(c=>c.market!==null)&&Number.isSafeInteger(total)&&total>0&&Number.isSafeInteger(amount)&&amount>=0};
+}
+let pendingSale=null;
+el('sellCards').onclick=()=>{
+ const sale=saleQuote();if(!sale.valid)return;
+ pendingSale={...sale,ids:sale.picks.map(c=>c.id)};
+ el('saleSummary').textContent=sale.picks.length+' cards · '+usd(sale.amount)+' · '+(sale.amount/sale.total*100).toFixed(2)+'% of market';
+ el('saleItems').replaceChildren(...sale.picks.map(c=>make('p',c.name+' · '+(binders.find(b=>b.id===c.binderId)?.name||'Card Pool'))));
+ el('saleEditor').showModal();
+};
+el('cancelSale').onclick=()=>el('saleEditor').close();
+el('saleForm').onsubmit=event=>{
+ event.preventDefault();const snapshot=pendingSale;
+ if(!snapshot)return;
+ const current=saleQuote();
+ if(!current.valid||current.amount!==snapshot.amount||current.total!==snapshot.total||current.picks.map(c=>c.id).join()!==snapshot.ids.join()){el('saleEditor').close();return}
+ const batchId=uid(),soldAt=new Date().toISOString(),percent=snapshot.amount/snapshot.total*100;
+ // Allocate cents by largest remainder so individual prices match the exact offer total.
+ const allocations=snapshot.picks.map(c=>{const exact=snapshot.amount*(c.market/snapshot.total);return {id:c.id,amount:Math.floor(exact),fraction:exact-Math.floor(exact)}});
+ let remainder=snapshot.amount-allocations.reduce((sum,a)=>sum+a.amount,0);
+ for(const allocation of [...allocations].sort((a,b)=>b.fraction-a.fraction)){if(remainder<=0)break;allocation.amount++;remainder--}
+ cards=cards.map(c=>{const allocation=allocations.find(a=>a.id===c.id);return allocation?{...c,sale:{batchId,soldAt,percent,market:c.market,amount:allocation.amount}}:c});
+ snapshot.ids.forEach(id=>selected.delete(id));pendingSale=null;el('amount').value='';el('salePercent').value='';
+ persist();el('saleEditor').close();render();
+};
 function quote(){
  updateSelectAll();
  el('moveCards').disabled=!selected.size;
  el('moveCards').textContent='Move selected'+(selected.size?' ('+selected.size+')':'');
- const picks=cards.filter(c=>selected.has(c.id));
+ const picks=cards.filter(c=>!c.sale&&selected.has(c.id));
  const missing=picks.filter(c=>c.market===null).length;
  const total=picks.length&&!missing?picks.reduce((sum,c)=>sum+c.market,0):null;
  const offer=el('amount').valueAsNumber, target=el('target').valueAsNumber;
  const goal=total!==null&&target>=0&&target<=100?Math.round(total*target/100):null;
  const valid=Number.isFinite(offer)&&offer>=0;
+ if(document.activeElement!==el('salePercent'))el('salePercent').value=valid&&total>0?(offer*10000/total).toFixed(2):'';
+ el('salePercent').disabled=!(total>0);
+ el('sellCards').disabled=!saleQuote().valid;
  el('count').textContent=picks.length+' selected · market total';
  el('total').textContent=usd(total);
  el('percent').textContent=valid&&total>0?(offer*10000/total).toFixed(2)+'%':'—';
@@ -142,7 +243,7 @@ form.onsubmit=event=>{
  const market=fields.market.value===''?null:Math.round(fields.market.valueAsNumber*100);
  const condition=fields.condition.value.trim();
  const same=editing?.market===market&&editing?.url===url&&editing?.condition===condition&&editing?.name===name;
- const card={id:editing?.id??uid(),name,game,condition,url,market,binderId:editing?.binderId??null,set:editing?.set??'',date:market===null?'':same?editing.date:new Date().toLocaleDateString('en-CA')};
+ const card={...editing,id:editing?.id??uid(),name,game,condition,url,market,binderId:editing?.binderId??null,set:editing?.set??'',date:market===null?'':same?editing.date:new Date().toLocaleDateString('en-CA')};
  cards=editing?cards.map(c=>c.id===card.id?card:c):[...cards,card];
  if(!editing)activeBinder='';
  persist();el('editor').close();render();
@@ -150,13 +251,32 @@ form.onsubmit=event=>{
 el('remove').onclick=()=>{if(editing&&confirm('Remove '+editing.name+' from inventory?')){selected.delete(editing.id);cards=cards.filter(c=>c.id!==editing.id);persist();el('editor').close();render()}};
 el('add').onclick=()=>openEditor(null);el('cancel').onclick=()=>el('editor').close();
 el('filter').oninput=render;el('amount').oninput=quote;el('target').oninput=quote;
+el('salePercent').oninput=()=>{
+ const {total}=saleQuote(),percent=el('salePercent').valueAsNumber;
+ el('amount').value=Number.isFinite(percent)&&percent>=0&&total>0?(Math.round(total*percent/100)/100).toFixed(2):'';
+ quote();
+};
 el('reset').onclick=()=>{selected.clear();el('amount').value='';render()};
 el('selectAll').onchange=()=>{
  const checked=el('selectAll').checked;
  for(const card of visibleCards()){if(checked)selected.add(card.id);else selected.delete(card.id)}
  render();
 };
-el('binderView').onchange=()=>{activeBinder=el('binderView').value;render()};
+function selectBinder(id){
+ activeBinder=id;render();
+ Array.from(el('binderView').children).find(tab=>tab.dataset.binderId===id)?.focus({preventScroll:true});
+}
+el('binderView').onkeydown=event=>{
+ const tabs=Array.from(el('binderView').children), index=tabs.indexOf(document.activeElement);
+ if(index<0)return;
+ let next;
+ if(event.key==='ArrowRight')next=(index+1)%tabs.length;
+ else if(event.key==='ArrowLeft')next=(index-1+tabs.length)%tabs.length;
+ else if(event.key==='Home')next=0;
+ else if(event.key==='End')next=tabs.length-1;
+ else return;
+ event.preventDefault();selectBinder(tabs[next].dataset.binderId);
+};
 function moveSelected(binderId){
  cards=cards.map(card=>selected.has(card.id)?{...card,binderId:binderId||null}:card);
 }
@@ -169,11 +289,11 @@ function openBinderEditor(binder){
  el('saveBinder').textContent=binder?'Save name':'Create binder';
  el('moveNewBinderLabel').hidden=!!binder||!selected.size;
  el('moveToNewBinder').checked=!binder&&selected.size>0;
- el('binderEditor').showModal();el('binderName').focus();
+ el('binderEditor').hidden=false;el('binderName').focus();
 }
 el('newBinder').onclick=()=>openBinderEditor(null);
 el('renameBinder').onclick=()=>{const binder=binders.find(b=>b.id===activeBinder);if(binder)openBinderEditor(binder)};
-el('cancelBinder').onclick=()=>el('binderEditor').close();
+el('cancelBinder').onclick=()=>{el('binderEditor').hidden=true;el('newBinder').focus()};
 el('binderForm').onsubmit=event=>{
  event.preventDefault();
  const name=el('binderName').value.trim();
@@ -185,7 +305,7 @@ el('binderForm').onsubmit=event=>{
   if(el('moveToNewBinder').checked)moveSelected(id);
   activeBinder=id;
  }
- persist();el('binderEditor').close();render();
+ persist();el('binderMenu').hidePopover();render();
 };
 el('deleteBinder').onclick=()=>{
  const binder=binders.find(b=>b.id===activeBinder);if(!binder)return;
@@ -201,7 +321,7 @@ el('file').onchange=async()=>{
   const data=normalizeInventory(JSON.parse(await file.text()));
   if(confirm('Replace the inventory and binders in this browser with '+data.cards.length+' cards from this backup?')){
    const string=v=>typeof v==='string'?v:'';
-   cards=data.cards.map(c=>({id:uid(),name:c.name,game:c.game,market:c.market,url:product(c.url),set:string(c.set),condition:string(c.condition),date:string(c.date),binderId:c.binderId}));binders=data.binders;activeBinder='';selected.clear();el('amount').value='';persist();render();
+   cards=data.cards.map(c=>({id:uid(),name:c.name,game:c.game,market:c.market,url:product(c.url),set:string(c.set),condition:string(c.condition),date:string(c.date),binderId:c.binderId,sale:c.sale}));binders=data.binders;activeBinder='';selected.clear();el('amount').value='';persist();render();
   }
  }catch{el('storage').textContent='Could not read that inventory backup.'}
  el('file').value='';
